@@ -2339,18 +2339,14 @@ $('assignConfirmBtn').addEventListener('click', async () => {
   loading(false);
 });
 
-// KPI sem endereço — clique vai para aba Pendentes
-const kpiUnaddrEl = $('kpiUnaddr');
-if (kpiUnaddrEl) {
-  kpiUnaddrEl.addEventListener('click', () => showTab('pending'));
-}
+// KPI sem endereço — registrado no DOMContentLoaded junto com outros
 
 
 // ══════════════════════════════════════════════════════
 //  ABA PENDENTES (itens sem endereço)
 // ══════════════════════════════════════════════════════
-let pendingPage = 1;
-const PENDING_PER_PAGE = 50;
+var pendingPage = 1;
+var PENDING_PER_PAGE = 50;
 
 function getPendingFiltered() {
   const q = ($('pendingSearch').value || '').toLowerCase().trim();
@@ -2427,22 +2423,29 @@ function renderPending() {
   });
 }
 
-// Busca com debounce
-$('pendingSearch').addEventListener('input', () => { pendingPage = 1; renderPending(); });
+// Listeners de pendentes — inicializados após DOM pronto
+function initPendingListeners() {
+  const kpiU = $('kpiUnaddr');
+  if (kpiU) kpiU.addEventListener('click', () => showTab('pending'));
+  const searchEl = $('pendingSearch');
+  const exportEl = $('btnExportPending');
+  if (searchEl) searchEl.addEventListener('input', () => { pendingPage = 1; renderPending(); });
+  if (exportEl) exportEl.addEventListener('click', () => {
+    const items = S.unaddressed || [];
+    if (!items.length) { alert('Nenhum item pendente.'); return; }
+    const headers = ['SKU','Produto','Lote','Validade','Estoque'];
+    const rows = items.map(it => [it.sku||'',it.desc||'',it.lote||'',it.val ? formatDate(it.val) : '',it.est||'']);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
+    ws['!cols'] = [{wch:10},{wch:45},{wch:14},{wch:14},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Sem Endereço');
+    XLSX.writeFile(wb, `PENDENTES_${new Date().toISOString().slice(0,10)}.xlsx`);
+  });
+}
 
-// Exportar pendentes
-$('btnExportPending').addEventListener('click', () => {
-  const items = S.unaddressed || [];
-  if (!items.length) { alert('Nenhum item pendente.'); return; }
-  const headers = ['SKU','Produto','Lote','Validade','Estoque'];
-  const rows = items.map(it => [it.sku||'',it.desc||'',it.lote||'',it.val ? formatDate(it.val) : '',it.est||'']);
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
-  ws['!cols'] = [{wch:10},{wch:45},{wch:14},{wch:14},{wch:8}];
-  XLSX.utils.book_append_sheet(wb, ws, 'Sem Endereço');
-  XLSX.writeFile(wb, `PENDENTES_${new Date().toISOString().slice(0,10)}.xlsx`);
-});
 
+// Inicializar listeners após DOM
+window.addEventListener('DOMContentLoaded', initPendingListeners);
 </script>
 
 <!-- Modal: Atribuir Endereço -->
