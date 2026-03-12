@@ -427,6 +427,7 @@ header {
   <!-- Tabs -->
   <div class="tabs" id="appTabs">
     <button class="tab active" data-tab="map">🗺 Mapa</button>
+    <button class="tab" data-tab="expiry">⏰ Validades</button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
@@ -478,6 +479,57 @@ header {
 
     <!-- Pagination -->
     <div class="pagination" id="pagination"></div>
+  </div>
+
+
+  <!-- ══════════ PAGE: EXPIRY ══════════ -->
+  <div class="page" id="pageExpiry">
+    <div style="padding:20px 24px;max-width:1100px;width:100%">
+
+      <!-- Filtro de prazo -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="section-title">⏰ Controle de Validades</div>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:var(--muted)">Mostrar itens com vencimento até:</span>
+        <div style="display:flex;gap:6px">
+          <button class="expiry-range-btn btn active" data-days="30">30 dias</button>
+          <button class="expiry-range-btn btn" data-days="60">60 dias</button>
+          <button class="expiry-range-btn btn" data-days="90">90 dias</button>
+          <button class="expiry-range-btn btn" data-days="0">Vencidos</button>
+        </div>
+        <button class="btn" id="btnExportExpiry" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332">
+          📤 Exportar lista
+        </button>
+      </div>
+
+      <!-- KPIs de validade -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px" id="expiryKpis"></div>
+
+      <!-- Tabela -->
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse" id="expiryTable">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Status</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Localização</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">SKU</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Produto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Lote</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Validade</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Dias</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Estoque</th>
+            </tr>
+          </thead>
+          <tbody id="expiryTableBody"></tbody>
+        </table>
+        <div id="expiryEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+          <div style="font-size:48px;margin-bottom:12px">✅</div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum item neste prazo</div>
+          <div style="font-size:13px">Todos os produtos estão com validade OK</div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- ══════════ PAGE: IMPORT ══════════ -->
@@ -730,10 +782,14 @@ function loading(show, text='Carregando...') {
 
 function showTab(tabId) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
-  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(1)));
+  document.querySelectorAll('.page').forEach(p => {
+    const pageId = 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(1);
+    p.classList.toggle('active', p.id === pageId);
+  });
   if (tabId === 'map')       renderMap();
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
+  if (tabId === 'expiry')    renderExpiry();
 }
 
 function openModal(id) { $(id).classList.add('open'); }
@@ -1717,6 +1773,153 @@ async function exportToERP(onlyEdited = false) {
     tipo: onlyEdited ? 'alterados' : 'completo'
   }).catch(() => {});
 }
+
+
+// ══════════════════════════════════════════════════════
+//  VALIDADES
+// ══════════════════════════════════════════════════════
+let expiryDaysFilter = 30;
+
+// Botões de prazo
+document.querySelectorAll('.expiry-range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.expiry-range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    expiryDaysFilter = parseInt(btn.dataset.days);
+    renderExpiry();
+  });
+});
+
+function getExpiryItems(maxDays) {
+  // maxDays = 0 → apenas vencidos; > 0 → vencidos + próximos até maxDays
+  return S.items
+    .filter(it => {
+      if (!it.val) return false;
+      const d = daysUntil(it.val);
+      if (d === null) return false;
+      if (maxDays === 0) return d < 0;           // só vencidos
+      return d <= maxDays;                        // vencidos + próximos
+    })
+    .sort((a, b) => {
+      const da = daysUntil(a.val) ?? 9999;
+      const db = daysUntil(b.val) ?? 9999;
+      return da - db; // mais urgente primeiro
+    });
+}
+
+function expiryStatusBadge(days) {
+  if (days < 0)   return { label: 'VENCIDO',     bg: '#fee2e2', color: '#dc2626', bar: '#dc2626' };
+  if (days <= 7)  return { label: 'CRÍTICO',      bg: '#fee2e2', color: '#dc2626', bar: '#dc2626' };
+  if (days <= 30) return { label: 'URGENTE',      bg: '#fde8df', color: '#c2410c', bar: '#f97316' };
+  if (days <= 60) return { label: 'ATENÇÃO',      bg: '#fef9c3', color: '#854d0e', bar: '#eab308' };
+  return               { label: 'OK',             bg: '#dcfce7', color: '#166534', bar: '#22c55e' };
+}
+
+function renderExpiry() {
+  const items = getExpiryItems(expiryDaysFilter);
+  const tbody = $('expiryTableBody');
+  const empty = $('expiryEmpty');
+
+  // KPIs
+  const vencidos  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d<0; }).length;
+  const criticos  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>=0 && d<=7; }).length;
+  const urgentes  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>7 && d<=30; }).length;
+  const atencao   = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>30 && d<=60; }).length;
+
+  $('expiryKpis').innerHTML = [
+    { label: 'Vencidos',       val: vencidos,  bg: '#fee2e2', color: '#dc2626' },
+    { label: 'Críticos (≤7d)', val: criticos,  bg: '#fee2e2', color: '#c2410c' },
+    { label: 'Urgentes (≤30d)',val: urgentes,  bg: '#fde8df', color: '#c2410c' },
+    { label: 'Atenção (≤60d)', val: atencao,   bg: '#fef9c3', color: '#854d0e' },
+    { label: 'Exibindo agora', val: items.length, bg: 'var(--bg)', color: 'var(--text)' }
+  ].map(k => `
+    <div style="background:${k.bg};border-radius:10px;padding:12px 16px;border:1px solid rgba(0,0,0,.06)">
+      <div style="font-size:26px;font-weight:700;font-family:'DM Mono',monospace;color:${k.color}">${k.val}</div>
+      <div style="font-size:11px;color:${k.color};opacity:.8;margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.label}</div>
+    </div>`).join('');
+
+  if (items.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Barra de urgência visual (0-100% baseado nos dias)
+  const urgencyBar = (days, maxDays) => {
+    if (days < 0) return `<div style="width:100%;height:4px;background:#dc2626;border-radius:2px"></div>`;
+    const pct = Math.max(0, Math.min(100, 100 - (days / maxDays) * 100));
+    const st = expiryStatusBadge(days);
+    return `<div style="width:100%;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${st.bar};border-radius:2px"></div>
+    </div>`;
+  };
+
+  tbody.innerHTML = items.map(it => {
+    const days = daysUntil(it.val);
+    const st   = expiryStatusBadge(days);
+    const loc  = (it.rua && it.pos) ? `<strong>${it.rua}</strong> · Pos. ${it.pos}` : '<span style="color:var(--muted)">Sem endereço</span>';
+    const daysLabel = days < 0
+      ? `<span style="color:#dc2626;font-weight:600">${Math.abs(days)}d atrás</span>`
+      : `<span style="color:${st.color};font-weight:600">${days}d</span>`;
+
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px">
+        <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;background:${st.bg};color:${st.color}">${st.label}</span>
+        <div style="margin-top:4px">${urgencyBar(days, expiryDaysFilter || 7)}</div>
+      </td>
+      <td style="padding:10px 14px;font-size:13px;font-family:'DM Mono',monospace">${loc}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">${it.sku||'–'}</td>
+      <td style="padding:10px 14px;font-size:13px;max-width:240px;line-height:1.3">${it.desc||'–'}</td>
+      <td style="padding:10px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted)">${it.lote||'–'}</td>
+      <td style="padding:10px 14px;font-size:13px;font-weight:500">${formatDate(it.val)}</td>
+      <td style="padding:10px 14px">${daysLabel}</td>
+      <td style="padding:10px 14px;font-size:13px;font-family:'DM Mono',monospace">${it.est||'–'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Exportar lista de validades
+$('btnExportExpiry').addEventListener('click', () => {
+  const items = getExpiryItems(expiryDaysFilter);
+  if (items.length === 0) { alert('Nenhum item para exportar.'); return; }
+
+  const headers = ['Status', 'Rua', 'Posição', 'SKU', 'Produto', 'Lote', 'Validade', 'Dias Restantes', 'Estoque'];
+  const rows = items.map(it => {
+    const days = daysUntil(it.val);
+    const st   = expiryStatusBadge(days);
+    return [
+      st.label,
+      it.rua || '',
+      it.pos || '',
+      it.sku || '',
+      it.desc || '',
+      it.lote || '',
+      formatDate(it.val),
+      days < 0 ? `Vencido há ${Math.abs(days)} dias` : `${days} dias`,
+      it.est || ''
+    ];
+  });
+
+  const wb  = XLSX.utils.book_new();
+  const ws  = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [{wch:10},{wch:6},{wch:8},{wch:10},{wch:40},{wch:14},{wch:14},{wch:16},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Validades');
+
+  const now = new Date();
+  const meta = XLSX.utils.aoa_to_sheet([
+    ['Gerado em:', now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR')],
+    ['Por:', S.user.email],
+    ['Filtro:', expiryDaysFilter === 0 ? 'Apenas vencidos' : `Até ${expiryDaysFilter} dias`],
+    ['Total:', items.length + ' itens']
+  ]);
+  XLSX.utils.book_append_sheet(wb, meta, 'Info');
+
+  const dateStr = now.toISOString().slice(0,10);
+  XLSX.writeFile(wb, `VALIDADES_${dateStr}.xlsx`);
+});
+
+// renderExpiry é chamada via showTab (já integrado acima)
 
 </script>
 </body>
