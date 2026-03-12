@@ -138,7 +138,7 @@ header {
 
 /* ── Pages ── */
 .page { display: none; flex: 1; }
-.page.active { display: flex; flex-direction: column; align-items: center; }
+.page.active { display: flex; flex-direction: column; }
 .page-inner {
   width: 100%; max-width: 1280px;
   padding: 20px 24px;
@@ -196,11 +196,11 @@ header {
 
 /* ── Cards Grid ── */
 .cards-grid {
-  flex: 1; padding: 20px 24px;
+  flex: 1; padding: 16px 24px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px; align-content: start; overflow-y: auto;
-  max-width: 1280px; margin: 0 auto; width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px; align-content: start; overflow-y: auto;
+  width: 100%;
 }
 
 .addr-card {
@@ -209,11 +209,13 @@ header {
   box-shadow: var(--shadow); transition: box-shadow .15s;
 }
 .addr-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
-.addr-card.is-free { border-left: 3px solid var(--accent); }
-.addr-card.is-occ  { border-left: 3px solid var(--accent2); }
+.addr-card.is-free    { border-left: 3px solid var(--accent); }
+.addr-card.is-occ    { border-left: 3px solid var(--accent2); }
+.addr-card.is-unaddr { border-left: 3px solid #f59e0b; background: #fffdf5; }
+.unaddr-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e; }
 
 .card-header {
-  padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+  padding: 7px 11px; display: flex; align-items: center; gap: 8px;
   border-bottom: 1px solid var(--border);
 }
 .card-addr {
@@ -230,7 +232,7 @@ header {
 
 .card-items { padding: 0; }
 .card-item {
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  padding: 7px 11px; border-bottom: 1px solid var(--border);
   font-size: 12px; display: flex; flex-direction: column; gap: 4px;
 }
 .card-item:last-child { border-bottom: none; }
@@ -244,7 +246,7 @@ header {
 .card-free-msg { padding: 16px 14px; color: var(--muted); font-size: 12px; text-align: center; }
 
 .card-actions {
-  padding: 8px 14px; display: flex; gap: 6px;
+  padding: 5px 11px; display: flex; gap: 6px;
   border-top: 1px solid var(--border); background: var(--bg);
 }
 .card-actions .btn { font-size: 11px; padding: 5px 10px; }
@@ -465,6 +467,10 @@ header {
       <div class="kpi occ"><span class="kpi-val" id="kpiOcc">–</span><span class="kpi-lbl">Ocupados</span></div>
       <div class="kpi"><span class="kpi-val" id="kpiItems">–</span><span class="kpi-lbl">Itens total</span></div>
       <div class="kpi"><span class="kpi-val" id="kpiExpiring">–</span><span class="kpi-lbl">A vencer 30d</span></div>
+      <div class="kpi" id="kpiUnaddr" style="display:none;background:#fffbeb;border-color:#fcd34d;cursor:pointer" title="Ver itens sem endereço">
+        <span class="kpi-val" id="kpiUnaddrVal" style="color:#92400e">–</span>
+        <span class="kpi-lbl" style="color:#92400e">Sem endereço</span>
+      </div>
       <div class="kpi" id="kpiLastImport" style="display:none;background:#f0fdf4;border-color:#b7e4c7">
         <span class="kpi-val" id="kpiLastImportDate" style="font-size:13px;color:#1b4332">–</span>
         <span class="kpi-lbl">Última importação</span>
@@ -782,10 +788,11 @@ const db   = firebase.firestore();
 //  STATE
 // ══════════════════════════════════════════════════════
 const S = {
-  user:      null,
-  role:      null,           // 'admin' | 'operator' | 'viewer'
-  addresses: [],             // [{rua, pos, cap, key}]
-  items:     [],             // [{rua, pos, sku, desc, lote, val, est, idEnd, _id}]
+  user:        null,
+  role:        null,           // 'admin' | 'operator' | 'viewer'
+  addresses:   [],             // [{rua, pos, cap, key}]
+  items:       [],             // [{rua, pos, sku, desc, lote, val, est, idEnd, _id}]
+  unaddressed: [],             // [{sku, desc, lote, val, pendingAddr:true}]
   page:      1,
   perPage:   40,
   editTarget: null,          // {rua, pos} sendo editado
@@ -918,12 +925,14 @@ auth.onAuthStateChanged(async user => {
 async function loadAll() {
   loading(true, 'Carregando estoque...');
   try {
-    const [addrSnap, itemsSnap] = await Promise.all([
+    const [addrSnap, itemsSnap, unSnap] = await Promise.all([
       db.collection('wms_addresses').get(),
-      db.collection('wms_items').get()
+      db.collection('wms_items').get(),
+      db.collection('wms_unaddressed').get()
     ]);
-    S.addresses = addrSnap.docs.map(d => ({ ...d.data(), _key: d.id }));
-    S.items     = itemsSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+    S.addresses   = addrSnap.docs.map(d => ({ ...d.data(), _key: d.id }));
+    S.items       = itemsSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+    S.unaddressed = unSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
 
     // Se não há endereços, faz seed automático
     if (S.addresses.length === 0) {
@@ -1047,6 +1056,13 @@ function updateKPIs(filtered) {
   $('kpiOcc').textContent     = occ;
   $('kpiItems').textContent   = S.items.length;
   $('kpiExpiring').textContent = expiring;
+  // KPI sem endereço
+  const unaddrCount = (S.unaddressed || []).length;
+  const kpiU = $('kpiUnaddr');
+  if (kpiU) {
+    $('kpiUnaddrVal').textContent = unaddrCount;
+    kpiU.style.display = unaddrCount > 0 ? '' : 'none';
+  }
 }
 
 function renderMap() {
@@ -1069,7 +1085,56 @@ function renderMap() {
     </div>`;
   } else {
     grid.innerHTML = slice.map(addr => renderCard(addr)).join('');
-    grid.querySelectorAll('[data-edit]').forEach(btn => {
+    // Cards de itens sem endereço (agrupados no final)
+  if ((S.unaddressed || []).length > 0 && !filterRua && !filterPos && filterStatus !== 'free' && filterStatus !== 'occ') {
+    // Agrupar por SKU+lote para não poluir demais
+    const uItems = S.unaddressed.slice(0, 40); // limita a 40 cards
+    const remaining = S.unaddressed.length - uItems.length;
+
+    // Separador
+    const sep = document.createElement('div');
+    sep.style.cssText = 'grid-column:1/-1;padding:8px 4px 4px;font-size:11px;font-weight:700;color:#92400e;letter-spacing:.5px;text-transform:uppercase;border-top:2px dashed #fcd34d;margin-top:8px';
+    sep.textContent = `📦 Itens sem endereço (${S.unaddressed.length})`;
+    grid.appendChild(sep);
+
+    uItems.forEach((it, idx) => {
+      const card = document.createElement('div');
+      card.className = 'addr-card is-unaddr';
+      const canEdit = S.role !== 'viewer';
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="card-addr" style="color:#92400e">📦 Sem endereço</span>
+          <span class="unaddr-badge">PENDENTE</span>
+        </div>
+        <div class="card-items">
+          <div class="card-item" style="border:none">
+            <div class="item-desc">${it.desc || '–'}</div>
+            <div class="item-meta">
+              <span>SKU ${it.sku||'–'}</span>
+              ${it.lote ? `<span>🏷 ${it.lote}</span>` : ''}
+              ${it.val  ? `<span>📅 ${it.val}</span>` : ''}
+              ${it.est  ? `<span>📦 ${it.est}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${canEdit ? `<div class="card-actions"><button class="btn" data-assign="${it._id}" style="font-size:11px;padding:5px 10px;background:#fffbeb;border-color:#fcd34d;color:#92400e">📍 Atribuir endereço</button></div>` : ''}
+      `;
+      grid.appendChild(card);
+    });
+
+    if (remaining > 0) {
+      const more = document.createElement('div');
+      more.style.cssText = 'grid-column:1/-1;text-align:center;padding:12px;font-size:12px;color:#92400e;background:#fffbeb;border-radius:10px;border:1px dashed #fcd34d';
+      more.textContent = `+ ${remaining} itens sem endereço não exibidos. Use filtro ou exporte a lista de validades para ver todos.`;
+      grid.appendChild(more);
+    }
+  }
+
+  grid.querySelectorAll('[data-assign]').forEach(btn => {
+    btn.addEventListener('click', () => openAssignModal(btn.dataset.assign));
+  });
+
+  grid.querySelectorAll('[data-edit]').forEach(btn => {
       btn.addEventListener('click', () => {
         const [rua, pos] = btn.dataset.edit.split('|');
         openEditModal(rua, pos);
@@ -1437,7 +1502,7 @@ $('importConfirmBtn').addEventListener('click', async () => {
 
     // 1. Limpa coleções antigas (inclui flags de edição manual)
     setProgress(2, 'Limpando dados anteriores...');
-    for (const col of ['wms_items', 'wms_addresses']) {
+    for (const col of ['wms_items', 'wms_addresses', 'wms_unaddressed']) {
       const snap = await db.collection(col).get();
       for (let i = 0; i < snap.docs.length; i += CHUNK) {
         const batch = db.batch();
@@ -1459,7 +1524,7 @@ $('importConfirmBtn').addEventListener('click', async () => {
     }
 
     // 3. Salva itens com endereço
-    setProgress(80, 'Salvando itens...');
+    setProgress(75, 'Salvando itens...');
     for (let i = 0; i < items.length; i += CHUNK) {
       const batch = db.batch();
       items.slice(i, i + CHUNK).forEach((it, j) => {
@@ -1468,7 +1533,25 @@ $('importConfirmBtn').addEventListener('click', async () => {
       });
       await batch.commit();
       done += Math.min(CHUNK, items.length - i);
-      setProgress(80 + Math.round(((i + CHUNK) / items.length) * 15), `Itens: ${i + CHUNK}/${items.length}`);
+      setProgress(75 + Math.round(((i + CHUNK) / items.length) * 10), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
+    }
+
+    // 3b. Limpa e salva itens SEM endereço
+    setProgress(86, 'Salvando itens sem endereço...');
+    const uSnap = await db.collection('wms_unaddressed').get();
+    for (let i = 0; i < uSnap.docs.length; i += CHUNK) {
+      const batch = db.batch();
+      uSnap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    const noAddrItems = importParsed.noAddr;
+    for (let i = 0; i < noAddrItems.length; i += CHUNK) {
+      const batch = db.batch();
+      noAddrItems.slice(i, i + CHUNK).forEach((it, j) => {
+        const id = `unaddr_${i+j}_${Date.now()}`;
+        batch.set(db.collection('wms_unaddressed').doc(id), { ...it, pendingAddr: true });
+      });
+      await batch.commit();
     }
 
     // 4. Log com timestamp e detalhes
@@ -2141,6 +2224,34 @@ function printCartaz(rua, pos) {
 <body>
 ${cartazBlocks}
 <script>window.onload = () => window.print();<\/script>
+
+<!-- Modal: Atribuir Endereço -->
+<div class="modal-overlay" id="assignModal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">📍 Atribuir Endereço</div>
+      <button class="modal-close" id="assignModalClose">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+      <div id="assignItemInfo" style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;line-height:1.6"></div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Rua</label>
+          <input class="filter-input" id="assignRua" placeholder="Ex: A" style="width:100%;padding:8px 12px">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Posição</label>
+          <input class="filter-input" id="assignPos" placeholder="Ex: 10" style="width:100%;padding:8px 12px">
+        </div>
+      </div>
+      <div id="assignError" style="display:none;color:#dc2626;font-size:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" id="assignCancelBtn">Cancelar</button>
+        <button class="btn btn-primary" id="assignConfirmBtn">✓ Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>`;
 
@@ -2149,6 +2260,113 @@ ${cartazBlocks}
   w.document.close();
 }
 
+
+// ══════════════════════════════════════════════════════
+//  ATRIBUIR ENDEREÇO A ITEM SEM ENDEREÇO
+// ══════════════════════════════════════════════════════
+let assignTargetId = null;
+
+function openAssignModal(itemId) {
+  assignTargetId = itemId;
+  const it = (S.unaddressed || []).find(i => i._id === itemId);
+  if (!it) return;
+
+  $('assignItemInfo').innerHTML = `
+    <strong>${it.desc || '–'}</strong><br>
+    SKU: ${it.sku||'–'} &nbsp;·&nbsp; Lote: ${it.lote||'–'} &nbsp;·&nbsp; Validade: ${it.val||'–'}
+  `;
+  $('assignRua').value = '';
+  $('assignPos').value = '';
+  $('assignError').style.display = 'none';
+  $('assignModal').style.display = 'flex';
+  $('assignRua').focus();
+}
+
+$('assignModalClose').addEventListener('click', () => $('assignModal').style.display = 'none');
+$('assignCancelBtn').addEventListener('click', () => $('assignModal').style.display = 'none');
+
+$('assignConfirmBtn').addEventListener('click', async () => {
+  const rua = $('assignRua').value.trim().toUpperCase();
+  const pos = $('assignPos').value.trim();
+  const err = $('assignError');
+
+  if (!rua || !pos) { err.textContent = 'Informe a rua e a posição.'; err.style.display=''; return; }
+
+  // Verificar se endereço existe
+  const addrExists = S.addresses.some(a => a.rua === rua && String(a.pos) === pos);
+  if (!addrExists) { err.textContent = `Endereço ${rua} · Pos. ${pos} não encontrado. Cadastre-o primeiro em Endereços.`; err.style.display=''; return; }
+
+  const it = (S.unaddressed || []).find(i => i._id === assignTargetId);
+  if (!it) return;
+
+  loading(true, 'Atribuindo endereço...');
+  try {
+    const ts  = new Date().toISOString();
+    const user = S.user.email;
+    // Salvar como item endereçado
+    const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
+    await db.collection('wms_items').doc(newId).set({
+      sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
+      est: it.est, idEnd: it.idEnd, emp: it.emp,
+      rua, pos,
+      updatedAt: ts, updatedBy: user,
+      manuallyEdited: true
+    });
+    // Remover do wms_unaddressed
+    if (assignTargetId) {
+      const docRef = db.collection('wms_unaddressed').doc(assignTargetId.replace(/^.*\//, ''));
+      // Buscar pelo _id no snap
+      const snap = await db.collection('wms_unaddressed').get();
+      const doc = snap.docs.find(d => d.id === assignTargetId || ('_id' in d.data() && d.data()._id === assignTargetId));
+      if (doc) await doc.ref.delete();
+    }
+    $('assignModal').style.display = 'none';
+    await loadAll();
+    showTab('map');
+  } catch(e) {
+    err.textContent = 'Erro: ' + e.message;
+    err.style.display = '';
+  }
+  loading(false);
+});
+
+// KPI sem endereço — clique vai para o final do mapa
+$('kpiUnaddr') && $('kpiUnaddr').addEventListener('click', () => {
+  showTab('map');
+  setTimeout(() => {
+    const sep = document.querySelector('.addr-card.is-unaddr');
+    if (sep) sep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 200);
+});
+
 </script>
+
+<!-- Modal: Atribuir Endereço -->
+<div class="modal-overlay" id="assignModal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">📍 Atribuir Endereço</div>
+      <button class="modal-close" id="assignModalClose">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+      <div id="assignItemInfo" style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;line-height:1.6"></div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Rua</label>
+          <input class="filter-input" id="assignRua" placeholder="Ex: A" style="width:100%;padding:8px 12px">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Posição</label>
+          <input class="filter-input" id="assignPos" placeholder="Ex: 10" style="width:100%;padding:8px 12px">
+        </div>
+      </div>
+      <div id="assignError" style="display:none;color:#dc2626;font-size:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" id="assignCancelBtn">Cancelar</button>
+        <button class="btn btn-primary" id="assignConfirmBtn">✓ Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
