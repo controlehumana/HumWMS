@@ -1946,8 +1946,6 @@ function printCartaz(rua, pos) {
     const val  = it.val  ? formatDate(it.val) : '—';
     const sku  = it.sku  || '—';
     const desc = it.desc || '—';
-    const est  = it.est  ? String(it.est) : '—';
-
     return `
     <div class="cartaz-page">
 
@@ -1980,12 +1978,6 @@ function printCartaz(rua, pos) {
           <div class="field-label">VALIDADE</div>
           <div class="field-value">${val}</div>
         </div>
-      </div>
-
-      <!-- Estoque -->
-      <div class="cartaz-stock">
-        <span class="stock-label">ESTOQUE</span>
-        <span class="stock-value">${est}</span>
       </div>
 
       <!-- Rodapé -->
@@ -2110,26 +2102,6 @@ function printCartaz(rua, pos) {
     background: #ddd;
     margin: 0 10mm;
     flex-shrink: 0;
-  }
-
-  /* Estoque */
-  .cartaz-stock {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-top: 4mm;
-  }
-  .stock-label {
-    font-size: 10pt;
-    font-weight: 700;
-    color: #888;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-  .stock-value {
-    font-size: 18pt;
-    font-weight: 700;
-    color: #444;
   }
 
   /* Rodapé */
