@@ -39,12 +39,12 @@ tailwind.config = {
    3. No Firestore → Regras, cole as regras do arquivo FIRESTORE_RULES.txt
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey:            "COLE_SUA_API_KEY_AQUI",
-  authDomain:        "COLE_SEU_AUTH_DOMAIN_AQUI",
-  projectId:         "COLE_SEU_PROJECT_ID_AQUI",
-  storageBucket:     "COLE_SEU_STORAGE_BUCKET_AQUI",
-  messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
-  appId:             "COLE_SEU_APP_ID_AQUI"
+  apiKey:            "AIzaSyDuWq9BH0NmmOJZHDlusDffZzTvRGNRsc4",
+  authDomain:        "mapaestoque-1c121.firebaseapp.com",
+  projectId:         "mapaestoque-1c121",
+  storageBucket:     "mapaestoque-1c121.firebasestorage.app",
+  messagingSenderId: "1008752949095",
+  appId:             "1:1008752949095:web:223fa026e6e11cd94c21c2"
 };
 
 // Detecta se já foi configurado (evita crash com placeholders)
@@ -149,12 +149,13 @@ if (FIREBASE_CONFIGURED) {
   </div>
 </div>
 
-<!-- Overlay de "Verificando acesso..." -->
-<div id="authCheckOverlay" class="fixed inset-0 z-[99] bg-white/80 backdrop-blur flex items-center justify-center">
+<!-- Overlay de verificacao - z-[200] garante que fica acima de tudo -->
+<div id="authCheckOverlay" class="fixed inset-0 bg-white flex items-center justify-center" style="z-index:9999">
   <div class="flex flex-col items-center gap-3">
-    <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-slate-400"></i>
-    <span class="text-sm text-slate-500">Verificando acesso…</span>
+    <div style="width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#475569;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <span style="font-size:14px;color:#64748b">Verificando acesso...</span>
   </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </div>
 
 <!-- Banner de usuário logado (canto superior direito — injetado pelo JS) -->
