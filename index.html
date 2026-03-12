@@ -2377,13 +2377,16 @@ function renderPending() {
 function initPendingListeners() {
   const kpiU = $('kpiUnaddr');
   if (kpiU) kpiU.addEventListener('click', () => showTab('pending'));
+
   const closeEl  = $('assignModalClose');
   const cancelEl = $('assignCancelBtn');
   if (closeEl)  closeEl.addEventListener('click',  () => $('assignModal').style.display = 'none');
   if (cancelEl) cancelEl.addEventListener('click', () => $('assignModal').style.display = 'none');
+
   const searchEl = $('pendingSearch');
-  const exportEl = $('btnExportPending');
   if (searchEl) searchEl.addEventListener('input', () => { pendingPage = 1; renderPending(); });
+
+  const exportEl = $('btnExportPending');
   if (exportEl) exportEl.addEventListener('click', () => {
     const items = S.unaddressed || [];
     if (!items.length) { alert('Nenhum item pendente.'); return; }
@@ -2398,56 +2401,44 @@ function initPendingListeners() {
 
   const confirmEl = $('assignConfirmBtn');
   if (confirmEl) confirmEl.addEventListener('click', async () => {
-  const rua = $('assignRua').value.trim().toUpperCase();
-  const pos = $('assignPos').value.trim();
-  const err = $('assignError');
+    const rua = $('assignRua').value.trim().toUpperCase();
+    const pos = $('assignPos').value.trim();
+    const err = $('assignError');
 
-  if (!rua || !pos) { err.textContent = 'Informe a rua e a posição.'; err.style.display=''; return; }
+    if (!rua || !pos) { err.textContent = 'Informe a rua e a posição.'; err.style.display=''; return; }
 
-  // Verificar se endereço existe
-  const addrExists = S.addresses.some(a => a.rua === rua && String(a.pos) === pos);
-  if (!addrExists) { err.textContent = `Endereço ${rua} · Pos. ${pos} não encontrado. Cadastre-o primeiro em Endereços.`; err.style.display=''; return; }
+    const addrExists = S.addresses.some(a => a.rua === rua && String(a.pos) === pos);
+    if (!addrExists) { err.textContent = `Endereço ${rua} · Pos. ${pos} não encontrado. Cadastre-o primeiro em Endereços.`; err.style.display=''; return; }
 
-  const it = (S.unaddressed || []).find(i => i._id === assignTargetId);
-  if (!it) return;
+    const it = (S.unaddressed || []).find(i => i._id === assignTargetId);
+    if (!it) return;
 
-  loading(true, 'Atribuindo endereço...');
-  try {
-    const ts  = new Date().toISOString();
-    const user = S.user.email;
-    // Salvar como item endereçado
-    const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
-    await db.collection('wms_items').doc(newId).set({
-      sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
-      est: it.est, idEnd: it.idEnd, emp: it.emp,
-      rua, pos,
-      updatedAt: ts, updatedBy: user,
-      manuallyEdited: true
-    });
-    // Remover do wms_unaddressed
-    if (assignTargetId) {
-      const docRef = db.collection('wms_unaddressed').doc(assignTargetId.replace(/^.*\//, ''));
-      // Buscar pelo _id no snap
-      const snap = await db.collection('wms_unaddressed').get();
-      const doc = snap.docs.find(d => d.id === assignTargetId || ('_id' in d.data() && d.data()._id === assignTargetId));
-      if (doc) await doc.ref.delete();
+    loading(true, 'Atribuindo endereço...');
+    try {
+      const ts   = new Date().toISOString();
+      const user = S.user.email;
+      const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
+      await db.collection('wms_items').doc(newId).set({
+        sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
+        est: it.est, idEnd: it.idEnd, emp: it.emp,
+        rua, pos,
+        updatedAt: ts, updatedBy: user,
+        manuallyEdited: true
+      });
+      if (assignTargetId) {
+        const snap = await db.collection('wms_unaddressed').get();
+        const doc  = snap.docs.find(d => d.id === assignTargetId || d.data()._id === assignTargetId);
+        if (doc) await doc.ref.delete();
+      }
+      $('assignModal').style.display = 'none';
+      await loadAll();
+      showTab('pending');
+    } catch(e) {
+      err.textContent = 'Erro: ' + e.message;
+      err.style.display = '';
     }
-    $('assignModal').style.display = 'none';
-    await loadAll();
-    showTab('map');
-    // Atualizar badge de pendentes
-    const badge = $('pendingBadge');
-    if (badge) {
-      const n = (S.unaddressed||[]).length;
-      badge.textContent = n;
-      badge.style.display = n > 0 ? '' : 'none';
-    }
-  } catch(e) {
-    err.textContent = 'Erro: ' + e.message;
-    err.style.display = '';
-  }
-  loading(false);
-}  });
+    loading(false);
+  });
 }
 
 
