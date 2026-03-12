@@ -701,17 +701,19 @@ function ensureVirtualSlot(rua,pos){
 function extractId(url){try{const u=new URL(url);const m=u.pathname.match(/\/d\/([^/]+)/);return m?m[1]:null}catch{return null}}
 function gvizToRows(g){if(!g||!g.table) throw new Error('GViz inválido'); const cols=(g.table.cols||[]).map(c=>c.label||''); const rows=[cols]; for(const r of (g.table.rows||[])){ rows.push((r.c||[]).map(c=>c? (c.f??c.v??''):'')); } return rows;}
 function buildSelectQuery(letters){return 'select%20'+encodeURIComponent(letters.join(','));}
-function loadGVizSelectJSONP(spreadsheetId, sheetName, selectLetters){
-  return new Promise((resolve,reject)=>{
-    const sheet=encodeURIComponent(sheetName||'');
-    const tq=buildSelectQuery(selectLetters);
-    const url=`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${sheet}&tq=${tq}`;
-    window.google=window.google||{};window.google.visualization=window.google.visualization||{};window.google.visualization.Query=window.google.visualization.Query||{};
-    const prev=window.google.visualization.Query.setResponse;
-    const cleanup=s=>{try{if(prev) window.google.visualization.Query.setResponse=prev; else window.google.visualization.Query.setResponse=function(){}}catch{} if(s&&s.parentNode) s.parentNode.removeChild(s);};
-    window.google.visualization.Query.setResponse=(data)=>{try{resolve(gvizToRows(data))}catch(e){reject(e)}};
-    const sc=document.createElement('script'); sc.src=url; sc.onerror=()=>{cleanup(sc);reject(new Error('Falha GViz'))}; sc.onload=()=>cleanup(sc); document.head.appendChild(sc);
-  });
+async function loadGVizSelectJSONP(spreadsheetId, sheetName, selectLetters){
+  // Usa fetch em vez de JSONP para compatibilidade com GitHub Pages (CSP)
+  const sheet=encodeURIComponent(sheetName||'');
+  const tq=buildSelectQuery(selectLetters);
+  const url=`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${sheet}&tq=${tq}`;
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error('Falha GViz HTTP '+resp.status);
+  const text = await resp.text();
+  // GViz retorna /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  const match = text.match(/google\.visualization\.Query\.setResponse\((\{[\s\S]*\})\)/);
+  if(!match) throw new Error('GViz resposta inesperada');
+  const data = JSON.parse(match[1]);
+  return gvizToRows(data);
 }
 function indexFromLetter(letters, letter){return letters.indexOf((letter||'').toUpperCase().trim());}
 
