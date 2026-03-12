@@ -1051,6 +1051,12 @@ function renderMap() {
         openEditModal(rua, pos);
       });
     });
+    grid.querySelectorAll('[data-print]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const [rua, pos] = btn.dataset.print.split('|');
+        printCartaz(rua, pos);
+      });
+    });
   }
 
   renderPagination(totalPages);
@@ -1092,13 +1098,17 @@ function renderCard(addr) {
     ? `<button class="btn" data-edit="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px">✏️ Editar</button>`
     : '';
 
+  const printBtn = !isFree
+    ? `<button class="btn" data-print="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px">🖨 Cartaz</button>`
+    : '';
+
   return `<div class="addr-card ${isFree ? 'is-free' : 'is-occ'}">
     <div class="card-header">
       <span class="card-addr">${addr.rua} · Pos. ${addr.pos}</span>
       ${badge}
     </div>
     <div class="card-items">${itemsHtml}</div>
-    ${editBtn ? `<div class="card-actions">${editBtn}</div>` : ''}
+    ${(editBtn || printBtn) ? `<div class="card-actions">${editBtn}${printBtn}</div>` : ''}
   </div>`;
 }
 
@@ -1920,6 +1930,228 @@ $('btnExportExpiry').addEventListener('click', () => {
 });
 
 // renderExpiry é chamada via showTab (já integrado acima)
+
+
+// ══════════════════════════════════════════════════════
+//  CARTAZ DE PRATELEIRA
+// ══════════════════════════════════════════════════════
+function printCartaz(rua, pos) {
+  const key    = addrKey(rua, pos);
+  const items  = S.items.filter(i => addrKey(i.rua, i.pos) === key);
+  if (!items.length) return;
+
+  // Gera um bloco de cartaz para cada item do endereço
+  const cartazBlocks = items.map(it => {
+    const lote = it.lote || '—';
+    const val  = it.val  ? formatDate(it.val) : '—';
+    const sku  = it.sku  || '—';
+    const desc = it.desc || '—';
+    const est  = it.est  ? String(it.est) : '—';
+
+    return `
+    <div class="cartaz-page">
+
+      <!-- Cabeçalho localização -->
+      <div class="cartaz-loc">
+        <span class="loc-label">ENDEREÇO</span>
+        <span class="loc-value">${rua} &middot; Pos. ${pos}</span>
+      </div>
+
+      <!-- Nome do produto -->
+      <div class="cartaz-desc">${desc}</div>
+
+      <!-- SKU destaque -->
+      <div class="cartaz-sku-row">
+        <span class="sku-label">SKU</span>
+        <span class="sku-value">${sku}</span>
+      </div>
+
+      <!-- Divisor -->
+      <div class="cartaz-divider"></div>
+
+      <!-- Lote e Validade lado a lado -->
+      <div class="cartaz-fields">
+        <div class="cartaz-field">
+          <div class="field-label">LOTE</div>
+          <div class="field-value">${lote}</div>
+        </div>
+        <div class="cartaz-sep"></div>
+        <div class="cartaz-field">
+          <div class="field-label">VALIDADE</div>
+          <div class="field-value">${val}</div>
+        </div>
+      </div>
+
+      <!-- Estoque -->
+      <div class="cartaz-stock">
+        <span class="stock-label">ESTOQUE</span>
+        <span class="stock-value">${est}</span>
+      </div>
+
+      <!-- Rodapé -->
+      <div class="cartaz-footer">Humana Alimentar &nbsp;·&nbsp; HumWMS &nbsp;·&nbsp; Impresso em ${new Date().toLocaleDateString('pt-BR')}</div>
+
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cartaz – ${rua} Pos.${pos}</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; }
+
+  .cartaz-page {
+    width: 297mm;
+    height: 210mm;
+    padding: 14mm 18mm 10mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    page-break-after: always;
+    position: relative;
+    border: 2px solid #111;
+    border-radius: 12mm;
+    overflow: hidden;
+  }
+
+  /* Localização topo direito */
+  .cartaz-loc {
+    position: absolute;
+    top: 10mm;
+    right: 16mm;
+    text-align: right;
+  }
+  .loc-label {
+    display: block;
+    font-size: 9pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .loc-value {
+    display: block;
+    font-size: 28pt;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: 1px;
+  }
+
+  /* Nome do produto */
+  .cartaz-desc {
+    font-size: 30pt;
+    font-weight: 900;
+    color: #111;
+    line-height: 1.15;
+    max-width: 70%;
+    margin-top: 4mm;
+  }
+
+  /* SKU */
+  .cartaz-sku-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 5mm;
+  }
+  .sku-label {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .sku-value {
+    font-size: 26pt;
+    font-weight: 900;
+    color: #111;
+  }
+
+  /* Divisor */
+  .cartaz-divider {
+    border-top: 2px solid #ddd;
+    margin: 5mm 0;
+  }
+
+  /* Lote + Validade */
+  .cartaz-fields {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex: 1;
+    max-height: 55mm;
+  }
+  .cartaz-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .field-label {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 2mm;
+  }
+  .field-value {
+    font-size: 44pt;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: 1px;
+  }
+  .cartaz-sep {
+    width: 2px;
+    background: #ddd;
+    margin: 0 10mm;
+    flex-shrink: 0;
+  }
+
+  /* Estoque */
+  .cartaz-stock {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 4mm;
+  }
+  .stock-label {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .stock-value {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #444;
+  }
+
+  /* Rodapé */
+  .cartaz-footer {
+    font-size: 8pt;
+    color: #bbb;
+    text-align: center;
+    margin-top: 3mm;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+${cartazBlocks}
+<script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
 
 </script>
 </body>
