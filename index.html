@@ -147,13 +147,12 @@ header {
 
 /* ── KPI Bar ── */
 .kpi-bar {
-  display: flex; gap: 16px; padding: 16px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border); background: var(--surface);
-  flex-wrap: wrap; justify-content: center;
 }
 .kpi-bar-inner {
   display: flex; gap: 16px; flex-wrap: wrap;
-  width: 100%; max-width: 1280px;
+  width: 100%; max-width: 1280px; margin: 0 auto;
 }
 .kpi {
   display: flex; flex-direction: column; gap: 2px;
@@ -169,12 +168,15 @@ header {
 
 /* ── Search/Filter Bar ── */
 .filter-bar {
-  padding: 12px 24px; display: flex; gap: 10px; align-items: center;
-  background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap;
-  justify-content: center;
+  padding: 12px 24px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.filter-bar > * { flex-shrink: 0; }
-.filter-bar .search-box { flex: 1; max-width: 400px; }
+.filter-bar-inner {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  max-width: 1280px; margin: 0 auto; width: 100%;
+}
+.filter-bar-inner > * { flex-shrink: 0; }
+.filter-bar-inner .search-box { flex: 1; max-width: 400px; }
 .search-box {
   flex: 1; min-width: 200px; position: relative;
 }
@@ -195,11 +197,13 @@ header {
 .filter-label { font-size: 12px; color: var(--muted); }
 
 /* ── Cards Grid ── */
+.map-content {
+  max-width: 1280px; margin: 0 auto; width: 100%; padding: 16px 24px;
+}
 .cards-grid {
-  flex: 1; padding: 16px 24px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px; align-content: start; overflow-y: auto;
+  gap: 12px; align-content: start;
   width: 100%;
 }
 
@@ -480,7 +484,7 @@ header {
 
     <!-- Filters -->
     <div class="filter-bar">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;max-width:1280px">
+      <div class="filter-bar-inner">
       <div class="search-box">
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="Buscar SKU, descrição, lote, rua...">
@@ -506,10 +510,10 @@ header {
     </div>
 
     <!-- Grid -->
-    <div class="cards-grid" id="cardsGrid"></div>
-
-    <!-- Pagination -->
-    <div class="pagination" id="pagination"></div>
+    <div class="map-content">
+      <div class="cards-grid" id="cardsGrid"></div>
+      <div class="pagination" id="pagination"></div>
+    </div>
   </div>
 
 
