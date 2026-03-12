@@ -176,6 +176,10 @@ if (FIREBASE_CONFIGURED) {
     </div>
     <div class="flex items-center gap-2">
       <button id="btnRefresh" class="btn"><i data-lucide="refresh-ccw" class="w-4 h-4"></i> Atualizar</button>
+      <button id="btnImportExcel" class="btn" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3)" title="Importar Excel do ERP para o Firestore">
+        <i data-lucide="file-up" class="w-4 h-4"></i> Importar ERP
+      </button>
+      <input type="file" id="fileImportExcel" accept=".xlsx,.xls" style="display:none">
       <button id="btnExportMovesTop" class="btn"><i data-lucide="file-down" class="w-4 h-4"></i> Exportar manutenção</button>
       <button id="btnPrintMap" class="btn"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir mapa</button>
       <button id="btnDash" class="btn"><i data-lucide="activity" class="w-4 h-4"></i> Dashboard</button>
@@ -628,6 +632,74 @@ if (FIREBASE_CONFIGURED) {
   </div>
 </div>
 
+
+
+<!-- ===================== MODAL IMPORTAR EXCEL ERP ===================== -->
+<div id="importExcelModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/20"></div>
+  <div class="relative max-w-lg mx-auto mt-16 rounded-2xl bg-white/90 backdrop-blur ring-1 ring-white/60 shadow-soft p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold flex items-center gap-2">
+        <i data-lucide="file-up" class="w-5 h-5 text-emerald-600"></i> Importar Excel do ERP
+      </h2>
+      <button data-close="importExcelModal" class="p-2 rounded-xl hover:bg-white/70"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+
+    <!-- Estado: aguardando arquivo -->
+    <div id="importStepFile">
+      <p class="text-sm text-slate-600 mb-4">
+        Selecione o arquivo <b>.xlsx</b> exportado do ERP. Os dados serão salvos no Firestore e sincronizados com toda a equipe.
+      </p>
+      <div id="importDropZone"
+        class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-all">
+        <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto text-slate-400 mb-2"></i>
+        <p class="text-sm text-slate-500">Arraste o arquivo aqui ou clique para selecionar</p>
+        <p class="text-xs text-slate-400 mt-1">Somente .xlsx ou .xls</p>
+      </div>
+    </div>
+
+    <!-- Estado: preview dos dados -->
+    <div id="importStepPreview" class="hidden">
+      <div id="importSummary" class="grid grid-cols-3 gap-3 mb-4"></div>
+      <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-3 mb-4 text-sm text-amber-800">
+        <b>⚠️ Atenção:</b> Esta importação vai <b>substituir todos os dados atuais</b> do estoque no Firestore. As edições manuais feitas no app serão perdidas.
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="importBtnCancel" class="btn">Cancelar</button>
+        <button id="importBtnConfirm" class="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium shadow-soft flex items-center gap-2">
+          <i data-lucide="check" class="w-4 h-4"></i> Confirmar importação
+        </button>
+      </div>
+    </div>
+
+    <!-- Estado: progresso -->
+    <div id="importStepProgress" class="hidden text-center py-4">
+      <div class="w-8 h-8 border-2 border-slate-300 border-t-emerald-600 rounded-full animate-spin mx-auto mb-3"></div>
+      <p id="importProgressMsg" class="text-sm text-slate-600">Processando...</p>
+      <div class="mt-3 w-full bg-slate-100 rounded-full h-2">
+        <div id="importProgressBar" class="bg-emerald-500 h-2 rounded-full transition-all" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Estado: concluído -->
+    <div id="importStepDone" class="hidden text-center py-4">
+      <div class="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="check-circle" class="w-7 h-7 text-emerald-600"></i>
+      </div>
+      <p id="importDoneMsg" class="text-sm text-slate-700 font-medium"></p>
+      <button id="importBtnDone" class="mt-4 btn">Fechar e atualizar</button>
+    </div>
+
+    <!-- Estado: erro -->
+    <div id="importStepError" class="hidden">
+      <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm text-rose-700">
+        <b>Erro na importação:</b>
+        <p id="importErrorMsg" class="mt-1"></p>
+      </div>
+      <button id="importBtnRetry" class="mt-3 btn">Tentar novamente</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ====================== Estado / chaves ====================== */
@@ -1776,11 +1848,18 @@ function tryLoadFromCache(){
 async function loadFromFirestore(){
   if(!fbDb) return;
   try{
+    // Tenta carregar itens importados do Firestore (via botão Importar ERP)
+    const itemsSnap = await fbDb.collection('wms_items').limit(1).get();
+    if(!itemsSnap.empty){
+      // Há dados importados no Firestore — usa eles como fonte principal
+      await loadFromFirestoreItems();
+      return;
+    }
+    // Sem dados importados — usa overrides+virtualSlots (modo legado com Sheets)
     const [ovSnap, vsSnap] = await Promise.all([
       fbDb.collection('wms_overrides').doc('shared').get(),
       fbDb.collection('wms_virtual_slots').doc('shared').get()
     ]);
-
     if(ovSnap.exists && ovSnap.data().data){
       state.overrides = ovSnap.data().data;
       localStorage.setItem(LS.overrides, JSON.stringify(state.overrides));
@@ -1789,8 +1868,6 @@ async function loadFromFirestore(){
       state.virtualSlots = vsSnap.data().data;
       localStorage.setItem(LS.virtualSlots, JSON.stringify(state.virtualSlots));
     }
-
-    // Re-constrói os items com os dados do Firestore
     if((state.rowsP1||[]).length && (state.rowsP2||[]).length){
       const built = buildItems(state.rowsP2, state.rowsP1);
       state.items = built.items;
@@ -2093,6 +2170,395 @@ function importHumWmsConfigFromText(text){
     });
   }
 })();
+
+
+/* ====================== IMPORTAÇÃO EXCEL ERP → FIRESTORE ====================== */
+
+let importParsedData = null; // dados parseados aguardando confirmação
+
+function importShowStep(step){
+  ['File','Preview','Progress','Done','Error'].forEach(s=>{
+    const el = document.getElementById('importStep'+s);
+    if(el) el.classList.toggle('hidden', s!==step);
+  });
+}
+
+function importSetProgress(pct, msg){
+  const bar = document.getElementById('importProgressBar');
+  const txt = document.getElementById('importProgressMsg');
+  if(bar) bar.style.width = pct+'%';
+  if(txt) txt.textContent = msg;
+}
+
+// Normaliza encoding de string (corrige Posição, Nível etc)
+function fixEncoding(str){
+  if(typeof str !== 'string') return str;
+  try {
+    // Tenta corrigir Latin1 interpretado como UTF-8
+    return decodeURIComponent(escape(str));
+  } catch(e) {
+    return str;
+  }
+}
+
+function parseExcelToItems(workbook){
+  const XLSX = window.XLSX;
+  // Pega primeira aba
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  
+  // Converte para array de arrays
+  const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false, dateNF:'DD/MM/YYYY'});
+  if(!rows || rows.length < 2) throw new Error('Planilha vazia ou sem dados.');
+
+  // Detecta cabeçalho (primeira linha)
+  const header = rows[0].map(h => String(h||'').trim().toLowerCase()
+    .normalize('NFD').replace(/\p{Diacritic}/gu,''));
+
+  // Mapeamento flexível de colunas
+  const col = (names) => {
+    for(const n of names){
+      const idx = header.findIndex(h => h.includes(n));
+      if(idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  const iSku   = col(['item codigo','cod item','sku','codigo']);
+  const iDesc  = col(['item descricao','descricao','descri']);
+  const iLote  = col(['lote']);
+  const iVal   = col(['data validade','validade','vencimento']);
+  const iSaldo = col(['saldo','quantidade','qtd','estoque']);
+  const iRua   = col(['rua']);
+  const iPos   = col(['posicao','posição','pos']);
+  const iIdEnd = col(['id_item_enderecamento','id item end','id_enderecamento','id end']);
+  const iEmp   = col(['emp','empresa']);
+
+  if(iSku < 0) throw new Error('Coluna "Item Codigo" não encontrada. Verifique o arquivo.');
+
+  const items = [];
+  const orphans = [];
+  const seqByAddr = new Map();
+
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    if(!r || r.every(c => !c)) continue; // linha vazia
+
+    const sku   = String(r[iSku]  || '').trim();
+    const desc  = String(r[iDesc] || '').trim();
+    const lote  = String(r[iLote] || '').trim();
+    const val   = iVal  >= 0 ? String(r[iVal]  || '').trim() : '';
+    const saldo = iSaldo >= 0 ? String(r[iSaldo] || '').trim() : '';
+    const rua   = iRua >= 0 ? String(r[iRua] || '').trim().toUpperCase() : '';
+    const pos   = iPos >= 0 ? String(r[iPos] || '').trim() : '';
+    const idEnd = iIdEnd >= 0 ? String(r[iIdEnd] || '').trim() : '';
+    const emp   = iEmp >= 0 ? String(r[iEmp] || '').trim() : '';
+
+    if(!sku && !desc) continue; // linha sem dados relevantes
+
+    const hasAddr = !!(rua && pos);
+    const item = { sku, desc, lote, val, est: saldo, idEnd, emp, rua, pos,
+                   ocupado: !!(sku||desc||lote||val),
+                   _importedAt: new Date().toISOString() };
+
+    if(hasAddr){
+      const baseKey = rua+'|'+pos;
+      const n = (seqByAddr.get(baseKey)||0)+1;
+      seqByAddr.set(baseKey, n);
+      item._key = baseKey+'#'+n;
+      items.push(item);
+    } else {
+      item._key = 'orph#'+i;
+      orphans.push(item);
+    }
+  }
+
+  // Extrai mapa de endereços únicos (Página2 equivalente)
+  const addrSet = new Set(items.map(it => it.rua+'|'+it.pos));
+  const addresses = Array.from(addrSet).map(k => {
+    const [rua, pos] = k.split('|');
+    return {rua, pos};
+  }).sort((a,b)=>{
+    const r = a.rua.localeCompare(b.rua,'pt-BR',{sensitivity:'base'});
+    if(r!==0) return r;
+    return parseInt(a.pos)||0 - parseInt(b.pos)||0;
+  });
+
+  return { items, orphans, addresses,
+           stats: { total: items.length + orphans.length,
+                    comEndereco: items.length,
+                    semEndereco: orphans.length,
+                    enderecos: addresses.length } };
+}
+
+async function saveImportToFirestore(parsed){
+  if(!fbDb) throw new Error('Firebase não configurado.');
+  if(!fbAuth || !fbAuth.currentUser) throw new Error('Usuário não autenticado.');
+
+  const { items, orphans, addresses } = parsed;
+  const ts = new Date().toISOString();
+  const user = fbAuth.currentUser.email;
+
+  // Salva em lotes de 400 (limite Firestore: 500 por batch)
+  const BATCH_SIZE = 400;
+  let saved = 0;
+  const total = items.length + orphans.length + 1; // +1 para endereços
+
+  // 1. Salva itens com endereço
+  importSetProgress(5, 'Salvando itens com endereço...');
+  for(let i=0; i<items.length; i+=BATCH_SIZE){
+    const batch = fbDb.batch();
+    const chunk = items.slice(i, i+BATCH_SIZE);
+    chunk.forEach(item => {
+      const ref = fbDb.collection('wms_items').doc(item._key.replace(/[^a-zA-Z0-9_|-]/g,'_'));
+      batch.set(ref, item);
+    });
+    await batch.commit();
+    saved += chunk.length;
+    importSetProgress(5 + Math.round((saved/total)*70), `Salvando itens... ${saved}/${items.length}`);
+  }
+
+  // 2. Salva itens sem endereço
+  importSetProgress(75, 'Salvando itens sem endereço...');
+  for(let i=0; i<orphans.length; i+=BATCH_SIZE){
+    const batch = fbDb.batch();
+    const chunk = orphans.slice(i, i+BATCH_SIZE);
+    chunk.forEach(item => {
+      const ref = fbDb.collection('wms_orphans').doc(item._key.replace(/[^a-zA-Z0-9_|-]/g,'_'));
+      batch.set(ref, item);
+    });
+    await batch.commit();
+  }
+
+  // 3. Salva mapa de endereços
+  importSetProgress(85, 'Salvando mapa de endereços...');
+  await fbDb.collection('wms_addresses').doc('map').set({
+    addresses, updatedAt: ts, updatedBy: user
+  });
+
+  // 4. Limpa overrides antigos (nova importação = estado limpo do ERP)
+  importSetProgress(92, 'Limpando edições anteriores...');
+  await fbDb.collection('wms_overrides').doc('shared').set({
+    data: {}, updatedAt: ts, updatedBy: user, clearedOnImport: true
+  });
+  await fbDb.collection('wms_virtual_slots').doc('shared').set({
+    data: [], updatedAt: ts, updatedBy: user, clearedOnImport: true
+  });
+
+  // 5. Salva log da importação
+  importSetProgress(97, 'Registrando log...');
+  await fbDb.collection('wms_import_log').add({
+    ts, importedBy: user,
+    totalItens: items.length + orphans.length,
+    comEndereco: items.length,
+    semEndereco: orphans.length,
+    enderecos: addresses.length
+  });
+
+  importSetProgress(100, 'Concluído!');
+  return { items, orphans, addresses };
+}
+
+async function loadFromFirestoreItems(){
+  if(!fbDb) return;
+  try{
+    importSetProgress && importSetProgress(0, '');
+    
+    // Carrega itens com endereço
+    const [itemsSnap, orphSnap, addrSnap, ovSnap, vsSnap] = await Promise.all([
+      fbDb.collection('wms_items').get(),
+      fbDb.collection('wms_orphans').get(),
+      fbDb.collection('wms_addresses').doc('map').get(),
+      fbDb.collection('wms_overrides').doc('shared').get(),
+      fbDb.collection('wms_virtual_slots').doc('shared').get()
+    ]);
+
+    const fsItems = itemsSnap.docs.map(d => d.data());
+    const fsOrphans = orphSnap.docs.map(d => d.data());
+    const fsAddresses = addrSnap.exists ? (addrSnap.data().addresses || []) : [];
+    const fsOverrides = ovSnap.exists ? (ovSnap.data().data || {}) : {};
+    const fsVirtual = vsSnap.exists ? (vsSnap.data().data || []) : [];
+
+    if(!fsItems.length && !fsAddresses.length) return; // Firestore vazio, usa cache
+
+    // Sincroniza localStorage
+    state.overrides = fsOverrides;
+    state.virtualSlots = fsVirtual;
+    localStorage.setItem(LS.overrides, JSON.stringify(fsOverrides));
+    localStorage.setItem(LS.virtualSlots, JSON.stringify(fsVirtual));
+
+    // Reconstrói rowsP2 (mapa de endereços) a partir do Firestore
+    // Formato esperado pelo buildMapFromP2: array de arrays com células "A 1", "B 2" etc
+    const fakeRowsP2 = [['end']]; // header fake
+    fsAddresses.forEach(a => fakeRowsP2.push([a.rua+' '+a.pos]));
+    
+    // Reconstrói rowsP1 (itens) a partir do Firestore
+    // Ordem das colunas SELECT_P1: B,C,D,E,G,H,I,J → id,rua,pos,idEnd,est,sku,desc,lote,val
+    // Mas vamos montar direto no state.items
+    const allItems = [...fsItems, ...fsOrphans];
+    
+    // Aplica overrides
+    const applyOv = (it) => {
+      const o = fsOverrides[it._key];
+      if(!o) return it;
+      const out = {...it, ...o};
+      out.ocupado = !!(out.sku||out.desc||out.lote||out.val||out.idEnd||out.est);
+      return out;
+    };
+
+    // Gera cards livres para endereços sem ocupação
+    const occupiedKeys = new Set(fsItems.filter(x=>x.rua&&x.pos).map(x=>x.rua+'|'+x.pos));
+    const freeCards = fsAddresses
+      .filter(a => !occupiedKeys.has(a.rua+'|'+a.pos))
+      .map(a => ({rua:a.rua, pos:a.pos, sku:'', desc:'', lote:'', val:'', est:'', idEnd:'',
+                  ocupado:false, _key:'free#'+a.rua+'|'+a.pos}));
+
+    // Slots virtuais
+    const virtualCards = fsVirtual.map(v=>({
+      rua:v.rua, pos:v.pos, sku:'', desc:'', lote:'', val:'', est:'', idEnd:'',
+      ocupado:false, _key:v.key
+    }));
+
+    let combined = [...fsItems, ...freeCards, ...virtualCards, ...fsOrphans].map(applyOv);
+
+    // Ordena
+    combined.sort((a,b)=>{
+      const hasA=!!(a.rua&&a.pos), hasB=!!(b.rua&&b.pos);
+      if(hasA!==hasB) return hasB-hasA;
+      if(!hasA&&!hasB) return 0;
+      const ra=(a.rua||'').localeCompare(b.rua||'','pt-BR',{sensitivity:'base'});
+      if(ra!==0) return ra;
+      const pa=parseInt(a.pos,10), pb=parseInt(b.pos,10);
+      if(!isNaN(pa)&&!isNaN(pb)) return pa-pb;
+      return (a.pos||'').localeCompare(b.pos||'','pt-BR',{numeric:true,sensitivity:'base'});
+    });
+
+    state.items = combined;
+
+    // Atualiza KPIs
+    const addrTotal = fsAddresses.length;
+    const occ = fsItems.length;
+    const free = freeCards.length;
+    const orphans2 = fsOrphans.length;
+    updateKPIs({addrTotal, occ, free, orphans: orphans2});
+    render();
+    console.log('[Firestore] Itens carregados:', combined.length);
+  }catch(e){
+    console.warn('[Firestore] Erro ao carregar itens:', e);
+  }
+}
+
+// Wire up botão Importar ERP
+(function wireImportExcel(){
+  const btnImport = document.getElementById('btnImportExcel');
+  const fileInput = document.getElementById('fileImportExcel');
+  const dropZone  = document.getElementById('importDropZone');
+
+  if(!btnImport) return;
+
+  btnImport.addEventListener('click', ()=>{
+    if(!fbDb){
+      alert('Firebase não configurado. Configure o FIREBASE_CONFIG primeiro.');
+      return;
+    }
+    if(!fbAuth || !fbAuth.currentUser){
+      alert('Você precisa estar logado para importar dados.');
+      return;
+    }
+    // Verifica se é admin
+    checkUserWhitelist(fbAuth.currentUser.email).then(ok => {
+      if(!ok){ alert('Sem permissão para importar.'); return; }
+    });
+    importParsedData = null;
+    importShowStep('File');
+    openModal('importExcelModal');
+    if(window.lucide && lucide.createIcons) lucide.createIcons();
+  });
+
+  // Click na drop zone abre file picker
+  if(dropZone) dropZone.addEventListener('click', ()=> fileInput && fileInput.click());
+
+  // Drag & drop
+  if(dropZone){
+    dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('border-emerald-400','bg-emerald-50'); });
+    dropZone.addEventListener('dragleave', ()=>{ dropZone.classList.remove('border-emerald-400','bg-emerald-50'); });
+    dropZone.addEventListener('drop', e=>{
+      e.preventDefault();
+      dropZone.classList.remove('border-emerald-400','bg-emerald-50');
+      const file = e.dataTransfer.files[0];
+      if(file) processImportFile(file);
+    });
+  }
+
+  // File input change
+  if(fileInput) fileInput.addEventListener('change', ()=>{
+    const file = fileInput.files && fileInput.files[0];
+    if(file) processImportFile(file);
+    fileInput.value = '';
+  });
+
+  // Botões do modal
+  document.getElementById('importBtnCancel')?.addEventListener('click', ()=> closeModal('importExcelModal'));
+  document.getElementById('importBtnRetry')?.addEventListener('click', ()=> importShowStep('File'));
+  document.getElementById('importBtnConfirm')?.addEventListener('click', confirmImport);
+  document.getElementById('importBtnDone')?.addEventListener('click', ()=>{
+    closeModal('importExcelModal');
+    // Recarrega do Firestore
+    loadFromFirestoreItems();
+  });
+})();
+
+function processImportFile(file){
+  if(!window.XLSX){ alert('Biblioteca XLSX não carregada.'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!['xlsx','xls'].includes(ext)){ alert('Selecione um arquivo .xlsx ou .xls'); return; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true, dateNF:'DD/MM/YYYY'});
+      const parsed = parseExcelToItems(wb);
+      importParsedData = parsed;
+
+      // Mostra preview / resumo
+      const summary = document.getElementById('importSummary');
+      if(summary){
+        summary.innerHTML = [
+          {label:'Total de itens', val: parsed.stats.total, color:'slate'},
+          {label:'Com endereço',   val: parsed.stats.comEndereco, color:'emerald'},
+          {label:'Sem endereço',   val: parsed.stats.semEndereco, color:'amber'},
+        ].map(s=>`
+          <div class="rounded-xl bg-${s.color}-50 ring-1 ring-${s.color}-200 p-3 text-center">
+            <div class="text-2xl font-bold text-${s.color}-700">${s.val}</div>
+            <div class="text-xs text-${s.color}-600 mt-1">${s.label}</div>
+          </div>`).join('');
+      }
+      importShowStep('Preview');
+      if(window.lucide && lucide.createIcons) lucide.createIcons();
+    }catch(err){
+      document.getElementById('importErrorMsg').textContent = err.message || String(err);
+      importShowStep('Error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmImport(){
+  if(!importParsedData){ alert('Nenhum dado para importar.'); return; }
+  importShowStep('Progress');
+  importSetProgress(0, 'Iniciando...');
+  try{
+    const result = await saveImportToFirestore(importParsedData);
+    const msg = `✅ Importação concluída! ${result.items.length} itens com endereço, ${result.orphans.length} sem endereço, ${result.addresses.length} endereços no mapa.`;
+    document.getElementById('importDoneMsg').textContent = msg;
+    importShowStep('Done');
+    if(window.lucide && lucide.createIcons) lucide.createIcons();
+  }catch(err){
+    document.getElementById('importErrorMsg').textContent = err.message || String(err);
+    importShowStep('Error');
+  }
+}
 
 </script>
 </body>
