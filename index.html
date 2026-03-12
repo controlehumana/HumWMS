@@ -452,6 +452,7 @@ header {
   <div class="tabs" id="appTabs"><div class="tabs-inner">
     <button class="tab active" data-tab="map">🗺 Mapa</button>
     <button class="tab" data-tab="expiry">⏰ Validades</button>
+    <button class="tab" data-tab="pending" id="tabPending">📦 Pendentes <span id="pendingBadge" style="display:none;background:#f59e0b;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">0</span></button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
@@ -511,6 +512,55 @@ header {
     <div class="pagination" id="pagination"></div>
   </div>
 
+
+
+  <!-- ══════════ PAGE: PENDING ══════════ -->
+  <div class="page" id="pagePending">
+    <div class="admin-container">
+
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-title">📦 Itens Sem Endereço</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="pendingCount" style="font-size:12px;color:var(--muted)"></span>
+          <button class="btn" id="btnExportPending" style="background:#fffbeb;border-color:#fcd34d;color:#92400e">📤 Exportar lista</button>
+        </div>
+      </div>
+
+      <!-- Busca -->
+      <div style="margin-bottom:14px">
+        <div class="search-box" style="max-width:400px">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="pendingSearch" placeholder="Buscar SKU, produto, lote...">
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse" id="pendingTable">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">SKU</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Produto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Lote</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Validade</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Estoque</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTableBody"></tbody>
+        </table>
+        <div id="pendingEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+          <div style="font-size:48px;margin-bottom:12px">✅</div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum item pendente</div>
+          <div style="font-size:13px">Todos os itens já têm endereço atribuído</div>
+        </div>
+      </div>
+
+      <!-- Paginação própria -->
+      <div id="pendingPagination" style="display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0;flex-wrap:wrap"></div>
+
+    </div>
+  </div>
 
   <!-- ══════════ PAGE: EXPIRY ══════════ -->
   <div class="page" id="pageExpiry">
@@ -821,6 +871,7 @@ function showTab(tabId) {
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
+  if (tabId === 'pending')   renderPending();
 }
 
 function openModal(id) { $(id).classList.add('open'); }
@@ -1085,55 +1136,6 @@ function renderMap() {
     </div>`;
   } else {
     grid.innerHTML = slice.map(addr => renderCard(addr)).join('');
-    // Cards de itens sem endereço (agrupados no final)
-  if ((S.unaddressed || []).length > 0 && !filterRua && !filterPos && filterStatus !== 'free' && filterStatus !== 'occ') {
-    // Agrupar por SKU+lote para não poluir demais
-    const uItems = S.unaddressed.slice(0, 40); // limita a 40 cards
-    const remaining = S.unaddressed.length - uItems.length;
-
-    // Separador
-    const sep = document.createElement('div');
-    sep.style.cssText = 'grid-column:1/-1;padding:8px 4px 4px;font-size:11px;font-weight:700;color:#92400e;letter-spacing:.5px;text-transform:uppercase;border-top:2px dashed #fcd34d;margin-top:8px';
-    sep.textContent = `📦 Itens sem endereço (${S.unaddressed.length})`;
-    grid.appendChild(sep);
-
-    uItems.forEach((it, idx) => {
-      const card = document.createElement('div');
-      card.className = 'addr-card is-unaddr';
-      const canEdit = S.role !== 'viewer';
-      card.innerHTML = `
-        <div class="card-header">
-          <span class="card-addr" style="color:#92400e">📦 Sem endereço</span>
-          <span class="unaddr-badge">PENDENTE</span>
-        </div>
-        <div class="card-items">
-          <div class="card-item" style="border:none">
-            <div class="item-desc">${it.desc || '–'}</div>
-            <div class="item-meta">
-              <span>SKU ${it.sku||'–'}</span>
-              ${it.lote ? `<span>🏷 ${it.lote}</span>` : ''}
-              ${it.val  ? `<span>📅 ${it.val}</span>` : ''}
-              ${it.est  ? `<span>📦 ${it.est}</span>` : ''}
-            </div>
-          </div>
-        </div>
-        ${canEdit ? `<div class="card-actions"><button class="btn" data-assign="${it._id}" style="font-size:11px;padding:5px 10px;background:#fffbeb;border-color:#fcd34d;color:#92400e">📍 Atribuir endereço</button></div>` : ''}
-      `;
-      grid.appendChild(card);
-    });
-
-    if (remaining > 0) {
-      const more = document.createElement('div');
-      more.style.cssText = 'grid-column:1/-1;text-align:center;padding:12px;font-size:12px;color:#92400e;background:#fffbeb;border-radius:10px;border:1px dashed #fcd34d';
-      more.textContent = `+ ${remaining} itens sem endereço não exibidos. Use filtro ou exporte a lista de validades para ver todos.`;
-      grid.appendChild(more);
-    }
-  }
-
-  grid.querySelectorAll('[data-assign]').forEach(btn => {
-    btn.addEventListener('click', () => openAssignModal(btn.dataset.assign));
-  });
-
   grid.querySelectorAll('[data-edit]').forEach(btn => {
       btn.addEventListener('click', () => {
         const [rua, pos] = btn.dataset.edit.split('|');
@@ -2323,6 +2325,13 @@ $('assignConfirmBtn').addEventListener('click', async () => {
     $('assignModal').style.display = 'none';
     await loadAll();
     showTab('map');
+    // Atualizar badge de pendentes
+    const badge = $('pendingBadge');
+    if (badge) {
+      const n = (S.unaddressed||[]).length;
+      badge.textContent = n;
+      badge.style.display = n > 0 ? '' : 'none';
+    }
   } catch(e) {
     err.textContent = 'Erro: ' + e.message;
     err.style.display = '';
@@ -2330,13 +2339,108 @@ $('assignConfirmBtn').addEventListener('click', async () => {
   loading(false);
 });
 
-// KPI sem endereço — clique vai para o final do mapa
-$('kpiUnaddr') && $('kpiUnaddr').addEventListener('click', () => {
-  showTab('map');
-  setTimeout(() => {
-    const sep = document.querySelector('.addr-card.is-unaddr');
-    if (sep) sep.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 200);
+// KPI sem endereço — clique vai para aba Pendentes
+const kpiUnaddrEl = $('kpiUnaddr');
+if (kpiUnaddrEl) {
+  kpiUnaddrEl.addEventListener('click', () => showTab('pending'));
+}
+
+
+// ══════════════════════════════════════════════════════
+//  ABA PENDENTES (itens sem endereço)
+// ══════════════════════════════════════════════════════
+let pendingPage = 1;
+const PENDING_PER_PAGE = 50;
+
+function getPendingFiltered() {
+  const q = ($('pendingSearch').value || '').toLowerCase().trim();
+  return (S.unaddressed || []).filter(it => {
+    if (!q) return true;
+    return (it.sku||'').toLowerCase().includes(q)
+        || (it.desc||'').toLowerCase().includes(q)
+        || (it.lote||'').toLowerCase().includes(q);
+  });
+}
+
+function renderPending() {
+  const items   = getPendingFiltered();
+  const total   = items.length;
+  const totalPg = Math.max(1, Math.ceil(total / PENDING_PER_PAGE));
+  if (pendingPage > totalPg) pendingPage = 1;
+
+  const slice = items.slice((pendingPage-1)*PENDING_PER_PAGE, pendingPage*PENDING_PER_PAGE);
+  const tbody = $('pendingTableBody');
+  const empty = $('pendingEmpty');
+
+  $('pendingCount').textContent = total > 0 ? `${total} iten${total>1?'s':''} pendente${total>1?'s':''}` : '';
+
+  // Badge na tab
+  const badge = $('pendingBadge');
+  if (badge) {
+    badge.textContent = (S.unaddressed||[]).length;
+    badge.style.display = (S.unaddressed||[]).length > 0 ? '' : 'none';
+  }
+
+  if (slice.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    $('pendingPagination').innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const canEdit = S.role !== 'viewer';
+  tbody.innerHTML = slice.map(it => {
+    const days = daysUntil(it.val);
+    const valColor = days !== null && days <= 30 ? '#dc2626' : days !== null && days <= 60 ? '#d97706' : 'var(--text)';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted)">${it.sku||'–'}</td>
+      <td style="padding:9px 14px;font-size:13px;max-width:280px">${it.desc||'–'}</td>
+      <td style="padding:9px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted)">${it.lote||'–'}</td>
+      <td style="padding:9px 14px;font-size:13px;color:${valColor};font-weight:${days!==null&&days<=60?'600':'400'}">${it.val ? formatDate(it.val) : '–'}</td>
+      <td style="padding:9px 14px;font-size:13px;font-family:'DM Mono',monospace">${it.est||'–'}</td>
+      <td style="padding:9px 14px">
+        ${canEdit ? `<button class="btn" data-assign="${it._id}" style="font-size:11px;padding:4px 10px;background:#fffbeb;border-color:#fcd34d;color:#92400e">📍 Atribuir</button>` : '–'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Paginação
+  const pag = $('pendingPagination');
+  if (totalPg <= 1) { pag.innerHTML = ''; return; }
+  let html = '';
+  if (pendingPage > 1) html += `<button class="btn" data-pg="${pendingPage-1}">‹</button>`;
+  for (let p = 1; p <= totalPg; p++) {
+    if (p === pendingPage) html += `<button class="btn" style="background:var(--accent);color:white;border-color:var(--accent)">${p}</button>`;
+    else if (p === 1 || p === totalPg || Math.abs(p - pendingPage) <= 1) html += `<button class="btn" data-pg="${p}">${p}</button>`;
+    else if (Math.abs(p - pendingPage) === 2) html += `<span style="padding:0 4px;color:var(--muted)">…</span>`;
+  }
+  if (pendingPage < totalPg) html += `<button class="btn" data-pg="${pendingPage+1}">›</button>`;
+  pag.innerHTML = html;
+  pag.querySelectorAll('[data-pg]').forEach(b => b.addEventListener('click', () => {
+    pendingPage = parseInt(b.dataset.pg); renderPending();
+  }));
+
+  // Wire assign buttons
+  tbody.querySelectorAll('[data-assign]').forEach(btn => {
+    btn.addEventListener('click', () => openAssignModal(btn.dataset.assign));
+  });
+}
+
+// Busca com debounce
+$('pendingSearch').addEventListener('input', () => { pendingPage = 1; renderPending(); });
+
+// Exportar pendentes
+$('btnExportPending').addEventListener('click', () => {
+  const items = S.unaddressed || [];
+  if (!items.length) { alert('Nenhum item pendente.'); return; }
+  const headers = ['SKU','Produto','Lote','Validade','Estoque'];
+  const rows = items.map(it => [it.sku||'',it.desc||'',it.lote||'',it.val ? formatDate(it.val) : '',it.est||'']);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws['!cols'] = [{wch:10},{wch:45},{wch:14},{wch:14},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Sem Endereço');
+  XLSX.writeFile(wb, `PENDENTES_${new Date().toISOString().slice(0,10)}.xlsx`);
 });
 
 </script>
