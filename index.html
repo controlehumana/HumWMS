@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HumWMS — Humana Alimentar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg:        #f4f3f0;
+  --surface:   #ffffff;
+  --border:    #e8e6e1;
+  --text:      #1a1917;
+  --muted:     #7a7670;
+  --accent:    #2d6a4f;
+  --accent2:   #e76f51;
+  --free:      #d8f3dc;
+  --free-text: #1b4332;
+  --occ:       #fde8df;
+  --occ-text:  #7c2d12;
+  --warn:      #fff3cd;
+  --warn-text: #7d5a00;
+  --radius:    12px;
+  --shadow:    0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── Auth Screen ── */
+#authScreen {
+  position: fixed; inset: 0; z-index: 200;
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+#authScreen.hidden { display: none; }
+.auth-card {
+  background: white; border-radius: 20px; padding: 48px 40px;
+  width: 360px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.auth-logo { font-size: 28px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.auth-sub { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+.btn-google {
+  width: 100%; padding: 12px 16px; border-radius: 10px;
+  border: 1.5px solid #e0e0e0; background: white; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 14px; font-weight: 500; transition: all .2s;
+}
+.btn-google:hover { background: #f8f8f8; border-color: #ccc; }
+.auth-error { color: #dc2626; font-size: 13px; margin-top: 16px; min-height: 20px; }
+
+/* ── Layout ── */
+#appShell { display: none; flex-direction: column; min-height: 100vh; }
+#appShell.visible { display: flex; }
+
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 50;
+}
+.logo { font-weight: 600; font-size: 16px; color: var(--accent); margin-right: 4px; }
+.logo-sub { color: var(--muted); font-size: 12px; }
+.spacer { flex: 1; }
+
+.btn {
+  padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 500;
+  font-family: inherit; display: inline-flex; align-items: center; gap: 6px;
+  transition: all .15s; color: var(--text); white-space: nowrap;
+}
+.btn:hover { background: var(--bg); border-color: #ccc; }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: #1b4332; border-color: #1b4332; }
+.btn-danger { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+.btn-danger:hover { background: #fecaca; }
+
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; border-radius: 20px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 12px; color: var(--muted);
+}
+.user-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+}
+.logout-btn { background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 4px; font-size: 13px; }
+.logout-btn:hover { color: #dc2626; }
+
+/* ── Tabs ── */
+.tabs {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; gap: 2px;
+}
+.tab {
+  padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  transition: all .15s; background: none; border-top: none; border-left: none; border-right: none;
+  font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; border-radius: 9px;
+  background: var(--accent); color: white; font-size: 10px; font-weight: 600;
+  padding: 0 5px; margin-left: 6px;
+}
+.tab-badge.admin-only { background: var(--accent2); }
+
+/* ── Pages ── */
+.page { display: none; flex: 1; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ── KPI Bar ── */
+.kpi-bar {
+  display: flex; gap: 16px; padding: 16px 24px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  flex-wrap: wrap;
+}
+.kpi {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border); min-width: 100px;
+}
+.kpi-val { font-size: 22px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.kpi-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.kpi.free { background: var(--free); border-color: #b7e4c7; }
+.kpi.free .kpi-val { color: var(--free-text); }
+.kpi.occ { background: var(--occ); border-color: #fca5a5; }
+.kpi.occ .kpi-val { color: var(--occ-text); }
+
+/* ── Search/Filter Bar ── */
+.filter-bar {
+  padding: 12px 24px; display: flex; gap: 10px; align-items: center;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.search-box {
+  flex: 1; min-width: 200px; position: relative;
+}
+.search-box input {
+  width: 100%; padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 13px; background: var(--bg);
+  outline: none; transition: border-color .15s;
+}
+.search-box input:focus { border-color: var(--accent); background: white; }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+.filter-input {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 13px; background: var(--bg);
+  outline: none; width: 90px;
+}
+.filter-input:focus { border-color: var(--accent); background: white; }
+.filter-label { font-size: 12px; color: var(--muted); }
+
+/* ── Cards Grid ── */
+.cards-grid {
+  flex: 1; padding: 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px; align-content: start; overflow-y: auto;
+}
+
+.addr-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  box-shadow: var(--shadow); transition: box-shadow .15s;
+}
+.addr-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.addr-card.is-free { border-left: 3px solid var(--accent); }
+.addr-card.is-occ  { border-left: 3px solid var(--accent2); }
+
+.card-header {
+  padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.card-addr {
+  font-size: 13px; font-weight: 600; font-family: 'DM Mono', monospace;
+  color: var(--text); flex: 1;
+}
+.badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.badge-free { background: var(--free); color: var(--free-text); }
+.badge-occ  { background: var(--occ);  color: var(--occ-text); }
+.badge-count { background: #e0f2fe; color: #075985; }
+
+.card-items { padding: 0; }
+.card-item {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.card-item:last-child { border-bottom: none; }
+.item-desc { font-weight: 500; color: var(--text); line-height: 1.35; }
+.item-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+.item-meta span { display: flex; align-items: center; gap: 3px; }
+.item-meta .val-warn { color: #d97706; font-weight: 500; }
+.item-meta .val-exp  { color: #dc2626; font-weight: 500; }
+.item-sku { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+
+.card-free-msg { padding: 16px 14px; color: var(--muted); font-size: 12px; text-align: center; }
+
+.card-actions {
+  padding: 8px 14px; display: flex; gap: 6px;
+  border-top: 1px solid var(--border); background: var(--bg);
+}
+.card-actions .btn { font-size: 11px; padding: 5px 10px; }
+
+/* ── Pagination ── */
+.pagination {
+  padding: 16px 24px; display: flex; align-items: center; justify-content: center;
+  gap: 8px; background: var(--surface); border-top: 1px solid var(--border);
+}
+.page-btn {
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.page-btn:hover { background: var(--bg); }
+.page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.page-info { font-size: 12px; color: var(--muted); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.3);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 16px; width: 100%; max-width: 520px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2); overflow: hidden;
+}
+.modal-header {
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 600; }
+.modal-close { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 20px; line-height: 1; padding: 2px; }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Forms ── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color .15s; background: var(--surface);
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Item list in modal ── */
+.item-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.item-row {
+  background: var(--bg); border-radius: 8px; padding: 12px;
+  border: 1px solid var(--border); position: relative;
+}
+.item-row-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.item-row-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+.remove-item-btn { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 18px; line-height: 1; padding: 0 2px; }
+.add-item-btn {
+  width: 100%; padding: 9px; border: 1.5px dashed var(--border); border-radius: 8px;
+  background: none; cursor: pointer; font-size: 13px; color: var(--muted);
+  font-family: inherit; transition: all .15s;
+}
+.add-item-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Users Page ── */
+.users-table { width: 100%; border-collapse: collapse; }
+.users-table th, .users-table td {
+  padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.users-table th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 500; background: var(--bg); }
+.users-table tr:hover td { background: var(--bg); }
+.role-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.role-admin { background: #fde8df; color: #7c2d12; }
+.role-operator { background: #dbeafe; color: #1e40af; }
+.role-viewer { background: #f0fdf4; color: #166534; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-active { background: #22c55e; }
+.status-inactive { background: #d1d5db; }
+
+/* ── Addresses Page ── */
+.addr-table { width: 100%; border-collapse: collapse; }
+.addr-table th, .addr-table td {
+  padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.addr-table th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 500; background: var(--bg); }
+.addr-table tr:hover td { background: var(--bg); }
+
+/* ── Import ERP ── */
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 40px 24px; text-align: center; cursor: pointer;
+  transition: all .2s;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: #f0fdf4; }
+.drop-zone-icon { font-size: 40px; margin-bottom: 12px; }
+.drop-zone-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.drop-zone-sub { font-size: 12px; color: var(--muted); }
+
+.import-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.import-stat { text-align: center; padding: 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+.import-stat-val { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--accent); }
+.import-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.progress-bar { width: 100%; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin: 12px 0; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
+
+.alert { padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
+.alert-warn { background: var(--warn); color: var(--warn-text); border: 1px solid #fde68a; }
+.alert-error { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.alert-success { background: var(--free); color: var(--free-text); border: 1px solid #b7e4c7; }
+
+/* ── Admin page container ── */
+.admin-container { padding: 24px; max-width: 900px; width: 100%; }
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title { font-size: 16px; font-weight: 600; }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 60px 24px; color: var(--muted); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+.empty-sub { font-size: 13px; }
+
+/* ── Loading ── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 90; background: rgba(244,243,240,.8);
+  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+}
+.loading-overlay.show { display: flex; }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--muted); }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  header { padding: 0 14px; gap: 8px; }
+  .cards-grid { padding: 12px; grid-template-columns: 1fr; }
+  .kpi-bar { padding: 12px 14px; gap: 10px; }
+  .filter-bar { padding: 10px 14px; }
+  .tabs { padding: 0 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">HumWMS</div>
+    <div class="auth-sub">Humana Alimentar · Mapa do Estoque</div>
+    <button class="btn-google" id="btnGoogleLogin">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+      Entrar com Google
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Carregando...</div>
+</div>
+
+<!-- App Shell -->
+<div id="appShell">
+
+  <!-- Header -->
+  <header>
+    <span class="logo">HumWMS</span>
+    <span class="logo-sub">Humana Alimentar</span>
+    <div class="spacer"></div>
+    <div style="position:relative;display:inline-block" id="exportMenu">
+      <button class="btn" id="btnExportToggle" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332">
+        📤 Exportar para ERP ▾
+      </button>
+      <div id="exportDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:white;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:220px;z-index:60;overflow:hidden">
+        <button class="export-opt" id="btnExportAll" style="width:100%;padding:11px 16px;text-align:left;border:none;background:none;cursor:pointer;font-size:13px;font-family:inherit;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:500">📋 Exportar tudo</span>
+          <span style="font-size:11px;color:var(--muted)">Todos os itens do estoque atual</span>
+        </button>
+        <button class="export-opt" id="btnExportEdited" style="width:100%;padding:11px 16px;text-align:left;border:none;background:none;cursor:pointer;font-size:13px;font-family:inherit;display:flex;flex-direction:column;gap:2px">
+          <span style="font-weight:500">✏️ Exportar alterados</span>
+          <span style="font-size:11px;color:var(--muted)">Apenas itens editados desde a última importação</span>
+        </button>
+      </div>
+    </div>
+    <div class="user-pill">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="userName">–</span>
+      <button class="logout-btn" id="btnLogout" title="Sair">✕</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs" id="appTabs">
+    <button class="tab active" data-tab="map">🗺 Mapa</button>
+    <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
+    <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
+    <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
+  </div>
+
+  <!-- ══════════ PAGE: MAP ══════════ -->
+  <div class="page active" id="pageMap">
+
+    <!-- KPIs -->
+    <div class="kpi-bar" id="kpiBar">
+      <div class="kpi"><span class="kpi-val" id="kpiTotal">–</span><span class="kpi-lbl">Endereços</span></div>
+      <div class="kpi free"><span class="kpi-val" id="kpiFree">–</span><span class="kpi-lbl">Livres</span></div>
+      <div class="kpi occ"><span class="kpi-val" id="kpiOcc">–</span><span class="kpi-lbl">Ocupados</span></div>
+      <div class="kpi"><span class="kpi-val" id="kpiItems">–</span><span class="kpi-lbl">Itens total</span></div>
+      <div class="kpi"><span class="kpi-val" id="kpiExpiring">–</span><span class="kpi-lbl">A vencer 30d</span></div>
+      <div class="kpi" id="kpiLastImport" style="display:none;background:#f0fdf4;border-color:#b7e4c7">
+        <span class="kpi-val" id="kpiLastImportDate" style="font-size:13px;color:#1b4332">–</span>
+        <span class="kpi-lbl">Última importação</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Buscar SKU, descrição, lote, rua...">
+      </div>
+      <span class="filter-label">Rua</span>
+      <input type="text" class="filter-input" id="filterRua" placeholder="Ex: A" style="width:70px">
+      <span class="filter-label">Posição</span>
+      <input type="text" class="filter-input" id="filterPos" placeholder="Ex: 10" style="width:80px">
+      <select class="filter-input" id="filterStatus" style="width:120px">
+        <option value="">Todos</option>
+        <option value="free">Livres</option>
+        <option value="occ">Ocupados</option>
+        <option value="exp">A vencer</option>
+      </select>
+      <button class="btn" id="btnClearFilters">Limpar</button>
+      <div class="spacer"></div>
+      <select class="filter-input" id="perPageSelect" style="width:90px">
+        <option value="40">40/pág</option>
+        <option value="80">80/pág</option>
+        <option value="160">160/pág</option>
+      </select>
+    </div>
+
+    <!-- Grid -->
+    <div class="cards-grid" id="cardsGrid"></div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <!-- ══════════ PAGE: IMPORT ══════════ -->
+  <div class="page" id="pageImport">
+    <div style="padding:24px; max-width:600px">
+      <div class="section-header">
+        <div class="section-title">Importar Excel do ERP</div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
+        Importe o arquivo <strong>.xlsx</strong> exportado do ERP. Os dados serão salvos no Firestore e toda a equipe verá o estoque atualizado.
+      </p>
+
+      <div id="importStepFile">
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-text">Arraste o arquivo aqui</div>
+          <div class="drop-zone-sub">ou clique para selecionar · .xlsx / .xls</div>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+      </div>
+
+      <div id="importStepPreview" style="display:none">
+        <div class="import-summary" id="importSummary"></div>
+        <div class="alert alert-warn">
+          ⚠️ Esta importação vai <strong>substituir todos os dados atuais</strong> do estoque. Edições manuais feitas no app serão descartadas.
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" id="importCancelBtn">Cancelar</button>
+          <button class="btn btn-primary" id="importConfirmBtn">✓ Confirmar importação</button>
+        </div>
+      </div>
+
+      <div id="importStepProgress" style="display:none;text-align:center;padding:24px 0">
+        <div class="spinner" style="margin:0 auto 12px"></div>
+        <div id="importProgressMsg" style="font-size:13px;color:var(--muted)">Processando...</div>
+        <div class="progress-bar"><div class="progress-fill" id="importProgressFill" style="width:0%"></div></div>
+      </div>
+
+      <div id="importStepDone" style="display:none;text-align:center;padding:24px 0">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <div id="importDoneMsg" style="font-size:14px;font-weight:500;margin-bottom:16px"></div>
+        <button class="btn btn-primary" id="importDoneBtn">Ver mapa atualizado</button>
+      </div>
+
+      <div id="importStepError" style="display:none">
+        <div class="alert alert-error" id="importErrorMsg"></div>
+        <button class="btn" id="importRetryBtn">↩ Tentar novamente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: USERS ══════════ -->
+  <div class="page" id="pageUsers">
+    <div class="admin-container">
+      <div class="section-header">
+        <div class="section-title">Gestão de Usuários</div>
+        <button class="btn btn-primary" id="btnAddUser">+ Convidar usuário</button>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <table class="users-table">
+          <thead>
+            <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: ADDRESSES ══════════ -->
+  <div class="page" id="pageAddresses">
+    <div class="admin-container">
+      <div class="section-header">
+        <div class="section-title">Cadastro de Endereços</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnSeedAddrs" title="Recria A-G × 1-40">🔄 Padrão A-G×40</button>
+          <button class="btn" id="btnImportAddrs">📥 Importar lista</button>
+          <button class="btn btn-primary" id="btnAddAddr">+ Novo endereço</button>
+        </div>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <table class="addr-table">
+          <thead>
+            <tr><th>Rua</th><th>Posição</th><th>Capacidade</th><th>Status</th><th>Itens atuais</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="addrsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /appShell -->
+
+<!-- ══════════ MODAL: EDITAR ENDEREÇO ══════════ -->
+<div class="modal-overlay" id="editAddrModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="editAddrTitle">Editar endereço</div>
+      <button class="modal-close" data-close="editAddrModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="margin-bottom:16px">
+        <div>
+          <div class="form-label">Rua</div>
+          <input class="form-input" id="editRua" readonly style="background:var(--bg);color:var(--muted)">
+        </div>
+        <div>
+          <div class="form-label">Posição</div>
+          <input class="form-input" id="editPos" readonly style="background:var(--bg);color:var(--muted)">
+        </div>
+      </div>
+
+      <div class="form-label" style="margin-bottom:10px">Itens neste endereço</div>
+      <div class="item-list" id="editItemList"></div>
+      <button class="add-item-btn" id="addItemBtn">+ Adicionar item</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="editAddrModal">Cancelar</button>
+      <button class="btn btn-primary" id="saveAddrBtn">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: USUÁRIO ══════════ -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="userModalTitle">Convidar usuário</div>
+      <button class="modal-close" data-close="userModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">E-mail Google</label>
+        <input class="form-input" id="userEmail" type="email" placeholder="usuario@gmail.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome</label>
+        <input class="form-input" id="userName2" type="text" placeholder="Nome completo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Perfil</label>
+        <select class="form-select" id="userRole">
+          <option value="operator">Operador — edita endereços</option>
+          <option value="viewer">Visualizador — só consulta</option>
+          <option value="admin">Admin — acesso total</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="userModal">Cancelar</button>
+      <button class="btn btn-primary" id="saveUserBtn">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: ENDEREÇO CADASTRO ══════════ -->
+<div class="modal-overlay" id="addrModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="addrModalTitle">Novo endereço</div>
+      <button class="modal-close" data-close="addrModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rua</label>
+          <input class="form-input" id="addrRua" placeholder="Ex: A">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Posição</label>
+          <input class="form-input" id="addrPos" placeholder="Ex: 1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Capacidade (itens)</label>
+        <input class="form-input" id="addrCap" type="number" min="1" value="1">
+        <div class="form-hint">Número máximo de itens diferentes neste endereço</div>
+      </div>
+      <div id="addrModalError" class="alert alert-error" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="addrModal">Cancelar</button>
+      <button class="btn btn-primary" id="saveAddrNewBtn">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: IMPORTAR ENDEREÇOS ══════════ -->
+<div class="modal-overlay" id="importAddrsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Importar lista de endereços</div>
+      <button class="modal-close" data-close="importAddrsModal">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Cole uma lista de endereços no formato <code>RUA POSIÇÃO</code>, um por linha.<br>
+        Exemplo: <code>A 1</code>, <code>B 24</code>, <code>E 5</code>
+      </p>
+      <textarea id="importAddrsText" class="form-input" rows="10" placeholder="A 1&#10;A 2&#10;B 1&#10;B 2&#10;..."></textarea>
+      <div id="importAddrsResult" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="importAddrsModal">Cancelar</button>
+      <button class="btn btn-primary" id="importAddrsSaveBtn">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ FIREBASE CONFIG ══════════ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDuWq9BH0NmmOJZHDlusDffZzTvRGNRsc4",
+  authDomain:        "mapaestoque-1c121.firebaseapp.com",
+  projectId:         "mapaestoque-1c121",
+  storageBucket:     "mapaestoque-1c121.firebasestorage.app",
+  messagingSenderId: "1008752949095",
+  appId:             "1:1008752949095:web:223fa026e6e11cd94c21c2"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+const S = {
+  user:      null,
+  role:      null,           // 'admin' | 'operator' | 'viewer'
+  addresses: [],             // [{rua, pos, cap, key}]
+  items:     [],             // [{rua, pos, sku, desc, lote, val, est, idEnd, _id}]
+  page:      1,
+  perPage:   40,
+  editTarget: null,          // {rua, pos} sendo editado
+  editUserId: null,          // email do usuário sendo editado
+  editAddrKey: null,         // key do endereço sendo editado
+};
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const qs = sel => document.querySelector(sel);
+
+function loading(show, text='Carregando...') {
+  $('loadingOverlay').classList.toggle('show', show);
+  $('loadingText').textContent = text;
+}
+
+function showTab(tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(1)));
+  if (tabId === 'map')       renderMap();
+  if (tabId === 'users')     renderUsers();
+  if (tabId === 'addresses') renderAddresses();
+}
+
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+
+document.querySelectorAll('[data-close]').forEach(el => {
+  el.addEventListener('click', () => closeModal(el.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => showTab(tab.dataset.tab));
+});
+
+function addrKey(rua, pos) { return `${String(rua).toUpperCase()}_${pos}`; }
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  let d;
+  // Suporta DD/MM/YYYY e YYYY-MM-DD
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const [dd, mm, yyyy] = dateStr.split('/');
+    d = new Date(yyyy, mm - 1, dd);
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d)) return null;
+  const diff = Math.ceil((d - new Date()) / 86400000);
+  return diff;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('pt-BR');
+}
+
+// ══════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════
+$('btnGoogleLogin').addEventListener('click', async () => {
+  $('authError').textContent = '';
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch (e) {
+    $('authError').textContent = 'Erro ao entrar: ' + (e.message || e);
+  }
+});
+
+$('btnLogout').addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    $('authScreen').classList.remove('hidden');
+    $('appShell').classList.remove('visible');
+    S.user = null; S.role = null;
+    return;
+  }
+  loading(true, 'Verificando acesso...');
+  try {
+    const snap = await db.collection('wms_users').doc(user.email).get();
+    if (!snap.exists || !snap.data().active) {
+      await auth.signOut();
+      loading(false);
+      $('authError').textContent = 'Acesso não autorizado. Contate o administrador.';
+      return;
+    }
+    S.user = user;
+    S.role = snap.data().role || 'viewer';
+
+    $('userAvatar').textContent = (snap.data().name || user.email).charAt(0).toUpperCase();
+    $('userName').textContent = snap.data().name || user.email.split('@')[0];
+
+    // Mostra tabs conforme role
+    if (S.role === 'admin' || S.role === 'operator') {
+      // operator pode editar mas não ver gestão de usuários
+    }
+    if (S.role === 'admin') {
+      $('tabImport').style.display = '';
+      $('tabUsers').style.display = '';
+      $('tabAddresses').style.display = '';
+    }
+
+    $('authScreen').classList.add('hidden');
+    $('appShell').classList.add('visible');
+
+    await loadAll();
+  } catch (e) {
+    loading(false);
+    $('authError').textContent = 'Erro: ' + e.message;
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  DATA LOADING
+// ══════════════════════════════════════════════════════
+async function loadAll() {
+  loading(true, 'Carregando estoque...');
+  try {
+    const [addrSnap, itemsSnap] = await Promise.all([
+      db.collection('wms_addresses').get(),
+      db.collection('wms_items').get()
+    ]);
+    S.addresses = addrSnap.docs.map(d => ({ ...d.data(), _key: d.id }));
+    S.items     = itemsSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+
+    // Se não há endereços, faz seed automático
+    if (S.addresses.length === 0) {
+      await seedDefaultAddresses();
+      const snap2 = await db.collection('wms_addresses').get();
+      S.addresses = snap2.docs.map(d => ({ ...d.data(), _key: d.id }));
+    }
+
+    S.page = 1;
+    renderMap();
+    loadLastImport();
+  } catch(e) {
+    console.error('Erro ao carregar:', e);
+  }
+  loading(false);
+}
+
+async function seedDefaultAddresses() {
+  // Cadastra A-G × 1-40 automaticamente na primeira vez
+  const ruas = ['A','B','C','D','E','F','G'];
+  const CHUNK = 400;
+  const all = [];
+  for (const rua of ruas) {
+    for (let pos = 1; pos <= 40; pos++) {
+      all.push({ rua, pos: String(pos), cap: 99, active: true });
+    }
+  }
+  for (let i = 0; i < all.length; i += CHUNK) {
+    const batch = db.batch();
+    all.slice(i, i + CHUNK).forEach(a => {
+      batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
+    });
+    await batch.commit();
+  }
+  console.log('[HumWMS] 280 endereços padrão cadastrados.');
+}
+
+async function loadLastImport() {
+  try {
+    const snap = await db.collection('wms_import_log')
+      .orderBy('ts', 'desc').limit(1).get();
+    if (snap.empty) return;
+    const log = snap.docs[0].data();
+    const d = new Date(log.ts);
+    const fmt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    $('kpiLastImportDate').textContent = fmt;
+    $('kpiLastImportDate').title = `Por: ${log.importedBy} · ${log.totalItens} itens`;
+    $('kpiLastImport').style.display = '';
+  } catch(e) {
+    // silencioso — pode não ter permissão de leitura de logs
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  MAP RENDERING
+// ══════════════════════════════════════════════════════
+function getFilteredAddresses() {
+  const q    = $('searchInput').value.trim().toLowerCase();
+  const rua  = $('filterRua').value.trim().toUpperCase();
+  const pos  = $('filterPos').value.trim();
+  const stat = $('filterStatus').value;
+  const now  = new Date();
+
+  // Agrupa itens por endereço
+  const itemsByAddr = {};
+  for (const it of S.items) {
+    const k = addrKey(it.rua, it.pos);
+    if (!itemsByAddr[k]) itemsByAddr[k] = [];
+    itemsByAddr[k].push(it);
+  }
+
+  return S.addresses.filter(addr => {
+    if (rua && addr.rua !== rua) return false;
+    if (pos && String(addr.pos) !== pos) return false;
+
+    const items = itemsByAddr[addrKey(addr.rua, addr.pos)] || [];
+    const isFree = items.length === 0;
+
+    if (stat === 'free' && !isFree) return false;
+    if (stat === 'occ'  &&  isFree) return false;
+    if (stat === 'exp') {
+      const hasExp = items.some(it => { const d = daysUntil(it.val); return d !== null && d <= 30; });
+      if (!hasExp) return false;
+    }
+
+    if (q) {
+      const inAddr = addr.rua.toLowerCase().includes(q) || String(addr.pos).includes(q);
+      const inItems = items.some(it =>
+        (it.sku||'').toLowerCase().includes(q) ||
+        (it.desc||'').toLowerCase().includes(q) ||
+        (it.lote||'').toLowerCase().includes(q)
+      );
+      if (!inAddr && !inItems) return false;
+    }
+
+    return true;
+  }).map(addr => ({
+    ...addr,
+    items: itemsByAddr[addrKey(addr.rua, addr.pos)] || []
+  })).sort((a, b) => {
+    const rr = a.rua.localeCompare(b.rua, 'pt-BR', { sensitivity: 'base' });
+    if (rr !== 0) return rr;
+    return (parseInt(a.pos) || 0) - (parseInt(b.pos) || 0);
+  });
+}
+
+function updateKPIs(filtered) {
+  const itemsByAddr = {};
+  for (const it of S.items) {
+    const k = addrKey(it.rua, it.pos);
+    if (!itemsByAddr[k]) itemsByAddr[k] = [];
+    itemsByAddr[k].push(it);
+  }
+  const total = S.addresses.length;
+  const occ   = S.addresses.filter(a => (itemsByAddr[addrKey(a.rua, a.pos)]||[]).length > 0).length;
+  const free  = total - occ;
+  const expiring = S.items.filter(it => { const d = daysUntil(it.val); return d !== null && d <= 30 && d >= 0; }).length;
+
+  $('kpiTotal').textContent   = total;
+  $('kpiFree').textContent    = free;
+  $('kpiOcc').textContent     = occ;
+  $('kpiItems').textContent   = S.items.length;
+  $('kpiExpiring').textContent = expiring;
+}
+
+function renderMap() {
+  const filtered = getFilteredAddresses();
+  updateKPIs(filtered);
+
+  const perPage = parseInt($('perPageSelect').value) || 40;
+  S.perPage = perPage;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  if (S.page > totalPages) S.page = 1;
+
+  const slice = filtered.slice((S.page - 1) * perPage, S.page * perPage);
+  const grid = $('cardsGrid');
+
+  if (slice.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">📦</div>
+      <div class="empty-text">Nenhum endereço encontrado</div>
+      <div class="empty-sub">Tente ajustar os filtros</div>
+    </div>`;
+  } else {
+    grid.innerHTML = slice.map(addr => renderCard(addr)).join('');
+    grid.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const [rua, pos] = btn.dataset.edit.split('|');
+        openEditModal(rua, pos);
+      });
+    });
+  }
+
+  renderPagination(totalPages);
+}
+
+function renderCard(addr) {
+  const isFree = addr.items.length === 0;
+  const canEdit = S.role === 'admin' || S.role === 'operator';
+
+  let itemsHtml = '';
+  if (isFree) {
+    itemsHtml = `<div class="card-free-msg">Endereço livre</div>`;
+  } else {
+    itemsHtml = addr.items.map(it => {
+      const days = daysUntil(it.val);
+      let valClass = '';
+      let valLabel = '';
+      if (days !== null) {
+        if (days < 0)       { valClass = 'val-exp';  valLabel = ` (vencido)`; }
+        else if (days <= 30){ valClass = 'val-warn'; valLabel = ` (${days}d)`; }
+      }
+      return `<div class="card-item">
+        <div class="item-desc">${it.desc || '–'}</div>
+        <div class="item-sku">SKU ${it.sku || '–'}</div>
+        <div class="item-meta">
+          <span>🏷 ${it.lote || '–'}</span>
+          <span class="${valClass}">📅 ${formatDate(it.val)}${valLabel}</span>
+          <span>📦 ${it.est || '–'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const badge = isFree
+    ? `<span class="badge badge-free">Livre</span>`
+    : `<span class="badge badge-occ">Ocupado</span>${addr.items.length > 1 ? `<span class="badge badge-count">${addr.items.length} itens</span>` : ''}`;
+
+  const editBtn = canEdit
+    ? `<button class="btn" data-edit="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px">✏️ Editar</button>`
+    : '';
+
+  return `<div class="addr-card ${isFree ? 'is-free' : 'is-occ'}">
+    <div class="card-header">
+      <span class="card-addr">${addr.rua} · Pos. ${addr.pos}</span>
+      ${badge}
+    </div>
+    <div class="card-items">${itemsHtml}</div>
+    ${editBtn ? `<div class="card-actions">${editBtn}</div>` : ''}
+  </div>`;
+}
+
+function renderPagination(totalPages) {
+  const pg = $('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  let html = `<span class="page-info">${S.page} / ${totalPages}</span>`;
+  const prev = `<button class="page-btn" ${S.page===1?'disabled':''} data-pg="${S.page-1}">‹</button>`;
+  const next = `<button class="page-btn" ${S.page===totalPages?'disabled':''} data-pg="${S.page+1}">›</button>`;
+
+  // Números de página
+  let nums = '';
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - S.page) <= 2) {
+      nums += `<button class="page-btn ${i===S.page?'active':''}" data-pg="${i}">${i}</button>`;
+    } else if (Math.abs(i - S.page) === 3) {
+      nums += `<span style="padding:0 4px;color:var(--muted)">…</span>`;
+    }
+  }
+
+  pg.innerHTML = prev + nums + next + html;
+  pg.querySelectorAll('[data-pg]').forEach(btn => {
+    btn.addEventListener('click', () => { S.page = parseInt(btn.dataset.pg); renderMap(); });
+  });
+}
+
+// Filtros
+['searchInput','filterRua','filterPos','filterStatus','perPageSelect'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', () => { S.page = 1; renderMap(); });
+});
+$('btnClearFilters').addEventListener('click', () => {
+  $('searchInput').value = '';
+  $('filterRua').value = '';
+  $('filterPos').value = '';
+  $('filterStatus').value = '';
+  S.page = 1; renderMap();
+});
+
+// ══════════════════════════════════════════════════════
+//  EDIT MODAL
+// ══════════════════════════════════════════════════════
+function openEditModal(rua, pos) {
+  S.editTarget = { rua, pos };
+  $('editAddrTitle').textContent = `Endereço ${rua} · Pos. ${pos}`;
+  $('editRua').value = rua;
+  $('editPos').value = pos;
+
+  const currentItems = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos));
+  renderEditItemList(currentItems.length > 0 ? currentItems : [emptyItem()]);
+  openModal('editAddrModal');
+}
+
+function emptyItem() {
+  return { sku: '', desc: '', lote: '', val: '', est: '', idEnd: '' };
+}
+
+function renderEditItemList(items) {
+  const list = $('editItemList');
+  list.innerHTML = items.map((it, i) => `
+    <div class="item-row" data-idx="${i}">
+      <div class="item-row-header">
+        <span class="item-row-title">Item ${i + 1}</span>
+        <button class="remove-item-btn" data-remove="${i}" title="Remover">×</button>
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">SKU</label>
+          <input class="form-input" data-field="sku" value="${it.sku||''}" placeholder="Ex: 2287"></div>
+        <div><label class="form-label">Estoque</label>
+          <input class="form-input" data-field="est" value="${it.est||''}" placeholder="Qtd"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <input class="form-input" data-field="desc" value="${it.desc||''}" placeholder="Nome do produto">
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">Lote</label>
+          <input class="form-input" data-field="lote" value="${it.lote||''}" placeholder="Ex: 1234/24"></div>
+        <div><label class="form-label">Validade</label>
+          <input class="form-input" data-field="val" type="text" value="${it.val||''}" placeholder="DD/MM/AAAA"></div>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+        <label class="form-label" style="color:var(--accent2)">↪ Transferir para outro endereço (opcional)</label>
+        <div style="display:flex;gap:6px">
+          <input class="form-input" data-field="newRua" value="" placeholder="Rua (ex: B)" style="width:80px">
+          <input class="form-input" data-field="newPos" value="" placeholder="Pos (ex: 5)" style="flex:1">
+        </div>
+        <div class="form-hint">Preencha apenas se quiser mover este item para outro endereço</div>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rows = getEditItems();
+      rows.splice(parseInt(btn.dataset.remove), 1);
+      if (rows.length === 0) rows.push(emptyItem());
+      renderEditItemList(rows);
+    });
+  });
+}
+
+function getEditItems() {
+  return Array.from($('editItemList').querySelectorAll('.item-row')).map(row => ({
+    sku:    row.querySelector('[data-field="sku"]').value.trim(),
+    desc:   row.querySelector('[data-field="desc"]').value.trim(),
+    lote:   row.querySelector('[data-field="lote"]').value.trim(),
+    val:    row.querySelector('[data-field="val"]').value.trim(),
+    est:    row.querySelector('[data-field="est"]').value.trim(),
+    idEnd:  '',
+    newRua: (row.querySelector('[data-field="newRua"]')?.value||'').trim().toUpperCase(),
+    newPos: (row.querySelector('[data-field="newPos"]')?.value||'').trim()
+  }));
+}
+
+$('addItemBtn').addEventListener('click', () => {
+  const items = getEditItems();
+  items.push(emptyItem());
+  renderEditItemList(items);
+});
+
+$('saveAddrBtn').addEventListener('click', async () => {
+  const { rua, pos } = S.editTarget;
+  const editedItems = getEditItems();
+
+  // Valida transferências: endereço destino deve existir
+  for (const it of editedItems) {
+    if (it.newRua && it.newPos) {
+      const destExists = S.addresses.some(a => a.rua === it.newRua && String(a.pos) === String(it.newPos));
+      if (!destExists) {
+        alert(`Endereço destino "${it.newRua} · Pos. ${it.newPos}" não existe no cadastro. Cadastre-o primeiro em "Endereços".`);
+        return;
+      }
+    }
+  }
+
+  loading(true, 'Salvando...');
+  try {
+    // Remove todos os docs antigos deste endereço
+    const oldDocs = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos));
+    const batch = db.batch();
+    oldDocs.forEach(it => batch.delete(db.collection('wms_items').doc(it._id)));
+
+    const ts = new Date().toISOString();
+    const user = S.user.email;
+
+    editedItems.forEach((it, i) => {
+      const hasData = it.sku || it.desc || it.lote;
+      if (!hasData) return; // linha vazia = remover (não salva)
+
+      // Destino: transferência ou endereço original
+      const destRua = it.newRua || rua;
+      const destPos = it.newPos || pos;
+      const { newRua, newPos, ...itemData } = it;
+
+      const docId = `${addrKey(destRua, destPos)}_${i}_${Date.now()}`;
+      batch.set(db.collection('wms_items').doc(docId), {
+        ...itemData, rua: destRua, pos: destPos,
+        updatedAt: ts, updatedBy: user,
+        manuallyEdited: true   // marca como editado manualmente
+      });
+    });
+
+    await batch.commit();
+    closeModal('editAddrModal');
+    await loadAll();
+  } catch(e) {
+    alert('Erro ao salvar: ' + e.message);
+  }
+  loading(false);
+});
+
+// ══════════════════════════════════════════════════════
+//  IMPORT ERP
+// ══════════════════════════════════════════════════════
+let importParsed = null;
+
+function importShowStep(step) {
+  ['File','Preview','Progress','Done','Error'].forEach(s => {
+    $('importStep'+s).style.display = s === step ? '' : 'none';
+  });
+}
+
+const dropZone = $('dropZone');
+const fileInput = $('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processImportFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processImportFile(fileInput.files[0]);
+  fileInput.value = '';
+});
+
+function processImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true, dateNF: 'DD/MM/YYYY' });
+      importParsed = parseExcel(wb);
+      const s = importParsed.stats;
+      $('importSummary').innerHTML = [
+        { label: 'Total de itens', val: s.total },
+        { label: 'Com endereço',   val: s.withAddr },
+        { label: 'Sem endereço',   val: s.noAddr }
+      ].map(x => `<div class="import-stat"><div class="import-stat-val">${x.val}</div><div class="import-stat-lbl">${x.label}</div></div>`).join('');
+      importShowStep('Preview');
+    } catch(err) {
+      $('importErrorMsg').textContent = err.message;
+      importShowStep('Error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcel(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows  = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'DD/MM/YYYY' });
+  if (!rows || rows.length < 2) throw new Error('Planilha vazia.');
+
+  const hdr = rows[0].map(h => String(h||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+
+  const col = (...names) => { for (const n of names) { const i = hdr.findIndex(h => h.includes(n)); if (i >= 0) return i; } return -1; };
+
+  const iSku  = col('item codigo', 'sku', 'codigo');
+  const iDesc = col('item descricao', 'descricao', 'descri');
+  const iLote = col('lote');
+  const iVal  = col('data validade', 'validade', 'vencimento');
+  const iSaldo= col('saldo', 'quantidade', 'qtd', 'estoque');
+  const iRua  = col('rua');
+  const iPos  = col('posicao', 'posicao', 'pos');
+  const iIdEnd= col('id_item_end', 'id item end', 'id_end', 'id end');
+  const iEmp  = col('emp', 'empresa');
+
+  if (iSku < 0) throw new Error('Coluna "Item Codigo" não encontrada.');
+
+  const items = [], noAddr = [], addrSet = new Set();
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c)) continue;
+
+    const rua = iRua >= 0 ? String(r[iRua]||'').trim().toUpperCase() : '';
+    const pos = iPos >= 0 ? String(r[iPos]||'').trim() : '';
+
+    // Normaliza data
+    let val = iVal >= 0 ? String(r[iVal]||'').trim() : '';
+    if (val && !val.includes('/')) {
+      // Pode ser YYYY-MM-DD
+      const d = new Date(val);
+      if (!isNaN(d)) val = d.toLocaleDateString('pt-BR');
+    }
+
+    const item = {
+      sku:   String(r[iSku]  ||'').trim(),
+      desc:  String(r[iDesc] ||'').trim(),
+      lote:  String(r[iLote] ||'').trim(),
+      val,
+      est:   iSaldo  >= 0 ? String(r[iSaldo] ||'').trim() : '',
+      idEnd: iIdEnd  >= 0 ? String(r[iIdEnd] ||'').trim() : '',
+      emp:   iEmp    >= 0 ? String(r[iEmp]   ||'').trim() : '',
+      rua, pos
+    };
+
+    if (rua && pos) {
+      addrSet.add(`${rua}|${pos}`);
+      items.push(item);
+    } else {
+      noAddr.push(item);
+    }
+  }
+
+  const addresses = Array.from(addrSet).map(k => {
+    const [rua, pos] = k.split('|');
+    return { rua, pos, cap: 99, active: true };
+  }).sort((a, b) => {
+    const r = a.rua.localeCompare(b.rua,'pt-BR',{sensitivity:'base'});
+    return r !== 0 ? r : (parseInt(a.pos)||0) - (parseInt(b.pos)||0);
+  });
+
+  return { items, noAddr, addresses, stats: { total: items.length + noAddr.length, withAddr: items.length, noAddr: noAddr.length, addrs: addresses.length } };
+}
+
+$('importConfirmBtn').addEventListener('click', async () => {
+  if (!importParsed) return;
+  importShowStep('Progress');
+  const setProgress = (pct, msg) => {
+    $('importProgressFill').style.width = pct + '%';
+    $('importProgressMsg').textContent = msg;
+  };
+
+  try {
+    const { items, noAddr, addresses } = importParsed;
+    const CHUNK = 400;
+    let done = 0;
+    const total = items.length + addresses.length + 2;
+
+    // 1. Limpa coleções antigas (inclui flags de edição manual)
+    setProgress(2, 'Limpando dados anteriores...');
+    for (const col of ['wms_items', 'wms_addresses']) {
+      const snap = await db.collection(col).get();
+      for (let i = 0; i < snap.docs.length; i += CHUNK) {
+        const batch = db.batch();
+        snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+    }
+
+    // 2. Salva endereços
+    setProgress(10, 'Salvando endereços...');
+    for (let i = 0; i < addresses.length; i += CHUNK) {
+      const batch = db.batch();
+      addresses.slice(i, i + CHUNK).forEach(a => {
+        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
+      });
+      await batch.commit();
+      done += Math.min(CHUNK, addresses.length - i);
+      setProgress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
+    }
+
+    // 3. Salva itens com endereço
+    setProgress(80, 'Salvando itens...');
+    for (let i = 0; i < items.length; i += CHUNK) {
+      const batch = db.batch();
+      items.slice(i, i + CHUNK).forEach((it, j) => {
+        const id = `${addrKey(it.rua, it.pos)}_${i+j}`;
+        batch.set(db.collection('wms_items').doc(id), it);
+      });
+      await batch.commit();
+      done += Math.min(CHUNK, items.length - i);
+      setProgress(80 + Math.round(((i + CHUNK) / items.length) * 15), `Itens: ${i + CHUNK}/${items.length}`);
+    }
+
+    // 4. Log com timestamp e detalhes
+    const importTs = new Date().toISOString();
+    await db.collection('wms_import_log').add({
+      ts: importTs,
+      importedBy: S.user.email,
+      importedByName: S.user.displayName || S.user.email,
+      totalItens: items.length,
+      semEndereco: noAddr.length,
+      enderecos: addresses.length
+    });
+
+    setProgress(100, 'Concluído!');
+    const nowFmt = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    $('importDoneMsg').textContent = `✅ ${items.length} itens importados em ${addresses.length} endereços · ${nowFmt}`;
+    importShowStep('Done');
+    await loadAll();
+  } catch(e) {
+    $('importErrorMsg').textContent = e.message;
+    importShowStep('Error');
+  }
+});
+
+$('importCancelBtn').addEventListener('click', () => importShowStep('File'));
+$('importRetryBtn').addEventListener('click', () => importShowStep('File'));
+$('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowStep('File'); });
+
+// ══════════════════════════════════════════════════════
+//  USERS PAGE
+// ══════════════════════════════════════════════════════
+async function renderUsers() {
+  const snap = await db.collection('wms_users').get();
+  const users = snap.docs.map(d => ({ email: d.id, ...d.data() }));
+  $('usersTableBody').innerHTML = users.map(u => `
+    <tr>
+      <td><strong>${u.name||'–'}</strong></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${u.email}</td>
+      <td><span class="role-badge role-${u.role||'viewer'}">${u.role||'viewer'}</span></td>
+      <td><span class="status-dot ${u.active?'status-active':'status-inactive'}"></span>${u.active?'Ativo':'Inativo'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn" style="font-size:11px;padding:4px 8px" data-edit-user="${u.email}">✏️</button>
+        <button class="btn ${u.active?'btn-danger':''}" style="font-size:11px;padding:4px 8px" data-toggle-user="${u.email}" data-active="${u.active}">${u.active?'Desativar':'Ativar'}</button>
+      </td>
+    </tr>`).join('');
+
+  document.querySelectorAll('[data-edit-user]').forEach(btn => {
+    btn.addEventListener('click', () => openUserModal(btn.dataset.editUser, users.find(u => u.email === btn.dataset.editUser)));
+  });
+  document.querySelectorAll('[data-toggle-user]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const active = btn.dataset.active === 'true';
+      await db.collection('wms_users').doc(btn.dataset.toggleUser).update({ active: !active });
+      renderUsers();
+    });
+  });
+}
+
+function openUserModal(email, data) {
+  S.editUserId = email || null;
+  $('userModalTitle').textContent = email ? 'Editar usuário' : 'Convidar usuário';
+  $('userEmail').value = email || '';
+  $('userEmail').readOnly = !!email;
+  $('userName2').value = data?.name || '';
+  $('userRole').value  = data?.role || 'operator';
+  openModal('userModal');
+}
+
+$('btnAddUser').addEventListener('click', () => openUserModal(null, null));
+
+$('saveUserBtn').addEventListener('click', async () => {
+  const email = $('userEmail').value.trim();
+  const name  = $('userName2').value.trim();
+  const role  = $('userRole').value;
+  if (!email) { alert('Informe o e-mail.'); return; }
+  loading(true, 'Salvando...');
+  try {
+    await db.collection('wms_users').doc(email).set({ name, role, active: true, updatedAt: new Date().toISOString() }, { merge: true });
+    closeModal('userModal');
+    renderUsers();
+  } catch(e) { alert('Erro: ' + e.message); }
+  loading(false);
+});
+
+// ══════════════════════════════════════════════════════
+//  ADDRESSES PAGE
+// ══════════════════════════════════════════════════════
+async function renderAddresses() {
+  const itemsByAddr = {};
+  for (const it of S.items) {
+    const k = addrKey(it.rua, it.pos);
+    if (!itemsByAddr[k]) itemsByAddr[k] = 0;
+    itemsByAddr[k]++;
+  }
+
+  $('addrsTableBody').innerHTML = S.addresses
+    .sort((a,b)=>{
+      const r=a.rua.localeCompare(b.rua,'pt-BR',{sensitivity:'base'});
+      return r!==0?r:(parseInt(a.pos)||0)-(parseInt(b.pos)||0);
+    })
+    .map(addr => {
+      const k = addrKey(addr.rua, addr.pos);
+      const cnt = itemsByAddr[k] || 0;
+      return `<tr>
+        <td><strong>${addr.rua}</strong></td>
+        <td>${addr.pos}</td>
+        <td>${addr.cap || '–'}</td>
+        <td><span class="status-dot ${addr.active!==false?'status-active':'status-inactive'}"></span>${addr.active!==false?'Ativo':'Inativo'}</td>
+        <td>${cnt} ${cnt===1?'item':'itens'}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn" style="font-size:11px;padding:4px 8px" data-edit-addr="${addr._key}">✏️</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:4px 8px" data-del-addr="${addr._key}" data-rua="${addr.rua}" data-pos="${addr.pos}">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+  document.querySelectorAll('[data-edit-addr]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const addr = S.addresses.find(a => a._key === btn.dataset.editAddr);
+      if (addr) openAddrModal(addr);
+    });
+  });
+  document.querySelectorAll('[data-del-addr]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Remover endereço ${btn.dataset.rua} · Pos. ${btn.dataset.pos}?`)) return;
+      loading(true, 'Removendo...');
+      try {
+        await db.collection('wms_addresses').doc(btn.dataset.delAddr).delete();
+        await loadAll();
+        renderAddresses();
+      } catch(e) { alert('Erro: ' + e.message); }
+      loading(false);
+    });
+  });
+}
+
+function openAddrModal(addr) {
+  S.editAddrKey = addr?._key || null;
+  $('addrModalTitle').textContent = addr ? `Editar ${addr.rua} · Pos. ${addr.pos}` : 'Novo endereço';
+  $('addrRua').value = addr?.rua || '';
+  $('addrPos').value = addr?.pos || '';
+  $('addrCap').value = addr?.cap || 1;
+  $('addrRua').readOnly = !!addr;
+  $('addrPos').readOnly = !!addr;
+  $('addrModalError').style.display = 'none';
+  openModal('addrModal');
+}
+
+$('btnAddAddr').addEventListener('click', () => openAddrModal(null));
+
+$('saveAddrNewBtn').addEventListener('click', async () => {
+  const rua = $('addrRua').value.trim().toUpperCase();
+  const pos = $('addrPos').value.trim();
+  const cap = parseInt($('addrCap').value) || 1;
+  if (!rua || !pos) { $('addrModalError').textContent='Preencha rua e posição.'; $('addrModalError').style.display=''; return; }
+
+  loading(true, 'Salvando...');
+  try {
+    const key = S.editAddrKey || addrKey(rua, pos);
+    await db.collection('wms_addresses').doc(key).set({ rua, pos, cap, active: true }, { merge: true });
+    closeModal('addrModal');
+    await loadAll();
+    renderAddresses();
+  } catch(e) { $('addrModalError').textContent=e.message; $('addrModalError').style.display=''; }
+  loading(false);
+});
+
+// Import de endereços em lote
+$('btnImportAddrs').addEventListener('click', () => openModal('importAddrsModal'));
+
+$('btnSeedAddrs').addEventListener('click', async () => {
+  if (!confirm('Isso vai criar/confirmar todos os 280 endereços (A-G × Pos.1-40). Endereços extras que você criou manualmente serão mantidos. Continuar?')) return;
+  loading(true, 'Criando endereços padrão...');
+  try {
+    await seedDefaultAddresses();
+    await loadAll();
+    renderAddresses();
+  } catch(e) { alert('Erro: ' + e.message); }
+  loading(false);
+});
+$('importAddrsSaveBtn').addEventListener('click', async () => {
+  const lines = $('importAddrsText').value.trim().split('\n').filter(Boolean);
+  const parsed = lines.map(l => {
+    const parts = l.trim().split(/\s+/);
+    return parts.length >= 2 ? { rua: parts[0].toUpperCase(), pos: parts[1] } : null;
+  }).filter(Boolean);
+
+  if (!parsed.length) { $('importAddrsResult').textContent = 'Nenhum endereço válido encontrado.'; return; }
+
+  loading(true, `Importando ${parsed.length} endereços...`);
+  try {
+    const CHUNK = 400;
+    for (let i = 0; i < parsed.length; i += CHUNK) {
+      const batch = db.batch();
+      parsed.slice(i, i + CHUNK).forEach(a => {
+        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), { rua: a.rua, pos: a.pos, cap: 99, active: true }, { merge: true });
+      });
+      await batch.commit();
+    }
+    closeModal('importAddrsModal');
+    $('importAddrsText').value = '';
+    await loadAll();
+    renderAddresses();
+  } catch(e) { alert('Erro: ' + e.message); }
+  loading(false);
+});
+
+
+// ══════════════════════════════════════════════════════
+//  EXPORTAR PARA ERP
+// ══════════════════════════════════════════════════════
+
+// Toggle dropdown
+$('btnExportToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = $('exportDropdown');
+  dd.style.display = dd.style.display === 'none' ? '' : 'none';
+});
+document.addEventListener('click', () => {
+  if ($('exportDropdown')) $('exportDropdown').style.display = 'none';
+});
+document.querySelectorAll('.export-opt').forEach(btn => {
+  btn.addEventListener('mouseenter', () => btn.style.background = 'var(--bg)');
+  btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+});
+
+$('btnExportAll').addEventListener('click', async () => {
+  $('exportDropdown').style.display = 'none';
+  loading(true, 'Gerando planilha completa...');
+  try {
+    await exportToERP(false);
+  } catch(e) { alert('Erro ao exportar: ' + e.message); }
+  loading(false);
+});
+
+$('btnExportEdited').addEventListener('click', async () => {
+  $('exportDropdown').style.display = 'none';
+  loading(true, 'Gerando planilha de alterados...');
+  try {
+    await exportToERP(true);
+  } catch(e) { alert('Erro ao exportar: ' + e.message); }
+  loading(false);
+});
+
+async function exportToERP(onlyEdited = false) {
+  // Busca dados frescos do Firestore
+  let query = db.collection('wms_items');
+  if (onlyEdited) query = query.where('manuallyEdited', '==', true);
+
+  const itemsSnap = await query.get();
+  const allItems  = itemsSnap.docs.map(d => d.data());
+
+  if (allItems.length === 0) {
+    if (onlyEdited) {
+      alert('Nenhum item editado desde a última importação.\n\nEdite endereços no mapa e depois exporte.');
+    } else {
+      alert('Nenhum item encontrado para exportar. Faça uma importação primeiro.');
+    }
+    return;
+  }
+
+  // Monta linhas no mesmo formato do Excel do ERP
+  const headers = [
+    'ID ITEM', 'EMP', 'Cod EAN', 'Item Codigo', 'Item Descricao',
+    'Fornecedor', 'Lote', 'Data Validade', 'Saldo', 'Custo',
+    'Estoque', 'Rua', 'Posição', 'Nível', 'Atualiza', 'ID_ITEM_ENDERECAMENTO'
+  ];
+
+  // Ordena: com endereço primeiro (por rua/pos), depois sem endereço
+  const sorted = [...allItems].sort((a, b) => {
+    const hasA = !!(a.rua && a.pos), hasB = !!(b.rua && b.pos);
+    if (hasA !== hasB) return hasB - hasA;
+    if (!hasA) return 0;
+    const r = (a.rua||'').localeCompare(b.rua||'', 'pt-BR', { sensitivity: 'base' });
+    if (r !== 0) return r;
+    return (parseInt(a.pos)||0) - (parseInt(b.pos)||0);
+  });
+
+  const rows = sorted.map(it => [
+    it.idEnd    || '',   // ID ITEM
+    it.emp      || '',   // EMP
+    '',                  // Cod EAN (não editamos no app)
+    it.sku      || '',   // Item Codigo
+    it.desc     || '',   // Item Descricao
+    '',                  // Fornecedor (não editamos no app)
+    it.lote     || '',   // Lote
+    it.val      || '',   // Data Validade
+    it.est      || '',   // Saldo
+    '',                  // Custo (não editamos no app)
+    '',                  // Estoque (coluna legacy)
+    it.rua      || '',   // Rua
+    it.pos      || '',   // Posição
+    '',                  // Nível
+    'S',                 // Atualiza — sinaliza que foi revisado no app
+    it.idEnd    || ''    // ID_ITEM_ENDERECAMENTO
+  ]);
+
+  // Cria workbook
+  const wb = XLSX.utils.book_new();
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Largura das colunas
+  ws['!cols'] = [
+    {wch:10},{wch:6},{wch:14},{wch:12},{wch:40},
+    {wch:30},{wch:14},{wch:14},{wch:8},{wch:10},
+    {wch:8},{wch:6},{wch:8},{wch:8},{wch:8},{wch:20}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'ESTOQUE PRODUTOS');
+
+  // Aba de metadados (quem exportou, quando)
+  const now = new Date();
+  const metaWs = XLSX.utils.aoa_to_sheet([
+    ['Exportado em:', now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR')],
+    ['Exportado por:', S.user.email],
+    ['Tipo:', onlyEdited ? 'Somente alterados manualmente' : 'Exportação completa'],
+    ['Total de itens:', allItems.length],
+    ['Com endereço:', allItems.filter(i => i.rua && i.pos).length],
+    ['Sistema:', 'HumWMS v41']
+  ]);
+  XLSX.utils.book_append_sheet(wb, metaWs, 'Info exportação');
+
+  // Nome do arquivo com data
+  const dateStr = now.toISOString().slice(0,10);
+  const suffix  = onlyEdited ? '_ALTERADOS' : '_COMPLETO';
+  const filename = `ESTOQUE_ERP${suffix}_${dateStr}.xlsx`;
+
+  XLSX.writeFile(wb, filename);
+
+  // Registra no log
+  await db.collection('wms_export_log').add({
+    ts: now.toISOString(),
+    exportedBy: S.user.email,
+    totalItens: allItems.length,
+    tipo: onlyEdited ? 'alterados' : 'completo'
+  }).catch(() => {});
+}
+
+</script>
+</body>
+</html>
