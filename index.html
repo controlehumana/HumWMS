@@ -1313,6 +1313,7 @@ header {
             <button class="btn btn-secondary" id="resume" disabled>Continuar de onde parei</button>
           </div>
         </div>
+        <div id="fbStatus" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500"></div>
     
         <!-- META PILLS -->
         <div class="pillRow" id="metaRow" style="display:none;">
@@ -4353,17 +4354,31 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       window._readPickingXlsx = readXlsx;
 
       // ── Carregar pedidos da nuvem (Firebase) ──
+      function fbMsg(type, text){
+        const el = $("fbStatus");
+        if (!el) return;
+        el.style.display = "block";
+        el.style.background = type==="ok" ? "#ecfdf5" : type==="err" ? "#fef2f2" : "#fffbeb";
+        el.style.color      = type==="ok" ? "#065f46" : type==="err" ? "#991b1b" : "#78350f";
+        el.style.border     = `1px solid ${type==="ok" ? "#a7f3d0" : type==="err" ? "#fca5a5" : "#fcd34d"}`;
+        el.textContent = text;
+      }
+
       $("loadFromFirebase")?.addEventListener("click", async () => {
-        if (typeof db === "undefined"){ showMsg("err","Firebase não disponível."); return; }
+        if (typeof db === "undefined"){ fbMsg("err","Firebase não disponível."); return; }
         $("loadFromFirebase").disabled = true;
-        showMsg("ok","Buscando pedidos na nuvem...");
+        fbMsg("ok", "⏳ Buscando pedidos na nuvem...");
         try {
+          // Sem orderBy para evitar índice composto — filtra client-side
           const snap = await db.collection("coletor_pedidos")
             .where("status","==","pendente")
-            .orderBy("importadoEm","desc")
-            .limit(30)
+            .limit(50)
             .get();
-          if (snap.empty){ showMsg("warn","Nenhum pedido pendente na nuvem."); $("loadFromFirebase").disabled = false; return; }
+          if (snap.empty){
+            fbMsg("warn","Nenhum pedido pendente na nuvem. Importe o Excel pelo computador primeiro.");
+            $("loadFromFirebase").disabled = false;
+            return;
+          }
 
           allItems = []; pedidosMap = new Map(); loadedFileName = "Firebase";
           for (const doc of snap.docs){
@@ -4381,9 +4396,9 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
           saveState({ appVersion: APP_VERSION, loadedFileName });
           setMetaMemory();
           setPedidosUI();
-          hideMsg();
+          fbMsg("ok", `✓ ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) carregados. Selecione o pedido abaixo.`);
         } catch(e){
-          showMsg("err", "Erro ao carregar: " + (e.message || e));
+          fbMsg("err", "Erro: " + (e.message || e));
         } finally {
           $("loadFromFirebase").disabled = false;
         }
