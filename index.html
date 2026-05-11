@@ -2856,6 +2856,9 @@ function printCartaz(rua, pos) {
     const val  = it.val  ? formatDate(it.val) : '—';
     const sku  = it.sku  || '—';
     const desc = it.desc || '—';
+    // ID do código de barras: SKU + dígitos da validade (DDMMAAAA)
+    const valDigits = val.replace(/\D/g, '');
+    const barcodeVal = sku + valDigits;
     return `
     <div class="cartaz-page">
 
@@ -2877,7 +2880,7 @@ function printCartaz(rua, pos) {
       <!-- Divisor -->
       <div class="cartaz-divider"></div>
 
-      <!-- Lote e Validade lado a lado -->
+      <!-- Lote, Validade e Código de barras -->
       <div class="cartaz-fields">
         <div class="cartaz-field">
           <div class="field-label">LOTE</div>
@@ -2887,6 +2890,12 @@ function printCartaz(rua, pos) {
         <div class="cartaz-field">
           <div class="field-label">VALIDADE</div>
           <div class="field-value">${val}</div>
+        </div>
+        <div class="cartaz-sep"></div>
+        <div class="cartaz-barcode-col">
+          <div class="field-label">CÓDIGO</div>
+          <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
+          <div class="barcode-id">${barcodeVal}</div>
         </div>
       </div>
 
@@ -2945,11 +2954,11 @@ function printCartaz(rua, pos) {
 
   /* Nome do produto */
   .cartaz-desc {
-    font-size: 30pt;
+    font-size: 40pt;
     font-weight: 900;
     color: #111;
-    line-height: 1.15;
-    max-width: 70%;
+    line-height: 1.1;
+    max-width: 75%;
     margin-top: 4mm;
   }
 
@@ -3014,6 +3023,29 @@ function printCartaz(rua, pos) {
     flex-shrink: 0;
   }
 
+  /* Coluna do código de barras */
+  .cartaz-barcode-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1.4;
+    padding-left: 4mm;
+  }
+  .barcode-svg {
+    width: 100%;
+    max-height: 36mm;
+  }
+  .barcode-id {
+    font-size: 8pt;
+    font-family: 'Courier New', monospace;
+    color: #555;
+    letter-spacing: 1px;
+    margin-top: 2mm;
+    text-align: center;
+    word-break: break-all;
+  }
+
   /* Rodapé */
   .cartaz-footer {
     font-size: 8pt;
@@ -3026,7 +3058,27 @@ function printCartaz(rua, pos) {
 </head>
 <body>
 ${cartazBlocks}
-<script>window.onload = () => window.print();<\/script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<script>
+window.onload = () => {
+  document.querySelectorAll('.barcode-svg').forEach(svg => {
+    const val = svg.dataset.value;
+    if (!val) return;
+    try {
+      JsBarcode(svg, val, {
+        format: 'CODE128',
+        width: 2.2,
+        height: 70,
+        displayValue: false,
+        margin: 0,
+        background: '#ffffff',
+        lineColor: '#111111'
+      });
+    } catch(e) { svg.style.display = 'none'; }
+  });
+  window.print();
+};
+<\/script>
 
 <!-- Modal: Atribuir Endereço -->
 <div class="modal-overlay" id="assignModal" style="display:none">
