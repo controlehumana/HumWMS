@@ -3123,14 +3123,14 @@ function printCartaz(rua, pos) {
         <span class="loc-value">${rua} &middot; ${pos}</span>
       </div>
 
-      <!-- Nome do produto -->
-      <div class="cartaz-desc">${desc}</div>
-
       <!-- SKU destaque -->
       <div class="cartaz-sku-row">
         <span class="sku-label">SKU</span>
         <span class="sku-value">${sku}</span>
       </div>
+
+      <!-- Nome do produto -->
+      <div class="cartaz-desc">${desc}</div>
 
       <!-- Divisor -->
       <div class="cartaz-divider"></div>
@@ -3207,6 +3207,14 @@ function printCartaz(rua, pos) {
     letter-spacing: 1px;
   }
 
+  /* SKU */
+  .cartaz-sku-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 6mm;
+  }
+
   /* Descrição */
   .cartaz-desc {
     font-size: 46pt;
@@ -3214,14 +3222,6 @@ function printCartaz(rua, pos) {
     color: #111;
     line-height: 1.1;
     max-width: 75%;
-    margin-top: 6mm;
-  }
-
-  /* SKU */
-  .cartaz-sku-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
     margin-top: 6mm;
   }
   .sku-label {
