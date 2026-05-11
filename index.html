@@ -439,6 +439,81 @@ header {
 </style>
 
 <style>
+/* ═══ Coletor — nav mobile e telas ═══ */
+
+/* Nav bar: só aparece no mobile */
+.colMobileNav {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  height: 52px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-shrink: 0;
+}
+.colNavBack {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #059669;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  min-width: 80px;
+  font-family: inherit;
+}
+.colNavTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+.colNavSettings {
+  min-width: 44px;
+  height: 44px;
+  width: 44px;
+}
+
+/* Telas: desktop — wrappers transparentes */
+.col-screen { display: contents; }
+
+@media (max-width: 640px) {
+  /* Mostra nav bar */
+  .colMobileNav { display: flex; }
+
+  /* Esconde header original do coletor */
+  #pageColetor .header { display: none; }
+
+  /* Telas: cada uma ocupa a altura disponível */
+  .col-screen {
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: calc(100dvh - 108px); /* WMS header 48px + colMobileNav 52px + margem 8px */
+    flex: 1;
+  }
+  .col-screen.col-active { display: flex; }
+
+  /* Tela 1: centraliza botões na vertical se houver espaço */
+  #colS1 { justify-content: flex-start; padding-bottom: 24px; }
+
+  /* Tela 3 (coleta): workArea preenche o espaço */
+  #colS3 { padding: 0; }
+  #colS3 #workArea {
+    display: flex !important;
+    flex-direction: column;
+    padding: 0;
+  }
+  #colS3 .content { padding: 0; }
+}
+
 /* ═══ Coletor de Separação — variáveis ═══ */
 :root {
   --col-bg:          #f0faf6;
@@ -1445,9 +1520,24 @@ header {
         </div>
       </div>
     
+      <!-- Nav bar mobile (uma tela por vez) -->
+      <div class="colMobileNav" id="colMobileNav">
+        <button class="colNavBack" id="colNavBack" aria-label="Voltar" style="visibility:hidden">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar
+        </button>
+        <span class="colNavTitle" id="colNavTitle">Início</span>
+        <button class="colNavSettings iconBtn" id="colNavSettings" aria-label="Preferências" title="Preferências">
+          <svg viewBox="0 0 24 24"><path d="M11.983 1.5a1.5 1.5 0 0 1 1.487 1.305l.271 2.027a7.501 7.501 0 0 1 1.73.998l1.88-.76a1.5 1.5 0 0 1 1.86.66l1.5 2.598a1.5 1.5 0 0 1-.36 1.96l-1.609 1.25c.05.41.075.83.075 1.262 0 .432-.025.852-.075 1.262l1.609 1.25a1.5 1.5 0 0 1 .36 1.96l-1.5 2.598a1.5 1.5 0 0 1-1.86.66l-1.88-.76a7.5 7.5 0 0 1-1.73.998l-.271 2.027A1.5 1.5 0 0 1 11.983 22.5h-2.966a1.5 1.5 0 0 1-1.487-1.305l-.271-2.027a7.5 7.5 0 0 1-1.73-.998l-1.88.76a1.5 1.5 0 0 1-1.86-.66l-1.5-2.598a1.5 1.5 0 0 1 .36-1.96l1.609-1.25A9.3 9.3 0 0 1 3 12c0-.432.025-.852.075-1.262L1.466 9.488a1.5 1.5 0 0 1-.36-1.96l1.5-2.598a1.5 1.5 0 0 1 1.86-.66l1.88.76a7.501 7.501 0 0 1 1.73-.998l.271-2.027A1.5 1.5 0 0 1 9.017 1.5h2.966ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+        </button>
+      </div>
+
       <!-- CONTEÚDO PRINCIPAL -->
       <div class="content">
-    
+
+        <!-- ══ TELA 1: Início ══ -->
+        <div id="colS1" class="col-screen col-active">
+
         <!-- UPLOAD + SEPARADOR -->
         <div class="uploadSection">
           <div class="uploadLeft">
@@ -1479,6 +1569,11 @@ header {
           <div class="pill" id="metaStatus"></div>
         </div>
     
+        </div><!-- /colS1 -->
+
+        <!-- ══ TELA 2: Selecionar Pedido ══ -->
+        <div id="colS2" class="col-screen">
+
         <!-- SELETOR DE PEDIDO -->
         <div class="pickerRow" id="pedidoPickerRow" style="display:none;">
           <div style="flex:1;min-width:220px;">
@@ -1492,6 +1587,11 @@ header {
           </div>
         </div>
     
+        </div><!-- /colS2 -->
+
+        <!-- ══ TELA 3: Coleta ══ -->
+        <div id="colS3" class="col-screen">
+
         <!-- AREA DE TRABALHO -->
         <div id="workArea" style="display:none;">
           <div class="workHeader">
@@ -1651,7 +1751,8 @@ header {
             </div><!-- /itemCardBody -->
           </div><!-- /itemCard -->
         </div><!-- /workArea -->
-    
+        </div><!-- /colS3 -->
+
       </div><!-- /content -->
     </div><!-- /card -->
     </div><!-- /wrap -->
@@ -3820,6 +3921,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         lockIfAllDone();
         $("startPedido").disabled = pedidosList.length === 0 || sel.options[sel.selectedIndex]?.disabled;
         $("nextPedido").disabled = true;
+        colGoTo('colS2');
       }
     
       function getSeparador(){ return String($("separador").value || "").trim(); }
@@ -3922,6 +4024,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         setMetaMemory();
         hideMsg();
         refresh();
+        colGoTo('colS3');
       }
     
       function getConcluded(){ const st = loadState() || {}; return Array.isArray(st.concluded) ? st.concluded : []; }
@@ -4237,6 +4340,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         $("startPedido").disabled = false;
         $("nextPedido").disabled = true;
         hideMsg();
+        colGoTo('colS2');
       }
     
       function fullResetAll(){
@@ -4254,6 +4358,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         $("nextPedido").disabled = true;
         $("exportCheckpoint").disabled = true;
         hideMsg();
+        colGoTo('colS1');
       }
     
       // ============================================================
@@ -4560,6 +4665,47 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
     
       // Expõe readXlsx para o módulo de import do WMS
       window._readPickingXlsx = readXlsx;
+
+      // ══════════════════════════════════════════════════
+      // NAVEGAÇÃO MULTI-TELA (mobile)
+      // ══════════════════════════════════════════════════
+      const COL_TITLES = { colS1:'Início', colS2:'Selecionar Pedido', colS3:'Coletando' };
+
+      function colIsMobile(){ return window.innerWidth <= 640; }
+
+      function colGoTo(screenId){
+        if (!colIsMobile()) return;
+        ['colS1','colS2','colS3'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.toggle('col-active', el.id === screenId);
+        });
+        const titleEl = $('colNavTitle');
+        if (titleEl) titleEl.textContent = COL_TITLES[screenId] || 'Coletor';
+        const back = $('colNavBack');
+        if (back) back.style.visibility = screenId === 'colS1' ? 'hidden' : 'visible';
+        const screen = $(screenId);
+        if (screen) screen.scrollTop = 0;
+      }
+
+      // Back button
+      $('colNavBack')?.addEventListener('click', () => {
+        const active = ['colS1','colS2','colS3'].find(id => {
+          const el = document.getElementById(id);
+          return el && el.classList.contains('col-active');
+        });
+        if (active === 'colS3'){
+          softResetUI();
+          colGoTo('colS2');
+        } else if (active === 'colS2'){
+          colGoTo('colS1');
+        }
+      });
+
+      // Botão settings da nav bar abre as preferências
+      $('colNavSettings')?.addEventListener('click', () => openPrefs());
+
+      // Inicializar tela 1 no mobile
+      colGoTo('colS1');
 
       // ── Carregar pedidos da nuvem (Firebase) ──
       function fbMsg(type, text){
