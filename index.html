@@ -4142,12 +4142,27 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         $("validate").disabled = !(productConfirmed && hasLote && hasVal && items[idx]);
       }
     
+      // Tenta interpretar código do cartaz: SKU + DDMMYYYY colados
+      // Retorna { date: "DD/MM/YYYY" } se válido, null caso contrário
+      function parseCartazBarcode(typed, sku){
+        if (!typed || !sku) return null;
+        const t = typed.trim().toUpperCase();
+        const s = sku.trim().toUpperCase();
+        if (!t.startsWith(s)) return null;
+        const datePart = t.slice(s.length);
+        if (!/^\d{8}$/.test(datePart)) return null;
+        const dd = datePart.slice(0,2), mm = datePart.slice(2,4), yyyy = datePart.slice(4,8);
+        const d = Number(dd), mo = Number(mm), y = Number(yyyy);
+        if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2000) return null;
+        return { date: `${dd}/${mm}/${yyyy}` };
+      }
+
       function confirmProduct(){
         const cur = items[idx];
         if (!cur) return;
         const typed = String($("prodIn").value || "").trim();
         if (!typed){ showMsg("warn","Informe o código do produto para confirmar."); return; }
-    
+
         const typedNorm = normText(typed);
         const typedDigits = digitsOnly(typed);
         const skuOk = typedNorm === normText(cur.codigo);
@@ -4157,29 +4172,41 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
           (typedDigits.length == 14 && eanExpected.length == 13 && typedDigits.endsWith(eanExpected)) ||
           (typedDigits.length == 13 && eanExpected.length == 14 && eanExpected.endsWith(typedDigits))
         );
-    
-        if (skuOk || eanOk){
+        const cartaz = parseCartazBarcode(typed, cur.codigo);
+        const cartazOk = cartaz !== null;
+
+        if (skuOk || eanOk || cartazOk){
           productConfirmed = true;
           productConfirmInput = typed;
-          productConfirmBy = eanOk ? "EAN" : "SKU";
+          productConfirmBy = eanOk ? "EAN" : cartazOk ? "Cartaz" : "SKU";
           $("prodIn").disabled = true;
           $("confirmProd").disabled = true;
           $("loteIn").disabled = false;
           $("valIn").disabled = false;
-          // CORRIGIDO: NÃO revela automaticamente o lote/validade esperados.
-          // O operador deve verificar fisicamente antes de consultar.
-          updateDivButtonState(); // habilita divergência agora que produto foi confirmado
-          showMsg("ok", `Produto confirmado por ${productConfirmBy}. Verifique o lote e validade fisicamente. Use "Consultar lote do pedido" somente se necessário.`);
-          if(window.setStep) window.setStep(2);
-          if($("loteIn")) $("loteIn").classList.add("active-step");
-          if($("prodIn")) $("prodIn").classList.remove("active-step");
-          setTimeout(() => $("loteIn").focus(), 80);
+          updateDivButtonState();
+
+          if (cartazOk){
+            // Preenche validade automaticamente a partir do código do cartaz
+            $("valIn").value = cartaz.date;
+            $("valIn").dispatchEvent(new Event("input"));
+            showMsg("ok", `Produto confirmado pelo Cartaz. Validade ${cartaz.date} preenchida automaticamente — confirme o lote fisicamente.`);
+            if(window.setStep) window.setStep(2);
+            if($("loteIn")) $("loteIn").classList.add("active-step");
+            if($("prodIn")) $("prodIn").classList.remove("active-step");
+            setTimeout(() => $("loteIn").focus(), 80);
+          } else {
+            showMsg("ok", `Produto confirmado por ${productConfirmBy}. Verifique o lote e validade fisicamente.`);
+            if(window.setStep) window.setStep(2);
+            if($("loteIn")) $("loteIn").classList.add("active-step");
+            if($("prodIn")) $("prodIn").classList.remove("active-step");
+            setTimeout(() => $("loteIn").focus(), 80);
+          }
         } else {
           productConfirmed = false;
           productConfirmInput = typed;
           productConfirmBy = "";
           updateDivButtonState();
-          showMsg("err", "Código divergente. Verifique o produto e tente novamente. Use \"Consultar código do pedido\" se necessário.");
+          showMsg("err", "Código divergente. Verifique o produto e tente novamente.");
           if(window.setStep) window.setStep(1);
           $("prodIn").focus();
           $("prodIn").select?.();
