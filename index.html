@@ -3135,7 +3135,7 @@ function printCartaz(rua, pos) {
       <!-- Divisor -->
       <div class="cartaz-divider"></div>
 
-      <!-- Lote, Validade e Código de barras -->
+      <!-- Lote e Validade -->
       <div class="cartaz-fields">
         <div class="cartaz-field">
           <div class="field-label">LOTE</div>
@@ -3146,12 +3146,12 @@ function printCartaz(rua, pos) {
           <div class="field-label">VALIDADE</div>
           <div class="field-value">${val}</div>
         </div>
-        <div class="cartaz-sep"></div>
-        <div class="cartaz-barcode-col">
-          <div class="field-label">CÓDIGO</div>
-          <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
-          <div class="barcode-id">${barcodeVal}</div>
-        </div>
+      </div>
+
+      <!-- Código de barras centralizado -->
+      <div class="cartaz-barcode-row">
+        <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
+        <div class="barcode-id">${barcodeVal}</div>
       </div>
 
       <!-- Rodapé -->
@@ -3277,27 +3277,25 @@ function printCartaz(rua, pos) {
     flex-shrink: 0;
   }
 
-  /* Coluna código de barras */
-  .cartaz-barcode-col {
+  /* Linha do código de barras */
+  .cartaz-barcode-row {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    flex: 1.4;
-    padding-left: 4mm;
+    margin-top: 4mm;
   }
   .barcode-svg {
     width: 100%;
-    max-height: 36mm;
+    max-height: 32mm;
+    display: block;
   }
   .barcode-id {
     font-size: 8pt;
     font-family: 'Courier New', monospace;
     color: #555;
     letter-spacing: 1px;
-    margin-top: 2mm;
+    margin-top: 1.5mm;
     text-align: center;
-    word-break: break-all;
   }
 
   /* Rodapé */
