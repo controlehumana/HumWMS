@@ -3103,11 +3103,9 @@ $('btnExportExpiry').addEventListener('click', () => {
 //  CARTAZ DE PRATELEIRA
 // ══════════════════════════════════════════════════════
 function printCartaz(rua, pos) {
-  const key   = addrKey(rua, pos);
-  const items = S.items.filter(i => addrKey(i.rua, i.pos) === key);
+  const key    = addrKey(rua, pos);
+  const items  = S.items.filter(i => addrKey(i.rua, i.pos) === key);
   if (!items.length) return;
-
-  const endereco = `${rua}-${pos}`;
 
   const cartazBlocks = items.map(it => {
     const lote       = it.lote || '—';
@@ -3120,39 +3118,40 @@ function printCartaz(rua, pos) {
     <div class="cartaz-page">
 
       <!-- Endereço: canto superior direito -->
-      <div class="cartaz-end-corner">${endereco}</div>
-
-      <!-- Linha 1: SKU -->
-      <div class="cartaz-top">
-        <span class="cartaz-sku">${sku}</span>
+      <div class="cartaz-loc">
+        <span class="loc-label">ENDEREÇO</span>
+        <span class="loc-value">${rua} &middot; ${pos}</span>
       </div>
 
-      <!-- Linha 2: Descrição -->
+      <!-- Nome do produto -->
       <div class="cartaz-desc">${desc}</div>
 
-      <!-- Divisor -->
-      <div class="cartaz-divider"></div>
-
-      <!-- Linha 3: Lote · Validade -->
-      <div class="cartaz-lv">
-        <div class="cartaz-lv-block">
-          <div class="lv-label">LOTE</div>
-          <div class="lv-value">${lote}</div>
-        </div>
-        <div class="cartaz-lv-sep"></div>
-        <div class="cartaz-lv-block">
-          <div class="lv-label">VALIDADE</div>
-          <div class="lv-value">${val}</div>
-        </div>
+      <!-- SKU destaque -->
+      <div class="cartaz-sku-row">
+        <span class="sku-label">SKU</span>
+        <span class="sku-value">${sku}</span>
       </div>
 
       <!-- Divisor -->
       <div class="cartaz-divider"></div>
 
-      <!-- Linha 4: Código de barras (largura total) -->
-      <div class="cartaz-barcode">
-        <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
-        <div class="barcode-id">${barcodeVal}</div>
+      <!-- Lote, Validade e Código de barras -->
+      <div class="cartaz-fields">
+        <div class="cartaz-field">
+          <div class="field-label">LOTE</div>
+          <div class="field-value">${lote}</div>
+        </div>
+        <div class="cartaz-sep"></div>
+        <div class="cartaz-field">
+          <div class="field-label">VALIDADE</div>
+          <div class="field-value">${val}</div>
+        </div>
+        <div class="cartaz-sep"></div>
+        <div class="cartaz-barcode-col">
+          <div class="field-label">CÓDIGO</div>
+          <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
+          <div class="barcode-id">${barcodeVal}</div>
+        </div>
       </div>
 
       <!-- Rodapé -->
@@ -3165,7 +3164,7 @@ function printCartaz(rua, pos) {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Cartaz – ${endereco}</title>
+<title>Cartaz – ${rua} ${pos}</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3174,126 +3173,140 @@ function printCartaz(rua, pos) {
   .cartaz-page {
     width: 297mm;
     height: 210mm;
-    padding: 12mm 16mm 8mm;
+    padding: 14mm 18mm 10mm;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    justify-content: space-between;
     page-break-after: always;
+    position: relative;
     border: 2px solid #111;
-    border-radius: 10mm;
+    border-radius: 12mm;
     overflow: hidden;
   }
 
   /* Endereço: canto superior direito */
-  .cartaz-end-corner {
+  .cartaz-loc {
     position: absolute;
     top: 10mm;
-    right: 14mm;
-    font-size: 30pt;
-    font-weight: 900;
-    color: #111;
-    letter-spacing: 2px;
+    right: 16mm;
     text-align: right;
   }
-
-  /* Linha 1: SKU */
-  .cartaz-top {
-    margin-bottom: 3mm;
-  }
-  .cartaz-sku {
-    font-size: 22pt;
-    font-weight: 900;
-    color: #111;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 1px;
-  }
-
-  /* Linha 2: Descrição */
-  .cartaz-desc {
-    font-size: 44pt;
-    font-weight: 900;
-    color: #111;
-    line-height: 1.05;
-    flex-shrink: 0;
-    margin-bottom: 5mm;
-    overflow-wrap: break-word;
-  }
-
-  /* Divisor */
-  .cartaz-divider {
-    border-top: 1.5px solid #ddd;
-    margin: 3mm 0;
-    flex-shrink: 0;
-  }
-
-  /* Linha 3: Lote + Validade */
-  .cartaz-lv {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    flex-shrink: 0;
-    padding: 2mm 0;
-  }
-  .cartaz-lv-block {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .lv-label {
-    font-size: 8pt;
+  .loc-label {
+    display: block;
+    font-size: 9pt;
     font-weight: 700;
     color: #888;
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-bottom: 1mm;
   }
-  .lv-value {
-    font-size: 32pt;
+  .loc-value {
+    display: block;
+    font-size: 28pt;
     font-weight: 900;
     color: #111;
-    letter-spacing: 0.5px;
-    overflow-wrap: break-word;
+    letter-spacing: 1px;
   }
-  .cartaz-lv-sep {
-    width: 1.5px;
+
+  /* Descrição */
+  .cartaz-desc {
+    font-size: 46pt;
+    font-weight: 900;
+    color: #111;
+    line-height: 1.1;
+    max-width: 75%;
+    margin-top: 6mm;
+  }
+
+  /* SKU */
+  .cartaz-sku-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 6mm;
+  }
+  .sku-label {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .sku-value {
+    font-size: 44pt;
+    font-weight: 900;
+    color: #111;
+  }
+
+  /* Divisor */
+  .cartaz-divider {
+    border-top: 2px solid #ddd;
+    margin: 5mm 0;
+  }
+
+  /* Lote + Validade + Código */
+  .cartaz-fields {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    max-height: 55mm;
+  }
+  .cartaz-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .field-label {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 2mm;
+  }
+  .field-value {
+    font-size: 44pt;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: 1px;
+  }
+  .cartaz-sep {
+    width: 2px;
     background: #ddd;
-    margin: 0 8mm;
+    margin: 0 10mm;
     flex-shrink: 0;
   }
 
-  /* Linha 4: Código de barras */
-  .cartaz-barcode {
-    flex: 1;
+  /* Coluna código de barras */
+  .cartaz-barcode-col {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2mm 0 0;
-    min-height: 0;
+    flex: 1.4;
+    padding-left: 4mm;
   }
   .barcode-svg {
     width: 100%;
-    max-height: 28mm;
-    display: block;
+    max-height: 36mm;
   }
   .barcode-id {
-    font-size: 7.5pt;
+    font-size: 8pt;
     font-family: 'Courier New', monospace;
-    color: #666;
-    letter-spacing: 1.5px;
-    margin-top: 1.5mm;
+    color: #555;
+    letter-spacing: 1px;
+    margin-top: 2mm;
     text-align: center;
+    word-break: break-all;
   }
 
   /* Rodapé */
   .cartaz-footer {
-    font-size: 7pt;
+    font-size: 8pt;
     color: #bbb;
     text-align: center;
-    margin-top: 2mm;
+    margin-top: 3mm;
     letter-spacing: 1px;
-    flex-shrink: 0;
   }
 </style>
 </head>
@@ -3308,8 +3321,8 @@ window.onload = () => {
     try {
       JsBarcode(svg, val, {
         format: 'CODE128',
-        width: 2.4,
-        height: 65,
+        width: 2.2,
+        height: 70,
         displayValue: false,
         margin: 0,
         background: '#ffffff',
