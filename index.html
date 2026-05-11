@@ -392,11 +392,49 @@ header {
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  header { padding: 0 14px; gap: 8px; }
-  .cards-grid { padding: 12px; grid-template-columns: 1fr; }
-  .kpi-bar { padding: 12px 14px; gap: 10px; }
-  .filter-bar { padding: 10px 14px; }
-  .tabs { padding: 0 14px; }
+  /* Header compacto */
+  header { padding: 0 12px; height: 48px; gap: 8px; }
+  .logo-sub { display: none; }
+  .user-pill { padding: 4px 8px; gap: 4px; }
+  .user-pill > span:not(.user-avatar):not(.logout-btn) { display: none; }
+
+  /* Abas: scroll horizontal */
+  .tabs { padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs-inner { flex-wrap: nowrap; padding: 0 8px; width: max-content; gap: 0; }
+  .tab { padding: 10px 10px; font-size: 12px; flex-shrink: 0; }
+
+  /* Conteúdo */
+  .cards-grid { padding: 10px; grid-template-columns: 1fr; }
+  .kpi-bar { padding: 10px 12px; gap: 8px; }
+  .kpi { min-width: 72px; padding: 8px 10px; }
+  .kpi-val { font-size: 18px; }
+  .filter-bar { padding: 8px 12px; }
+  .filter-bar-inner { flex-direction: column; align-items: stretch; gap: 6px; }
+  .filter-bar-inner .search-box { max-width: 100%; min-width: 0; }
+  .filter-input { width: 100%; box-sizing: border-box; }
+  .page-inner { padding: 12px; }
+  .map-content { padding: 8px 12px; }
+  .section-header { flex-wrap: wrap; gap: 8px; }
+
+  /* Modais: bottom sheet */
+  .modal-overlay { padding: 0; align-items: flex-end; overflow: hidden; }
+  .modal { border-radius: 20px 20px 0 0; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 16px 20px 12px; }
+  .modal-body { padding: 16px 20px; }
+  .modal-footer { padding: 12px 20px; flex-wrap: wrap; }
+
+  /* Tabelas: scroll horizontal */
+  .admin-container { overflow-x: auto; }
+  .users-table, .addr-table { min-width: 520px; }
+
+  /* Coletor: layout mobile */
+  #pageColetor { padding: 12px 8px 40px; }
+  #pageColetor .uploadSection { grid-template-columns: 1fr; }
+  #pageColetor .uploadActions { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  #pageColetor .uploadActions .btn { flex: 1; min-width: 120px; justify-content: center; }
+  #pageColetor .workActions { flex-wrap: wrap; gap: 6px; }
+  #pageColetor .workActions .btn { flex: 1; min-width: 100px; justify-content: center; }
 }
 </style>
 
@@ -1086,6 +1124,22 @@ header {
         <div class="alert alert-error" id="importErrorMsg"></div>
         <button class="btn" id="importRetryBtn">↩ Tentar novamente</button>
       </div>
+
+      <!-- ── Pedidos de Separação ── -->
+      <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
+      <div class="section-header" style="margin-bottom:8px">
+        <div class="section-title">📋 Pedidos de Separação</div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Importe o Excel de separação para a nuvem. Os coletores acessam os pedidos pelo celular sem precisar carregar arquivo.
+      </p>
+      <div class="drop-zone" id="pickingDropZone" style="cursor:pointer">
+        <div class="drop-zone-icon">📦</div>
+        <div class="drop-zone-text">Arraste o Excel de pedidos aqui</div>
+        <div class="drop-zone-sub">ou clique para selecionar · .xlsx / .xls</div>
+      </div>
+      <input type="file" id="pickingFileInput" accept=".xlsx,.xls" style="display:none">
+      <div id="pickingStatus" style="display:none;margin-top:10px;padding:12px 16px;border-radius:8px;font-size:13px"></div>
     </div>
   </div>
 
@@ -1255,6 +1309,7 @@ header {
           <div class="uploadActions">
             <button class="btn btn-ghost" id="pick">Selecionar Excel</button>
             <button class="btn btn-primary" id="load" disabled>Carregar arquivo</button>
+            <button class="btn btn-primary" id="loadFromFirebase" style="background:var(--col-green);border-color:var(--col-green-dark)">📡 Da nuvem</button>
             <button class="btn btn-secondary" id="resume" disabled>Continuar de onde parei</button>
           </div>
         </div>
@@ -3190,6 +3245,58 @@ function initPendingListeners() {
 // Inicializar listeners após DOM
 window.addEventListener('DOMContentLoaded', initPendingListeners);
 
+// ══════════════════════════════════════════════════════════════
+// PEDIDOS DE SEPARAÇÃO — import do PC para Firestore
+// ══════════════════════════════════════════════════════════════
+(function initPickingImport(){
+  const dropZone = document.getElementById('pickingDropZone');
+  const fileInput = document.getElementById('pickingFileInput');
+  const statusEl = document.getElementById('pickingStatus');
+  if (!dropZone) return;
+
+  function setStatus(type, msg){
+    statusEl.style.display = 'block';
+    const colors = { ok:'#ecfdf5;color:#065f46;border:1px solid #a7f3d0', err:'#fef2f2;color:#991b1b;border:1px solid #fca5a5', info:'#eff6ff;color:#1e40af;border:1px solid #bfdbfe' };
+    statusEl.style.cssText += `;background:${(colors[type]||colors.info).split(';')[0].split(':')[1]};${colors[type].split(';').slice(1).join(';')}`;
+    statusEl.style.background = type==='ok'?'#ecfdf5':type==='err'?'#fef2f2':'#eff6ff';
+    statusEl.style.color = type==='ok'?'#065f46':type==='err'?'#991b1b':'#1e40af';
+    statusEl.style.border = type==='ok'?'1px solid #a7f3d0':type==='err'?'1px solid #fca5a5':'1px solid #bfdbfe';
+    statusEl.textContent = msg;
+  }
+
+  async function processPickingFile(file){
+    if (!window._readPickingXlsx){ setStatus('err','Leitor não disponível. Recarregue a página.'); return; }
+    setStatus('info', `Lendo ${file.name}...`);
+    try {
+      const allItems = await window._readPickingXlsx(file);
+      const pedidosMap = new Map();
+      for (const it of allItems){ const p=String(it.pedido).trim(); if(!pedidosMap.has(p)) pedidosMap.set(p,[]); pedidosMap.get(p).push(it); }
+      setStatus('info', `Salvando ${pedidosMap.size} pedido(s) no Firebase...`);
+      const batch = db.batch();
+      for (const [pedido, itens] of pedidosMap){
+        const ref = db.collection('coletor_pedidos').doc(String(pedido));
+        batch.set(ref, {
+          pedido, itens, total: itens.length,
+          status: 'pendente',
+          importadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+          importadoPor: S.user?.email || '',
+          nomeArquivo: file.name
+        });
+      }
+      await batch.commit();
+      setStatus('ok', `✓ ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) enviados para a nuvem. Coletores já podem acessar.`);
+    } catch(e){
+      setStatus('err', 'Erro: ' + (e.message || e));
+    }
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { const f=fileInput.files?.[0]; if(f) processPickingFile(f); fileInput.value=''; });
+  dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('drag-over'); const f=e.dataTransfer.files?.[0]; if(f) processPickingFile(f); });
+})();
+
   // ══════════════════════════════════════════════════
   // COLETOR DE SEPARAÇÃO — integrado ao WMS
   // ══════════════════════════════════════════════════
@@ -4242,6 +4349,46 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         };
       }
     
+      // Expõe readXlsx para o módulo de import do WMS
+      window._readPickingXlsx = readXlsx;
+
+      // ── Carregar pedidos da nuvem (Firebase) ──
+      $("loadFromFirebase")?.addEventListener("click", async () => {
+        if (typeof db === "undefined"){ showMsg("err","Firebase não disponível."); return; }
+        $("loadFromFirebase").disabled = true;
+        showMsg("ok","Buscando pedidos na nuvem...");
+        try {
+          const snap = await db.collection("coletor_pedidos")
+            .where("status","==","pendente")
+            .orderBy("importadoEm","desc")
+            .limit(30)
+            .get();
+          if (snap.empty){ showMsg("warn","Nenhum pedido pendente na nuvem."); $("loadFromFirebase").disabled = false; return; }
+
+          allItems = []; pedidosMap = new Map(); loadedFileName = "Firebase";
+          for (const doc of snap.docs){
+            const data = doc.data();
+            const p = String(data.pedido).trim();
+            if (!pedidosMap.has(p)) pedidosMap.set(p, []);
+            pedidosMap.get(p).push(...(data.itens || []));
+            allItems.push(...(data.itens || []));
+          }
+          $("metaPedidos").textContent = `Pedidos: ${pedidosMap.size}`;
+          $("metaItens").textContent   = `Itens: ${allItems.length}`;
+          $("metaUltimo").textContent  = `Fonte: ☁ Firebase`;
+          $("metaStatus").textContent  = `Status: Carregado ✓`;
+          $("metaRow").style.display   = "flex";
+          saveState({ appVersion: APP_VERSION, loadedFileName });
+          setMetaMemory();
+          setPedidosUI();
+          hideMsg();
+        } catch(e){
+          showMsg("err", "Erro ao carregar: " + (e.message || e));
+        } finally {
+          $("loadFromFirebase").disabled = false;
+        }
+      });
+
       // Boot
       (function init(){
         setExpectedVisible(false);
