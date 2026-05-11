@@ -856,8 +856,164 @@ header {
       transition:background .12s;
     }
     .btn-conclusionSecondary:hover{background:var(--col-surface);}
-  
-  
+
+  /* ══════════════════════════════════════════
+     COLETOR — layout mobile
+  ══════════════════════════════════════════ */
+  @media(max-width:640px){
+
+    /* Página sem padding lateral — ocupa toda a tela */
+    &#pageColetor{
+      padding:0 0 32px;
+      align-items:stretch;
+    }
+
+    /* Card sem bordas/sombra — visual full-screen */
+    .wrap{ width:100%; }
+    .card{
+      border-radius:0;
+      border-left:none;border-right:none;border-top:none;
+      box-shadow:none;
+    }
+
+    /* Header coletor */
+    .header{ padding:12px 14px; }
+    .appIcon{ width:32px;height:32px; }
+    .appSub{ display:none; }
+    .iconBtn{ width:44px;height:44px; }
+
+    /* Conteúdo */
+    .content{ padding:14px; }
+
+    /* Upload */
+    .uploadSection{ padding:12px;gap:10px; }
+    .uploadLeft{ grid-template-columns:1fr; gap:10px; }
+    .uploadActions{ flex-direction:column;gap:8px; }
+    .uploadActions .btn{ height:48px;font-size:15px; }
+    .textInput{ height:48px;font-size:16px; }
+
+    /* Meta pills */
+    .pill{ font-size:11px;padding:4px 8px; }
+
+    /* Seletor de pedido */
+    .pickerRow{
+      flex-direction:column;align-items:stretch;
+      gap:10px;padding:12px 0;
+    }
+    .pickerRow > div:first-child{ width:100%; }
+    .pickerRow select{
+      width:100%;height:52px;
+      font-size:16px; /* evita zoom no iOS */
+    }
+    .pickerRow > div:last-child{
+      display:flex;gap:8px;
+    }
+    .pickerRow > div:last-child .btn{
+      flex:1;height:52px;font-size:15px;
+    }
+
+    /* Cabeçalho da área de trabalho */
+    .workHeader{
+      flex-direction:column;
+      align-items:stretch;
+      gap:10px;
+      padding:10px 0;
+      margin-bottom:12px;
+    }
+    .orderTag{ text-align:center;font-size:14px;padding:8px 12px; }
+    .progressWrap{ min-width:0; }
+    .workActions{ gap:6px; }
+    .workActions .btn{
+      flex:1;height:44px;
+      font-size:12px;padding:0 8px;
+    }
+
+    /* Steps */
+    .steps{ margin-bottom:14px; }
+    .step{ padding:8px 4px; }
+    .stepNum{ width:28px;height:28px;font-size:13px; }
+    .stepLabel{ font-size:10px; }
+
+    /* Produto destaque */
+    .productBlock{ padding:12px; }
+    .productName{ font-size:22px; }
+    .productMeta{ font-size:13px;gap:8px; }
+    .qtyBadge{ font-size:14px;padding:3px 12px; }
+
+    /* Campos de entrada — tamanho confortável + sem zoom no iOS */
+    .inputLabel{ font-size:14px; }
+    .inputField{
+      height:52px;
+      font-size:16px;
+      border-radius:8px;
+    }
+
+    /* Confirmar produto: empilha verticalmente */
+    .confirmRow{
+      grid-template-columns:1fr;
+      gap:8px;
+    }
+    /* Botões de câmera e confirmar ficam lado a lado na segunda linha */
+    .confirmRow .btn{
+      height:52px;font-size:15px;
+    }
+    #scanBtn{ order:2; }
+    #confirmProd{ order:3; }
+
+    /* Lote + Validade */
+    .lotGrid{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    /* Botão validar */
+    .btn-validate{
+      height:64px;
+      font-size:20px;
+      border-radius:12px;
+    }
+
+    /* Mensagem feedback */
+    .msg{ font-size:14px;padding:12px 14px; }
+
+    /* Consultar lote / código */
+    .consultarBtn{ padding:10px 14px;font-size:14px; }
+    .formFooter{ flex-direction:column;align-items:stretch;gap:8px; }
+    .expectedRow{ flex-direction:column;align-items:flex-start; }
+
+    /* Divergência */
+    .divHeader{ padding:14px 16px;font-size:14px; }
+    .divBody{ padding:14px; }
+    .divGrid{ grid-template-columns:1fr; }
+    .divSelect,.divTextarea{ font-size:16px; }
+    .btn-warn{ height:52px;font-size:15px; }
+
+    /* Modal preferências: bottom sheet */
+    .modalOverlay{
+      padding:0;align-items:flex-end;
+    }
+    .modal{
+      border-radius:20px 20px 0 0;
+      width:100%;max-width:100%;
+      max-height:88vh;
+    }
+    .modalHead{ padding:16px 20px; }
+    .modalBody{ padding:16px 20px; }
+
+    /* Modal conclusão */
+    .conclusionModal{
+      border-radius:20px 20px 0 0;
+      width:100%;
+    }
+    .conclusionTop{ padding:24px 20px 20px; }
+    .conclusionBottom{ padding:16px 20px 20px; }
+    .cStatNum{ font-size:26px; }
+    .btn-conclusionPrimary{ height:56px;font-size:17px; }
+
+    /* Scanner: tela cheia no mobile */
+    .scanModal{ width:100%;border-radius:0;min-height:100vh; }
+    #scanReader{ min-height:60vh; }
+  }
 }
 </style>
 </head>
@@ -2954,7 +3110,7 @@ function printCartaz(rua, pos) {
 
   /* Nome do produto */
   .cartaz-desc {
-    font-size: 40pt;
+    font-size: 46pt;
     font-weight: 900;
     color: #111;
     line-height: 1.1;
@@ -2977,7 +3133,7 @@ function printCartaz(rua, pos) {
     text-transform: uppercase;
   }
   .sku-value {
-    font-size: 26pt;
+    font-size: 36pt;
     font-weight: 900;
     color: #111;
   }
