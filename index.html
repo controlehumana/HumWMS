@@ -832,19 +832,17 @@ header {
   
     /* ── SEÇÃO UPLOAD ── */
     .uploadSection{
-      display:grid;
-      grid-template-columns:1fr auto;
-      gap:16px;
-      align-items:end;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
       padding:16px;
       background:var(--col-surface);
       border:1px solid var(--col-line2);
       border-radius:var(--col-radius-md);
       margin-bottom:16px;
     }
-    @media(max-width:600px){.uploadSection{grid-template-columns:1fr;}}
     .uploadLeft{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-    @media(max-width:540px){.uploadLeft{grid-template-columns:1fr;}}
+    @media(max-width:640px){.uploadLeft{grid-template-columns:1fr;}}
     .fieldLabel{font-size:13px;font-weight:500;color:var(--col-text);margin-bottom:5px;}
     .fieldHint{font-size:12px;color:var(--col-muted);margin-bottom:6px;}
     .textInput{
@@ -1203,10 +1201,12 @@ header {
     .content{ padding:14px; }
 
     /* Upload */
-    .uploadSection{ padding:12px;gap:10px; }
-    .uploadLeft{ grid-template-columns:1fr; gap:10px; }
+    .uploadSection{ padding:12px;gap:12px; }
+    .uploadLeft{ grid-template-columns:1fr; gap:12px; }
+    .fieldLabel{ font-size:15px;font-weight:600; }
+    .fieldHint{ font-size:13px; }
     .uploadActions .btn{ height:60px;font-size:16px;border-radius:12px; }
-    .textInput{ height:56px;font-size:17px; }
+    .textInput{ height:60px;font-size:18px;font-weight:500; }
 
     /* Meta pills */
     .pill{ font-size:11px;padding:4px 8px; }
