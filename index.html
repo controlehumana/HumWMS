@@ -1439,7 +1439,12 @@ header {
       </div>
       <div class="filter-group">
         <span class="filter-label">Rua</span>
-        <input type="text" class="filter-input" id="filterRua" placeholder="Ex: A">
+        <select class="filter-input" id="filterRua" style="width:72px">
+          <option value="">Todas</option>
+          <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+          <option value="D">D</option><option value="E">E</option><option value="F">F</option>
+          <option value="G">G</option>
+        </select>
       </div>
       <div class="filter-group">
         <span class="filter-label">Posição</span>
@@ -2334,7 +2339,12 @@ header {
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Rua</label>
-            <input class="form-input" id="cmRua" placeholder="Ex: A" autocomplete="off">
+            <select class="form-select" id="cmRua">
+              <option value="">—</option>
+              <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+              <option value="D">D</option><option value="E">E</option><option value="F">F</option>
+              <option value="G">G</option>
+            </select>
           </div>
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Posição</label>
@@ -2559,6 +2569,15 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 function addrKey(rua, pos) { return `${String(rua).toUpperCase()}_${pos}`; }
+
+// Ruas fixas do armazém (A-G × 40 posições)
+const WMS_RUAS = ['A','B','C','D','E','F','G'];
+const WMS_POSES = Array.from({length:40}, (_,i) => i+1);
+
+function wmsRuasOpts(includeEmpty=true) {
+  return (includeEmpty ? '<option value="">Rua</option>' : '') +
+    WMS_RUAS.map(r=>`<option value="${r}">${r}</option>`).join('');
+}
 
 function daysUntil(dateStr) {
   if (!dateStr) return null;
@@ -5804,10 +5823,7 @@ function _invShowState(s) {
 }
 
 function _invPopulateRuas() {
-  const sel = document.getElementById('invRuaSel');
-  const ruas = [...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  sel.innerHTML = '<option value="">Rua</option>' +
-    ruas.map(r=>`<option value="${r}">${r}</option>`).join('');
+  document.getElementById('invRuaSel').innerHTML = wmsRuasOpts();
 }
 
 function _invUpdateSessionBar() {
@@ -5885,10 +5901,7 @@ function _invBindActions() {
   };
 
   // Transfer panel
-  const trRuaSel = document.getElementById('invTrRuaSel');
-  const ruas = [...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  trRuaSel.innerHTML = '<option value="">Rua</option>' +
-    ruas.map(r=>`<option value="${r}">${r}</option>`).join('');
+  document.getElementById('invTrRuaSel').innerHTML = wmsRuasOpts();
 
   document.getElementById('btnInvTransfer').onclick = () => {
     const panel = document.getElementById('invTransferPanel');
