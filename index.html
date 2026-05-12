@@ -392,6 +392,8 @@ header {
 .role-admin    { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
 .role-operator { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .role-viewer   { background: var(--free); color: var(--free-text); border: 1px solid var(--free-border); }
+.role-coletor  { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.role-custom   { background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 .status-active { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
 .status-inactive { background: var(--subtle); }
@@ -2427,21 +2429,23 @@ header {
         <input class="form-input" id="userName2" type="text" placeholder="Nome completo">
       </div>
       <div class="form-group">
-        <label class="form-label">Perfil</label>
-        <select class="form-select" id="userRole" onchange="updateColetorCheckbox()">
-          <option value="operator">Operador — edita endereços</option>
-          <option value="viewer">Visualizador — só consulta</option>
-          <option value="admin">Admin — acesso total</option>
+        <label class="form-label">Tipo de acesso</label>
+        <select class="form-select" id="userRole" onchange="onUserRoleChange()">
+          <option value="custom">Personalizado — escolher módulos abaixo</option>
+          <option value="admin">Administrador — acesso total</option>
         </select>
       </div>
-      <div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm)">
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;user-select:none">
-          <input type="checkbox" id="userCanColetor" style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)">Acesso ao Coletor de Separação</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Permite usar o módulo de coleta de pedidos no celular</div>
-          </div>
-        </label>
+
+      <!-- Admin info -->
+      <div id="adminInfo" style="display:none;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Administradores têm acesso completo a todos os módulos e configurações do sistema.
+      </div>
+
+      <!-- Módulos (para perfil personalizado) -->
+      <div id="modulesSection">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Módulos permitidos</div>
+        <div id="moduleCheckboxes" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2525,8 +2529,9 @@ const db   = firebase.firestore();
 // ══════════════════════════════════════════════════════
 const S = {
   user:        null,
-  role:        null,           // 'admin' | 'operator' | 'viewer'
-  canColetor:  false,          // acesso ao módulo Coletor de Separação
+  role:        null,           // 'admin' | 'custom' | legado: 'operator'|'viewer'|'coletor'
+  modules:     null,           // array de módulos liberados (null = usa lógica legado)
+  canColetor:  false,          // legado — mantido para compatibilidade
   addresses:   [],             // [{rua, pos, cap, key}]
   items:       [],             // [{rua, pos, sku, desc, lote, val, est, idEnd, _id}]
   unaddressed: [],             // [{sku, desc, lote, val, pendingAddr:true}]
@@ -2582,6 +2587,16 @@ function addrKey(rua, pos) { return `${String(rua).toUpperCase()}_${pos}`; }
 
 // Ruas fixas do armazém (A-G × 40 posições)
 const WMS_RUAS = ['A','B','C','D','E','F','G'];
+
+// Módulos disponíveis para configuração por usuário
+const WMS_MODULES = [
+  { id:'map',        label:'Mapa',            icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
+  { id:'dashboard',  label:'Dashboard',       icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+  { id:'expiry',     label:'Validades',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+  { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
+  { id:'inventario', label:'Col. Endereços',   icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>' },
+  { id:'coletor',    label:'Coletor',          icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>' },
+];
 const WMS_POSES = Array.from({length:40}, (_,i) => i+1);
 
 function wmsRuasOpts(includeEmpty=true) {
@@ -2647,22 +2662,41 @@ auth.onAuthStateChanged(async user => {
     S.user = user;
     const userData = snap.data();
     S.role = userData.role || 'viewer';
-    S.canColetor = S.role === 'admin' || userData.canColetor === true;
+    S.modules = Array.isArray(userData.modules) ? userData.modules : null;
+    S.canColetor = S.role === 'admin' || (S.modules || []).includes('coletor') ||
+                   S.role === 'coletor' || userData.canColetor === true;
 
     $('userAvatar').textContent = (userData.name || user.email).charAt(0).toUpperCase();
     $('userName').textContent = userData.name || user.email.split('@')[0];
 
-    // Mostra tabs conforme role
     if (S.role === 'admin') {
-      $('tabImport').style.display = '';
-      $('tabUsers').style.display = '';
-      $('tabAddresses').style.display = '';
-    }
-    if (S.role === 'admin' || S.role === 'operator') {
-      $('tabInventario').style.display = '';
-    }
-    if (S.canColetor) {
-      $('tabColetor').style.display = '';
+      // Admin: mostra tudo
+      ['tabImport','tabUsers','tabAddresses','tabDashboard','tabInventario','tabColetor'].forEach(id => {
+        const el = $(id); if (el) el.style.display = '';
+      });
+      document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+    } else if (S.modules !== null) {
+      // Novo sistema: visibilidade baseada em módulos
+      WMS_MODULES.forEach(m => {
+        const tab = document.querySelector(`[data-tab="${m.id}"]`);
+        if (tab) tab.style.display = S.modules.includes(m.id) ? '' : 'none';
+      });
+      // Admin-only: sempre ocultos
+      ['tabImport','tabUsers','tabAddresses'].forEach(id => {
+        const el = $(id); if (el) el.style.display = 'none';
+      });
+    } else {
+      // Legado: usa role antigo para compatibilidade
+      if (S.role === 'coletor') {
+        document.querySelector('[data-tab="map"]').style.display = 'none';
+        ['tabDashboard','tabExpiry','tabPending','tabInventario'].forEach(id => {
+          const el=$(id); if(el) el.style.display='none';
+        });
+        $('tabColetor').style.display = '';
+      } else {
+        if (S.role === 'operator') $('tabInventario').style.display = '';
+        if (S.canColetor) $('tabColetor').style.display = '';
+      }
     }
 
     $('authScreen').classList.add('hidden');
@@ -2698,8 +2732,16 @@ async function loadAll() {
     }
 
     S.page = 1;
-    renderMap();
-    loadLastImport();
+    if (S.modules !== null && S.role !== 'admin') {
+      // Novo sistema: navega para o primeiro módulo liberado
+      const first = S.modules[0];
+      if (first) showTab(first); else showTab('map');
+    } else if (S.role === 'coletor') {
+      showTab('coletor');
+    } else {
+      renderMap();
+      loadLastImport();
+    }
   } catch(e) {
     console.error('Erro ao carregar:', e);
   }
@@ -2860,7 +2902,8 @@ function renderMap() {
 
 function renderCard(addr) {
   const isFree = addr.items.length === 0;
-  const canEdit = S.role === 'admin' || S.role === 'operator';
+  const canEdit = S.role === 'admin' ||
+    (S.modules !== null ? S.modules.includes('map') : S.role === 'operator');
 
   let itemsHtml = '';
   if (isFree) {
@@ -3294,14 +3337,27 @@ async function renderUsers() {
   const snap = await db.collection('wms_users').get();
   const users = snap.docs.map(d => ({ email: d.id, ...d.data() }));
   $('usersTableBody').innerHTML = users.map(u => {
-    const hasCol = u.role==='admin' || u.canColetor===true;
+    const isAdmin = u.role === 'admin';
+    const mods = Array.isArray(u.modules) ? u.modules : null;
+    let modulesHtml;
+    if (isAdmin) {
+      modulesHtml = `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412">Acesso total</span>`;
+    } else if (mods !== null) {
+      if (!mods.length) {
+        modulesHtml = `<span style="font-size:11px;color:var(--subtle)">Nenhum módulo</span>`;
+      } else {
+        const names = mods.map(id => WMS_MODULES.find(m=>m.id===id)?.label||id).join(', ');
+        modulesHtml = `<span title="${names}" style="font-size:11px;color:var(--text2)">${mods.length} módulo${mods.length>1?'s':''}: ${names.length>30?names.slice(0,30)+'…':names}</span>`;
+      }
+    } else {
+      // Legado
+      modulesHtml = `<span class="role-badge role-${u.role||'viewer'}" style="font-size:10px">${u.role||'viewer'}</span>`;
+    }
     return `<tr>
       <td style="padding:11px 16px;font-size:13px"><strong>${u.name||'–'}</strong></td>
       <td style="padding:11px 16px;font-size:12px;font-family:'DM Mono',monospace">${u.email}</td>
-      <td style="padding:11px 16px"><span class="role-badge role-${u.role||'viewer'}">${u.role||'viewer'}</span></td>
-      <td style="padding:11px 16px">
-        ${hasCol ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534">Coletor</span>` : `<span style="font-size:11px;color:var(--subtle)">—</span>`}
-      </td>
+      <td style="padding:11px 16px"><span class="role-badge role-${isAdmin?'admin':'custom'}">${isAdmin?'Admin':'Personalizado'}</span></td>
+      <td style="padding:11px 16px;font-size:12px">${modulesHtml}</td>
       <td style="padding:11px 16px;font-size:13px"><span class="status-dot ${u.active?'status-active':'status-inactive'}"></span>${u.active?'Ativo':'Inativo'}</td>
       <td style="padding:11px 16px;display:flex;gap:6px">
         <button class="btn" style="font-size:11px;padding:4px 8px" data-edit-user="${u.email}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -3322,10 +3378,18 @@ async function renderUsers() {
   });
 }
 
-function updateColetorCheckbox() {
+function onUserRoleChange() {
   const isAdmin = $('userRole').value === 'admin';
-  $('userCanColetor').checked  = isAdmin ? true  : $('userCanColetor').checked;
-  $('userCanColetor').disabled = isAdmin;
+  $('modulesSection').style.display = isAdmin ? 'none' : '';
+  $('adminInfo').style.display      = isAdmin ? ''     : 'none';
+}
+
+function _renderModuleCheckboxes(selectedModules) {
+  $('moduleCheckboxes').innerHTML = WMS_MODULES.map(m => `
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);user-select:none">
+      <input type="checkbox" id="mod_${m.id}" ${selectedModules.includes(m.id)?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">
+      <span style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text)">${m.icon}${m.label}</span>
+    </label>`).join('');
 }
 
 function openUserModal(email, data) {
@@ -3334,10 +3398,26 @@ function openUserModal(email, data) {
   $('userEmail').value = email || '';
   $('userEmail').readOnly = !!email;
   $('userName2').value = data?.name || '';
-  $('userRole').value  = data?.role || 'operator';
-  const isAdmin = (data?.role === 'admin');
-  $('userCanColetor').checked  = isAdmin || data?.canColetor === true;
-  $('userCanColetor').disabled = isAdmin;
+
+  // Normaliza role legado para 'custom' no novo sistema
+  const rawRole = data?.role || 'custom';
+  const displayRole = rawRole === 'admin' ? 'admin' : 'custom';
+  $('userRole').value = displayRole;
+
+  // Determina módulos a marcar
+  let selectedMods = [];
+  if (Array.isArray(data?.modules)) {
+    selectedMods = data.modules;
+  } else if (rawRole === 'coletor') {
+    selectedMods = ['coletor'];
+  } else if (rawRole === 'operator') {
+    selectedMods = ['map','dashboard','expiry','pending','inventario'];
+  } else if (rawRole === 'viewer') {
+    selectedMods = ['map','dashboard','expiry'];
+  }
+
+  _renderModuleCheckboxes(selectedMods);
+  onUserRoleChange();
   openModal('userModal');
 }
 
@@ -3348,10 +3428,19 @@ $('saveUserBtn').addEventListener('click', async () => {
   const name  = $('userName2').value.trim();
   const role  = $('userRole').value;
   if (!email) { alert('Informe o e-mail.'); return; }
+
+  const modules = role === 'admin'
+    ? null
+    : WMS_MODULES.map(m => m.id).filter(id => document.getElementById('mod_' + id)?.checked);
+
+  const canColetor = role === 'admin' || (modules || []).includes('coletor');
+
   loading(true, 'Salvando...');
   try {
-    const canColetor = role === 'admin' ? true : $('userCanColetor').checked;
-    await db.collection('wms_users').doc(email).set({ name, role, canColetor, active: true, updatedAt: new Date().toISOString() }, { merge: true });
+    await db.collection('wms_users').doc(email).set(
+      { name, role, modules, canColetor, active: true, updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
     closeModal('userModal');
     renderUsers();
   } catch(e) { alert('Erro: ' + e.message); }
