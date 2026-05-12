@@ -1407,7 +1407,7 @@ header {
     <button class="tab" data-tab="users" id="tabUsers" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Endereços</button>
     <button class="tab" data-tab="inventario" id="tabInventario" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>Col. Endereços</button>
-    <button class="tab" data-tab="coletor" id="tabColetor"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
+    <button class="tab" data-tab="coletor" id="tabColetor" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
   </div></div>
 
   <!-- ══════════ PAGE: MAP ══════════ -->
@@ -1660,7 +1660,7 @@ header {
       <div class="table-container" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);">
         <table class="users-table">
           <thead>
-            <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+            <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Coletor</th><th>Status</th><th>Ações</th></tr>
           </thead>
           <tbody id="usersTableBody"></tbody>
         </table>
@@ -2428,11 +2428,20 @@ header {
       </div>
       <div class="form-group">
         <label class="form-label">Perfil</label>
-        <select class="form-select" id="userRole">
+        <select class="form-select" id="userRole" onchange="updateColetorCheckbox()">
           <option value="operator">Operador — edita endereços</option>
           <option value="viewer">Visualizador — só consulta</option>
           <option value="admin">Admin — acesso total</option>
         </select>
+      </div>
+      <div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="userCanColetor" style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Acesso ao Coletor de Separação</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Permite usar o módulo de coleta de pedidos no celular</div>
+          </div>
+        </label>
       </div>
     </div>
     <div class="modal-footer">
@@ -2517,6 +2526,7 @@ const db   = firebase.firestore();
 const S = {
   user:        null,
   role:        null,           // 'admin' | 'operator' | 'viewer'
+  canColetor:  false,          // acesso ao módulo Coletor de Separação
   addresses:   [],             // [{rua, pos, cap, key}]
   items:       [],             // [{rua, pos, sku, desc, lote, val, est, idEnd, _id}]
   unaddressed: [],             // [{sku, desc, lote, val, pendingAddr:true}]
@@ -2635,15 +2645,14 @@ auth.onAuthStateChanged(async user => {
       return;
     }
     S.user = user;
-    S.role = snap.data().role || 'viewer';
+    const userData = snap.data();
+    S.role = userData.role || 'viewer';
+    S.canColetor = S.role === 'admin' || userData.canColetor === true;
 
-    $('userAvatar').textContent = (snap.data().name || user.email).charAt(0).toUpperCase();
-    $('userName').textContent = snap.data().name || user.email.split('@')[0];
+    $('userAvatar').textContent = (userData.name || user.email).charAt(0).toUpperCase();
+    $('userName').textContent = userData.name || user.email.split('@')[0];
 
     // Mostra tabs conforme role
-    if (S.role === 'admin' || S.role === 'operator') {
-      // operator pode editar mas não ver gestão de usuários
-    }
     if (S.role === 'admin') {
       $('tabImport').style.display = '';
       $('tabUsers').style.display = '';
@@ -2651,6 +2660,9 @@ auth.onAuthStateChanged(async user => {
     }
     if (S.role === 'admin' || S.role === 'operator') {
       $('tabInventario').style.display = '';
+    }
+    if (S.canColetor) {
+      $('tabColetor').style.display = '';
     }
 
     $('authScreen').classList.add('hidden');
@@ -3281,17 +3293,22 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 async function renderUsers() {
   const snap = await db.collection('wms_users').get();
   const users = snap.docs.map(d => ({ email: d.id, ...d.data() }));
-  $('usersTableBody').innerHTML = users.map(u => `
-    <tr>
-      <td><strong>${u.name||'–'}</strong></td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px">${u.email}</td>
-      <td><span class="role-badge role-${u.role||'viewer'}">${u.role||'viewer'}</span></td>
-      <td><span class="status-dot ${u.active?'status-active':'status-inactive'}"></span>${u.active?'Ativo':'Inativo'}</td>
-      <td style="display:flex;gap:6px">
+  $('usersTableBody').innerHTML = users.map(u => {
+    const hasCol = u.role==='admin' || u.canColetor===true;
+    return `<tr>
+      <td style="padding:11px 16px;font-size:13px"><strong>${u.name||'–'}</strong></td>
+      <td style="padding:11px 16px;font-size:12px;font-family:'DM Mono',monospace">${u.email}</td>
+      <td style="padding:11px 16px"><span class="role-badge role-${u.role||'viewer'}">${u.role||'viewer'}</span></td>
+      <td style="padding:11px 16px">
+        ${hasCol ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534">Coletor</span>` : `<span style="font-size:11px;color:var(--subtle)">—</span>`}
+      </td>
+      <td style="padding:11px 16px;font-size:13px"><span class="status-dot ${u.active?'status-active':'status-inactive'}"></span>${u.active?'Ativo':'Inativo'}</td>
+      <td style="padding:11px 16px;display:flex;gap:6px">
         <button class="btn" style="font-size:11px;padding:4px 8px" data-edit-user="${u.email}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="btn ${u.active?'btn-danger':''}" style="font-size:11px;padding:4px 8px" data-toggle-user="${u.email}" data-active="${u.active}">${u.active?'Desativar':'Ativar'}</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   document.querySelectorAll('[data-edit-user]').forEach(btn => {
     btn.addEventListener('click', () => openUserModal(btn.dataset.editUser, users.find(u => u.email === btn.dataset.editUser)));
@@ -3305,6 +3322,12 @@ async function renderUsers() {
   });
 }
 
+function updateColetorCheckbox() {
+  const isAdmin = $('userRole').value === 'admin';
+  $('userCanColetor').checked  = isAdmin ? true  : $('userCanColetor').checked;
+  $('userCanColetor').disabled = isAdmin;
+}
+
 function openUserModal(email, data) {
   S.editUserId = email || null;
   $('userModalTitle').textContent = email ? 'Editar usuário' : 'Convidar usuário';
@@ -3312,6 +3335,9 @@ function openUserModal(email, data) {
   $('userEmail').readOnly = !!email;
   $('userName2').value = data?.name || '';
   $('userRole').value  = data?.role || 'operator';
+  const isAdmin = (data?.role === 'admin');
+  $('userCanColetor').checked  = isAdmin || data?.canColetor === true;
+  $('userCanColetor').disabled = isAdmin;
   openModal('userModal');
 }
 
@@ -3324,7 +3350,8 @@ $('saveUserBtn').addEventListener('click', async () => {
   if (!email) { alert('Informe o e-mail.'); return; }
   loading(true, 'Salvando...');
   try {
-    await db.collection('wms_users').doc(email).set({ name, role, active: true, updatedAt: new Date().toISOString() }, { merge: true });
+    const canColetor = role === 'admin' ? true : $('userCanColetor').checked;
+    await db.collection('wms_users').doc(email).set({ name, role, canColetor, active: true, updatedAt: new Date().toISOString() }, { merge: true });
     closeModal('userModal');
     renderUsers();
   } catch(e) { alert('Erro: ' + e.message); }
