@@ -194,7 +194,9 @@ header {
   outline: none; width: 90px;
 }
 .filter-input:focus { border-color: var(--accent); background: white; }
-.filter-label { font-size: 12px; color: var(--muted); }
+.filter-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.filter-group { display: flex; align-items: center; gap: 6px; }
+.filter-group .filter-input { width: 80px; }
 
 /* ── Cards Grid ── */
 .map-content {
@@ -368,6 +370,7 @@ header {
 
 /* ── Admin page container ── */
 .admin-container { padding: 24px; max-width: 1280px; width: 100%; margin: 0 auto; }
+.table-container { overflow: hidden; }
 .section-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px;
@@ -393,7 +396,7 @@ header {
 /* ── Responsive ── */
 @media (max-width: 640px) {
   /* Header compacto */
-  header { padding: 0 12px; height: 48px; gap: 8px; }
+  header { padding: 0 12px; height: 48px; }
   .logo-sub { display: none; }
   .user-pill { padding: 4px 8px; gap: 4px; }
   .user-pill > span:not(.user-avatar):not(.logout-btn) { display: none; }
@@ -404,18 +407,62 @@ header {
   .tabs-inner { flex-wrap: nowrap; padding: 0 8px; width: max-content; gap: 0; }
   .tab { padding: 10px 10px; font-size: 12px; flex-shrink: 0; }
 
-  /* Conteúdo */
-  .cards-grid { padding: 10px; grid-template-columns: 1fr; }
-  .kpi-bar { padding: 10px 12px; gap: 8px; }
+  /* KPIs */
+  .kpi-bar { padding: 10px 12px; }
+  .kpi-bar-inner { gap: 8px; }
   .kpi { min-width: 72px; padding: 8px 10px; }
   .kpi-val { font-size: 18px; }
+
+  /* Barra de filtros — layout linha+quebra, usa toda a largura */
   .filter-bar { padding: 8px 12px; }
-  .filter-bar-inner { flex-direction: column; align-items: stretch; gap: 6px; }
-  .filter-bar-inner .search-box { max-width: 100%; min-width: 0; }
-  .filter-input { width: 100%; box-sizing: border-box; }
+  .filter-bar-inner { flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .filter-bar-inner .search-box { flex: 0 0 100%; max-width: 100%; min-width: 0; }
+  .filter-group { flex: 1; min-width: calc(50% - 4px); }
+  .filter-group .filter-input { flex: 1; width: auto !important; min-width: 0; }
+  .filter-bar-inner > .filter-input { flex: 1 0 100%; width: 100% !important; box-sizing: border-box; }
+  .filter-bar-inner > .spacer { display: none; }
+  .filter-bar-inner > .btn { flex: 1; justify-content: center; }
+  #perPageSelect { flex: 1; width: auto !important; }
+
+  /* Mapa */
+  .cards-grid { padding: 10px; grid-template-columns: 1fr; }
   .page-inner { padding: 12px; }
   .map-content { padding: 8px 12px; }
+
+  /* Cabeçalhos de seção */
   .section-header { flex-wrap: wrap; gap: 8px; }
+  .btn-group-wrap { flex-wrap: wrap !important; gap: 6px !important; }
+  .btn-group-wrap .btn { flex: 1; min-width: 130px; justify-content: center; font-size: 12px; }
+
+  /* Admin container */
+  .admin-container { padding: 12px; }
+
+  /* Tabelas: scroll horizontal via .table-container */
+  .table-container { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .users-table, .addr-table { min-width: 520px; }
+
+  /* Search boxes em páginas de admin */
+  .admin-container .search-box { max-width: 100% !important; }
+
+  /* Página Validades */
+  #pageExpiry > div { padding: 12px !important; }
+  .expiry-filter-row { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+  .expiry-filter-row > div:empty,
+  .expiry-filter-row > div[style*="flex:1"] { display: none; }
+  .expiry-range-btns { flex-wrap: wrap !important; }
+  .expiry-range-btns .btn { flex: 1; min-width: 70px; justify-content: center; }
+  .expiry-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .expiry-table-wrap table { min-width: 620px; }
+  #btnExportExpiry { width: 100%; justify-content: center; }
+
+  /* Página Importar */
+  #pageImport > div { padding: 12px !important; }
+  .import-actions { flex-direction: column !important; gap: 8px !important; }
+  .import-actions .btn { width: 100% !important; justify-content: center; }
+
+  /* Página Pendentes */
+  #pagePending .section-header > div { flex-wrap: wrap; gap: 6px; }
+  #btnExportPending { width: 100%; justify-content: center; }
 
   /* Modais: bottom sheet */
   .modal-overlay { padding: 0; align-items: flex-end; overflow: hidden; }
@@ -423,10 +470,6 @@ header {
   .modal-header { padding: 16px 20px 12px; }
   .modal-body { padding: 16px 20px; }
   .modal-footer { padding: 12px 20px; flex-wrap: wrap; }
-
-  /* Tabelas: scroll horizontal */
-  .admin-container { overflow-x: auto; }
-  .users-table, .addr-table { min-width: 520px; }
 
   /* Coletor: layout mobile */
   #pageColetor { padding: 12px 8px 40px; }
@@ -1207,12 +1250,16 @@ header {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="Buscar SKU, descrição, lote, rua...">
       </div>
-      <span class="filter-label">Rua</span>
-      <input type="text" class="filter-input" id="filterRua" placeholder="Ex: A" style="width:70px">
-      <span class="filter-label">Posição</span>
-      <input type="text" class="filter-input" id="filterPos" placeholder="Ex: 10" style="width:80px">
-      <select class="filter-input" id="filterStatus" style="width:120px">
-        <option value="">Todos</option>
+      <div class="filter-group">
+        <span class="filter-label">Rua</span>
+        <input type="text" class="filter-input" id="filterRua" placeholder="Ex: A">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Posição</span>
+        <input type="text" class="filter-input" id="filterPos" placeholder="Ex: 10">
+      </div>
+      <select class="filter-input" id="filterStatus" style="width:130px">
+        <option value="">Todos os status</option>
         <option value="free">Livres</option>
         <option value="occ">Ocupados</option>
         <option value="exp">A vencer</option>
@@ -1250,15 +1297,15 @@ header {
 
       <!-- Busca -->
       <div style="margin-bottom:14px">
-        <div class="search-box" style="max-width:400px">
+        <div class="search-box">
           <span class="search-icon">🔍</span>
           <input type="text" id="pendingSearch" placeholder="Buscar SKU, produto, lote...">
         </div>
       </div>
 
       <!-- Tabela -->
-      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
-        <table style="width:100%;border-collapse:collapse" id="pendingTable">
+      <div class="table-container" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);">
+        <table style="width:100%;border-collapse:collapse;min-width:480px" id="pendingTable">
           <thead>
             <tr style="background:var(--bg)">
               <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">SKU</th>
@@ -1289,11 +1336,11 @@ header {
     <div style="padding:20px 24px;max-width:1100px;width:100%">
 
       <!-- Filtro de prazo -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="expiry-filter-row" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
         <div class="section-title">⏰ Controle de Validades</div>
         <div style="flex:1"></div>
         <span style="font-size:12px;color:var(--muted)">Mostrar itens com vencimento até:</span>
-        <div style="display:flex;gap:6px">
+        <div class="expiry-range-btns" style="display:flex;gap:6px">
           <button class="expiry-range-btn btn active" data-days="30">30 dias</button>
           <button class="expiry-range-btn btn" data-days="60">60 dias</button>
           <button class="expiry-range-btn btn" data-days="90">90 dias</button>
@@ -1305,10 +1352,10 @@ header {
       </div>
 
       <!-- KPIs de validade -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px" id="expiryKpis"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px" id="expiryKpis"></div>
 
       <!-- Tabela -->
-      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+      <div class="expiry-table-wrap" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
         <table style="width:100%;border-collapse:collapse" id="expiryTable">
           <thead>
             <tr style="background:var(--bg)">
@@ -1358,7 +1405,7 @@ header {
         <div class="alert alert-warn">
           ⚠️ Esta importação vai <strong>substituir todos os dados atuais</strong> do estoque. Edições manuais feitas no app serão descartadas.
         </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
+        <div class="import-actions" style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn" id="importCancelBtn">Cancelar</button>
           <button class="btn btn-primary" id="importConfirmBtn">✓ Confirmar importação</button>
         </div>
@@ -1406,7 +1453,7 @@ header {
         <div class="section-title">Gestão de Usuários</div>
         <button class="btn btn-primary" id="btnAddUser">+ Convidar usuário</button>
       </div>
-      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+      <div class="table-container" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);">
         <table class="users-table">
           <thead>
             <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
@@ -1422,13 +1469,13 @@ header {
     <div class="admin-container">
       <div class="section-header">
         <div class="section-title">Cadastro de Endereços</div>
-        <div style="display:flex;gap:8px">
+        <div class="btn-group-wrap" style="display:flex;gap:8px">
           <button class="btn" id="btnSeedAddrs" title="Recria A-G × 1-40">🔄 Padrão A-G×40</button>
           <button class="btn" id="btnImportAddrs">📥 Importar lista</button>
           <button class="btn btn-primary" id="btnAddAddr">+ Novo endereço</button>
         </div>
       </div>
-      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+      <div class="table-container" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);">
         <table class="addr-table">
           <thead>
             <tr><th>Rua</th><th>Posição</th><th>Capacidade</th><th>Status</th><th>Itens atuais</th><th>Ações</th></tr>
