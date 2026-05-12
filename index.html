@@ -537,9 +537,9 @@ header {
   #pageColetor { padding: 12px 8px 40px; }
   #pageColetor .uploadSection { grid-template-columns: 1fr; }
   #pageColetor .uploadActions { flex-direction: row; flex-wrap: wrap; gap: 6px; }
-  #pageColetor .uploadActions .btn { flex: 1; min-width: 120px; justify-content: center; }
-  #pageColetor .workActions { flex-wrap: wrap; gap: 6px; }
-  #pageColetor .workActions .btn { flex: 1; min-width: 100px; justify-content: center; }
+  #pageColetor .uploadActions .btn { flex: 1; min-width: 120px; justify-content: center; height:48px; font-size:14px; }
+  #pageColetor .workActions { flex-wrap: wrap; gap: 8px; }
+  #pageColetor .workActions .btn { flex: 1; min-width: 100px; justify-content: center; height:52px; font-size:14px; }
 }
 
 /* ── Dashboard ── */
@@ -1202,9 +1202,9 @@ header {
     /* Upload */
     .uploadSection{ padding:12px;gap:10px; }
     .uploadLeft{ grid-template-columns:1fr; gap:10px; }
-    .uploadActions{ flex-direction:column;gap:8px; }
-    .uploadActions .btn{ height:48px;font-size:15px; }
-    .textInput{ height:48px;font-size:16px; }
+    .uploadActions{ flex-direction:column;gap:10px; }
+    .uploadActions .btn{ height:60px;font-size:17px;border-radius:12px; }
+    .textInput{ height:56px;font-size:17px; }
 
     /* Meta pills */
     .pill{ font-size:11px;padding:4px 8px; }
@@ -1223,7 +1223,7 @@ header {
       display:flex;gap:8px;
     }
     .pickerRow > div:last-child .btn{
-      flex:1;height:52px;font-size:15px;
+      flex:1;height:60px;font-size:16px;
     }
 
     /* Cabeçalho da área de trabalho */
@@ -1255,10 +1255,10 @@ header {
     .qtyBadge{ font-size:14px;padding:3px 12px; }
 
     /* Campos de entrada — tamanho confortável + sem zoom no iOS */
-    .inputLabel{ font-size:14px; }
+    .inputLabel{ font-size:15px; }
     .inputField{
-      height:52px;
-      font-size:16px;
+      height:58px;
+      font-size:17px;
       border-radius:8px;
     }
 
@@ -1269,7 +1269,7 @@ header {
     }
     /* Botões de câmera e confirmar ficam lado a lado na segunda linha */
     .confirmRow .btn{
-      height:52px;font-size:15px;
+      height:60px;font-size:16px;
     }
     #scanBtn{ order:2; }
     #confirmProd{ order:3; }
@@ -1282,9 +1282,9 @@ header {
 
     /* Botão validar */
     .btn-validate{
-      height:64px;
-      font-size:20px;
-      border-radius:12px;
+      height:72px;
+      font-size:22px;
+      border-radius:14px;
     }
 
     /* Mensagem feedback */
