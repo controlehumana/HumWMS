@@ -1648,6 +1648,25 @@ header {
       </div>
       <input type="file" id="pickingFileInput" accept=".xlsx,.xls" style="display:none">
       <div id="pickingStatus" style="display:none;margin-top:10px;padding:12px 16px;border-radius:8px;font-size:13px"></div>
+
+      <!-- ── PIN de Supervisor do Coletor ── -->
+      <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
+      <div class="section-header" style="margin-bottom:8px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          PIN de Supervisor — Coletor
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Senha usada pelo supervisor para autorizar a consulta de códigos durante a coleta no celular. Armazenada como hash SHA-256 no dispositivo — o valor original nunca é salvo.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="changePin" style="gap:7px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Definir / Trocar PIN
+        </button>
+        <span id="pinStatus" style="font-size:12px;color:var(--muted)"></span>
+      </div>
     </div>
   </div>
 
@@ -1998,60 +2017,10 @@ header {
             <div class="appSub" id="metaMemoria">Multi-pedidos · confirmação de produto · divergência controlada</div>
           </div>
         </div>
-        <button class="iconBtn" id="openPrefs" title="Preferências" aria-label="Preferências">
-          <svg viewBox="0 0 24 24"><path d="M11.983 1.5a1.5 1.5 0 0 1 1.487 1.305l.271 2.027a7.501 7.501 0 0 1 1.73.998l1.88-.76a1.5 1.5 0 0 1 1.86.66l1.5 2.598a1.5 1.5 0 0 1-.36 1.96l-1.609 1.25c.05.41.075.83.075 1.262 0 .432-.025.852-.075 1.262l1.609 1.25a1.5 1.5 0 0 1 .36 1.96l-1.5 2.598a1.5 1.5 0 0 1-1.86.66l-1.88-.76a7.5 7.5 0 0 1-1.73.998l-.271 2.027A1.5 1.5 0 0 1 11.983 22.5h-2.966a1.5 1.5 0 0 1-1.487-1.305l-.271-2.027a7.5 7.5 0 0 1-1.73-.998l-1.88.76a1.5 1.5 0 0 1-1.86-.66l-1.5-2.598a1.5 1.5 0 0 1 .36-1.96l1.609-1.25A9.3 9.3 0 0 1 3 12c0-.432.025-.852.075-1.262L1.466 9.488a1.5 1.5 0 0 1-.36-1.96l1.5-2.598a1.5 1.5 0 0 1 1.86-.66l1.88.76a7.501 7.501 0 0 1 1.73-.998l.271-2.027A1.5 1.5 0 0 1 9.017 1.5h2.966ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
-        </button>
       </div>
     
-      <!-- MODAL PREFERÊNCIAS -->
-      <div class="modalOverlay" id="prefsOverlay" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
-        <div class="modal">
-          <div class="modalHead">
-            <span id="prefsTitle">Preferências</span>
-            <button class="iconBtn" id="closePrefs" title="Fechar" aria-label="Fechar">
-              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-          <div class="modalBody">
-            <p class="hint">Checkpoint serve para trocar de aparelho sem perder o andamento. Use somente após carregar o Excel correspondente.</p>
-    
-            <div class="separator"></div>
-            <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Segurança</p>
-            <p class="hint" style="margin-bottom:10px;">A senha de supervisor protege a consulta de códigos. Armazenada como hash SHA-256 — o valor original não é salvo.</p>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
-              <button class="btn btn-ghost" id="changePin">Trocar senha de supervisor</button>
-              <span id="pinStatus" class="hint"></span>
-            </div>
-    
-            <div class="separator"></div>
-            <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Backup opcional (servidor)</p>
-            <p class="hint" style="margin-bottom:8px;">Se informado, cada registro é enviado via POST JSON em segundo plano. Deixe em branco para desabilitar.</p>
-            <div class="inputGroup" style="margin-bottom:8px;">
-              <label class="inputLabel" for="serverEndpointInput">URL do endpoint</label>
-              <input class="inputField" id="serverEndpointInput" placeholder="https://seu-servidor.com/api/log"/>
-            </div>
-            <button class="btn btn-ghost" id="saveEndpoint">Salvar endpoint</button>
-    
-            <div class="separator"></div>
-            <div id="prefsKpis" style="display:none;margin-bottom:12px;">
-              <div class="pillRow">
-                <div class="pill" id="prefsKpiMem">Memória: —</div>
-                <div class="pill" id="prefsKpiLog">Registros: 0</div>
-              </div>
-            </div>
-    
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn btn-ghost" id="exportCheckpoint">Exportar checkpoint</button>
-              <button class="btn btn-ghost" id="importCheckpoint">Importar checkpoint</button>
-              <button class="btn btn-danger" id="clearLocal">Limpar memória</button>
-            </div>
-            <input id="checkpointFile" type="file" accept=".json,application/json" hidden/>
-    
-            <div class="separator"></div>
-            <p class="hint"><strong>Dica:</strong> após concluir todos os pedidos, "Iniciar Pedido" é bloqueado automaticamente para evitar duplicidade.</p>
-          </div>
-        </div>
-      </div>
+      <!-- Inputs ocultos para checkpoint -->
+      <input id="checkpointFile" type="file" accept=".json,application/json" hidden/>
     
       <!-- Nav bar mobile (uma tela por vez) -->
       <div class="colMobileNav" id="colMobileNav">
@@ -2060,9 +2029,7 @@ header {
           Voltar
         </button>
         <span class="colNavTitle" id="colNavTitle">Início</span>
-        <button class="colNavSettings iconBtn" id="colNavSettings" aria-label="Preferências" title="Preferências">
-          <svg viewBox="0 0 24 24"><path d="M11.983 1.5a1.5 1.5 0 0 1 1.487 1.305l.271 2.027a7.501 7.501 0 0 1 1.73.998l1.88-.76a1.5 1.5 0 0 1 1.86.66l1.5 2.598a1.5 1.5 0 0 1-.36 1.96l-1.609 1.25c.05.41.075.83.075 1.262 0 .432-.025.852-.075 1.262l1.609 1.25a1.5 1.5 0 0 1 .36 1.96l-1.5 2.598a1.5 1.5 0 0 1-1.86.66l-1.88-.76a7.5 7.5 0 0 1-1.73.998l-.271 2.027A1.5 1.5 0 0 1 11.983 22.5h-2.966a1.5 1.5 0 0 1-1.487-1.305l-.271-2.027a7.5 7.5 0 0 1-1.73-.998l-1.88.76a1.5 1.5 0 0 1-1.86-.66l-1.5-2.598a1.5 1.5 0 0 1 .36-1.96l1.609-1.25A9.3 9.3 0 0 1 3 12c0-.432.025-.852.075-1.262L1.466 9.488a1.5 1.5 0 0 1-.36-1.96l1.5-2.598a1.5 1.5 0 0 1 1.86-.66l1.88.76a7.501 7.501 0 0 1 1.73-.998l.271-2.027A1.5 1.5 0 0 1 9.017 1.5h2.966ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
-        </button>
+        <div style="min-width:44px"></div>
       </div>
 
       <!-- CONTEÚDO PRINCIPAL -->
@@ -2108,6 +2075,22 @@ header {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span style="flex:1;text-align:left">Relatório de Divergências</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Ferramentas de checkpoint -->
+        <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--col-line);display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="exportCheckpoint" style="flex:1;font-size:12px;gap:5px;justify-content:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Exportar checkpoint
+          </button>
+          <button class="btn btn-ghost" id="importCheckpoint" style="flex:1;font-size:12px;gap:5px;justify-content:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Importar checkpoint
+          </button>
+          <button class="btn btn-danger" id="clearLocal" style="flex:1;font-size:12px;gap:5px;justify-content:center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            Limpar memória
           </button>
         </div>
 
@@ -2562,6 +2545,7 @@ function showTab(tabId) {
   if (tabId === 'dashboard')  renderDashboard();
   if (tabId === 'divReport')  renderDivReport();
   if (tabId === 'inventario') renderInventario();
+  if (tabId === 'import')     setTimeout(() => { if(typeof updatePinStatus==='function') updatePinStatus(); }, 100);
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
@@ -4533,7 +4517,14 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
     
       function updatePinStatus(){
         const el = $('pinStatus');
-        if (el) el.textContent = pinIsSet() ? 'Senha configurada ✓' : 'Nenhuma senha definida';
+        if (!el) return;
+        if (pinIsSet()){
+          el.textContent = 'PIN configurado';
+          el.style.cssText = 'font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534';
+        } else {
+          el.textContent = 'Nenhum PIN definido';
+          el.style.cssText = 'font-size:12px;color:var(--muted)';
+        }
       }
     
       // ============================================================
@@ -5324,36 +5315,19 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       $("nextPedido").addEventListener("click", goNextPedido);
       $("export").addEventListener("click", exportLog);
     
-      // Preferências (modal)
-      function openPrefs(){ $("prefsOverlay").style.display = "flex"; setMetaMemory(); updatePinStatus(); const ep = getServerEndpoint(); if($("serverEndpointInput")) $("serverEndpointInput").value = ep; }
-      function closePrefs(){ $("prefsOverlay").style.display = "none"; }
-      $("openPrefs").addEventListener("click", openPrefs);
-      $("closePrefs").addEventListener("click", closePrefs);
-      $("prefsOverlay").addEventListener("click", (e) => { if (e.target === $("prefsOverlay")) closePrefs(); });
-      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("prefsOverlay").style.display === "flex") closePrefs(); });
-    
-      // Trocar PIN
+      // Trocar PIN (agora no Importar ERP via WMS)
       $("changePin")?.addEventListener("click", async () => {
         if (pinIsSet()){
           const ok = await promptAndVerifyAdmin("trocar a senha");
           if (!ok) return;
         }
         const p1 = prompt("Nova senha de supervisor (mín. 4 caracteres):");
-        if (!p1 || p1.trim().length < 4){ showMsg('warn','Senha muito curta.'); return; }
+        if (!p1 || p1.trim().length < 4){ return; }
         const p2 = prompt("Confirme a nova senha:");
-        if (p1.trim() !== p2){ showMsg('warn','As senhas não coincidem.'); return; }
+        if (p1.trim() !== p2){ alert("As senhas não coincidem."); return; }
         await setPin(p1.trim());
-        showMsg('ok','Senha de supervisor atualizada com sucesso.');
         updatePinStatus();
-      });
-    
-      // Salvar endpoint de backup
-      $("saveEndpoint")?.addEventListener("click", () => {
-        const val = String($("serverEndpointInput")?.value || "").trim();
-        if (val && !val.startsWith("http")){ alert("URL inválida. Deve começar com http:// ou https://"); return; }
-        if (val) localStorage.setItem(SERVER_KEY, val);
-        else localStorage.removeItem(SERVER_KEY);
-        showMsg('ok', val ? `Endpoint salvo: ${val}` : "Endpoint removido.");
+        alert("Senha de supervisor atualizada com sucesso.");
       });
     
       $("finalizar").addEventListener("click", finalizePedido);
@@ -5592,8 +5566,6 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         }
       });
 
-      // Botão settings da nav bar abre as preferências
-      $('colNavSettings')?.addEventListener('click', () => openPrefs());
 
       // Inicializar tela 1 no mobile
       colGoTo('colS1');
