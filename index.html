@@ -562,10 +562,10 @@ header {
 .dash-cell { width:28px; height:28px; border-radius:5px; flex-shrink:0; cursor:pointer; transition:transform .1s; }
 .dash-cell:hover { transform:scale(1.4); z-index:2; position:relative; }
 .dash-cell-none { background:transparent; cursor:default; }
-.dash-cell-free     { background:#d1fae5; border:1px solid #6ee7b7; }
-.dash-cell-occ      { background:#dbeafe; border:1px solid #93c5fd; }
-.dash-cell-expiring { background:#fef3c7; border:1px solid #fcd34d; }
-.dash-cell-expired  { background:#fee2e2; border:1px solid #fca5a5; }
+.dash-cell-free     { background:#16a34a; border:1px solid #15803d; }
+.dash-cell-occ      { background:#dc2626; border:1px solid #b91c1c; }
+.dash-cell-expiring { background:#f59e0b; border:1px solid #d97706; }
+.dash-cell-expired  { background:#7f1d1d; border:1px solid #991b1b; }
 .dash-cell-match    { background:#7c3aed !important; border:1px solid #6d28d9 !important; box-shadow:0 0 0 2px rgba(124,58,237,.35) !important; }
 .dash-cell-dim      { opacity:.2; }
 .dash-legend { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
@@ -1481,7 +1481,7 @@ header {
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <span id="pendingCount" style="font-size:12px;color:var(--muted)"></span>
-          <button class="btn" id="btnCartazNovo" onclick="openCartazManual()" style="gap:6px">
+          <button class="btn" id="btnCartazNovo" style="gap:6px">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Novo Cartaz
           </button>
@@ -1824,10 +1824,10 @@ header {
           </div>
         </div>
         <div class="dash-legend">
-          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#d1fae5;border:1px solid #6ee7b7"></span>Livre</span>
-          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#dbeafe;border:1px solid #93c5fd"></span>Ocupado</span>
-          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#fef3c7;border:1px solid #fcd34d"></span>Vencendo ≤30d</span>
-          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#fee2e2;border:1px solid #fca5a5"></span>Vencido</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#16a34a;border:1px solid #15803d"></span>Livre</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#dc2626;border:1px solid #b91c1c"></span>Ocupado</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#f59e0b;border:1px solid #d97706"></span>Vencendo ≤30d</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#7f1d1d;border:1px solid #991b1b"></span>Vencido</span>
           <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#7c3aed;border:1px solid #a78bfa;box-shadow:0 0 0 2px rgba(124,58,237,.3)"></span>Encontrado</span>
         </div>
         <div class="dash-grid-wrap" id="dashGrid"></div>
@@ -2598,16 +2598,6 @@ $('btnGoogleLogin').addEventListener('click', async () => {
 
 $('btnLogout').addEventListener('click', () => auth.signOut());
 
-$('btnCartazManualPrint').addEventListener('click', () => {
-  const sku  = $('cmSku').value.trim();
-  const desc = $('cmDesc').value.trim();
-  const lote = $('cmLote').value.trim();
-  const val  = $('cmVal').value.trim();
-  const rua  = $('cmRua').value.trim().toUpperCase();
-  const pos  = $('cmPos').value.trim();
-  closeModal('cartazManualModal');
-  printCartazManual(sku, desc, lote, val, rua, pos);
-});
 
 auth.onAuthStateChanged(async user => {
   if (!user) {
@@ -4149,7 +4139,7 @@ function renderPending() {
       <td style="padding:9px 14px;font-size:13px;font-family:'DM Mono',monospace">${it.est||'–'}</td>
       <td style="padding:9px 14px;display:flex;gap:6px;align-items:center">
         ${canEdit ? `<button class="btn" data-assign="${it._id}" style="font-size:11px;padding:4px 10px;background:#fffbeb;border-color:#fcd34d;color:#92400e;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Atribuir</button>` : ''}
-        <button class="btn" onclick="openCartazManual(${JSON.stringify(it.sku||'')},${JSON.stringify(it.desc||'')},${JSON.stringify(it.lote||'')},${JSON.stringify(it.val||'')})" style="font-size:11px;padding:4px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Cartaz</button>
+        <button class="btn btn-cartaz-item" data-sku="${(it.sku||'').replace(/"/g,'&quot;')}" data-desc="${(it.desc||'').replace(/"/g,'&quot;')}" data-lote="${(it.lote||'').replace(/"/g,'&quot;')}" data-val="${(it.val||'').replace(/"/g,'&quot;')}" style="font-size:11px;padding:4px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Cartaz</button>
       </td>
     </tr>`;
   }).join('');
@@ -4174,6 +4164,13 @@ function renderPending() {
   tbody.querySelectorAll('[data-assign]').forEach(btn => {
     btn.addEventListener('click', () => openAssignModal(btn.dataset.assign));
   });
+
+  // Wire cartaz buttons
+  tbody.querySelectorAll('.btn-cartaz-item').forEach(btn => {
+    btn.addEventListener('click', () => openCartazManual(
+      btn.dataset.sku, btn.dataset.desc, btn.dataset.lote, btn.dataset.val
+    ));
+  });
 }
 
 // Listeners de pendentes — inicializados após DOM pronto
@@ -4188,6 +4185,23 @@ function initPendingListeners() {
 
   const searchEl = $('pendingSearch');
   if (searchEl) searchEl.addEventListener('input', () => { pendingPage = 1; renderPending(); });
+
+  // Novo Cartaz (cabeçalho da aba)
+  const cartazNovoEl = $('btnCartazNovo');
+  if (cartazNovoEl) cartazNovoEl.addEventListener('click', () => openCartazManual());
+
+  // Imprimir cartaz via modal
+  const cartazPrintEl = $('btnCartazManualPrint');
+  if (cartazPrintEl) cartazPrintEl.addEventListener('click', () => {
+    const sku  = $('cmSku').value.trim();
+    const desc = $('cmDesc').value.trim();
+    const lote = $('cmLote').value.trim();
+    const val  = $('cmVal').value.trim();
+    const rua  = $('cmRua').value.trim().toUpperCase();
+    const pos  = $('cmPos').value.trim();
+    closeModal('cartazManualModal');
+    printCartazManual(sku, desc, lote, val, rua, pos);
+  });
 
   const exportEl = $('btnExportPending');
   if (exportEl) exportEl.addEventListener('click', () => {
