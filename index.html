@@ -893,6 +893,27 @@ header {
     .btn-validate:active{transform:translateY(1px);}
     .btn-validate[disabled]{opacity:.35;cursor:not-allowed;pointer-events:none;}
   
+    /* ── CARDS DE LOTE ── */
+    .lote-card{
+      display:flex;align-items:center;gap:12px;
+      padding:14px 16px;margin-bottom:10px;
+      border:1.5px solid var(--col-line);border-radius:var(--col-radius-md);
+      background:var(--col-surface);cursor:pointer;transition:all .15s;
+    }
+    .lote-card:hover:not(.locked){border-color:var(--col-green);background:var(--col-green-light);}
+    .lote-card.urgente{border-color:#f97316;background:#fff7ed;}
+    .lote-card.urgente:hover:not(.locked){background:#ffedd5;}
+    .lote-card.locked{opacity:.55;cursor:not-allowed;}
+    .lote-card.concluido{opacity:.45;cursor:default;background:var(--col-surface);}
+    .lote-info{flex:1;min-width:0;}
+    .lote-nome{font-size:14px;font-weight:600;color:var(--col-text);margin-bottom:3px;}
+    .lote-meta{font-size:12px;color:var(--col-muted);}
+    .lote-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;flex-shrink:0;}
+    .lote-badge-urgente{background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;}
+    .lote-badge-normal{background:var(--col-surface);color:var(--col-muted);border:1px solid var(--col-line);}
+    .lote-badge-locked{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+    .lote-badge-done{background:var(--col-green-light);color:var(--col-green-dark);border:1px solid var(--col-line2);}
+
     /* ── PILLS / BADGES ── */
     .pill{
       display:inline-flex;align-items:center;gap:6px;
@@ -1641,8 +1662,21 @@ header {
         <div class="section-title" style="display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Pedidos de Separação</div>
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-        Importe o Excel de separação para a nuvem. Os coletores acessam os pedidos pelo celular sem precisar carregar arquivo.
+        Cada importação cria um <strong>lote de separação</strong>. Os coletores veem os lotes disponíveis e escolhem qual separar.
       </p>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:14px;align-items:end">
+        <div>
+          <label class="form-label">Nome do lote</label>
+          <input class="form-input" id="pickingLoteNome" placeholder="Ex: Rotina segunda-feira (gerado automaticamente se vazio)">
+        </div>
+        <div>
+          <label class="form-label">Prioridade</label>
+          <select class="form-select" id="pickingLotePrioridade" style="height:38px">
+            <option value="normal">Normal</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </div>
+      </div>
       <div class="drop-zone" id="pickingDropZone" style="cursor:pointer">
         <div class="drop-zone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
         <div class="drop-zone-text">Arraste o Excel de pedidos aqui</div>
@@ -1650,6 +1684,22 @@ header {
       </div>
       <input type="file" id="pickingFileInput" accept=".xlsx,.xls" style="display:none">
       <div id="pickingStatus" style="display:none;margin-top:10px;padding:12px 16px;border-radius:8px;font-size:13px"></div>
+
+      <!-- ── Gestão de Lotes ── -->
+      <hr style="margin:24px 0;border:none;border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Gestão de Lotes
+        </div>
+        <button class="btn" id="btnRefreshLotes" style="gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <div id="lotesAdminContainer">
+        <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Clique em Atualizar para ver os lotes</div>
+      </div>
 
       <!-- ── PIN de Supervisor do Coletor ── -->
       <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
@@ -2058,7 +2108,7 @@ header {
             <button class="btn btn-ghost" id="pick">Selecionar Excel</button>
             <button class="btn btn-primary" id="load" disabled>Carregar arquivo</button>
             <button class="btn btn-primary" id="loadFromFirebase" style="background:var(--col-green);border-color:var(--col-green-dark)">📡 Da nuvem</button>
-            <button class="btn btn-secondary" id="resume" disabled>Continuar de onde parei</button>
+            <button class="btn btn-secondary" id="resume" disabled>Continuar</button>
           </div>
         </div>
         <div id="fbStatus" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500"></div>
@@ -2100,6 +2150,13 @@ header {
 
         <!-- ══ TELA 2: Selecionar Pedido ══ -->
         <div id="colS2" class="col-screen">
+
+        <!-- SELETOR DE LOTE (Firebase) -->
+        <div id="lotePickerWrap" style="display:none;padding:4px 0 12px">
+          <div class="fieldLabel" style="margin-bottom:10px;font-size:15px">Selecione o lote</div>
+          <div id="lotesList"></div>
+          <div id="loteMsg" class="hint" style="margin-top:6px"></div>
+        </div>
 
         <!-- SELETOR DE PEDIDO -->
         <div class="pickerRow" id="pedidoPickerRow" style="display:none;">
@@ -4401,6 +4458,11 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
     statusEl.textContent = msg;
   }
 
+  function _genLoteId(){
+    const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    return `LOTE_${d}_${Date.now().toString().slice(-5)}`;
+  }
+
   async function processPickingFile(file){
     if (!window._readPickingXlsx){ setStatus('err','Leitor não disponível. Recarregue a página.'); return; }
     setStatus('info', `Lendo ${file.name}...`);
@@ -4408,20 +4470,48 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       const allItems = await window._readPickingXlsx(file);
       const pedidosMap = new Map();
       for (const it of allItems){ const p=String(it.pedido).trim(); if(!pedidosMap.has(p)) pedidosMap.set(p,[]); pedidosMap.get(p).push(it); }
-      setStatus('info', `Salvando ${pedidosMap.size} pedido(s) no Firebase...`);
+
+      const loteId     = _genLoteId();
+      const nomeInput  = document.getElementById('pickingLoteNome');
+      const priorInput = document.getElementById('pickingLotePrioridade');
+      const now        = new Date();
+      const nomeLote   = (nomeInput?.value.trim()) ||
+        `Lote ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+      const prioridade = priorInput?.value || 'normal';
+
+      setStatus('info', `Salvando lote "${nomeLote}" (${pedidosMap.size} pedido(s))...`);
+
       const batch = db.batch();
+
+      // Cria o documento do lote
+      batch.set(db.collection('coletor_lotes').doc(loteId), {
+        loteId, nome: nomeLote, prioridade,
+        status: 'pendente',
+        pedidos: Array.from(pedidosMap.keys()),
+        totalPedidos: pedidosMap.size,
+        totalItens: allItems.length,
+        separador: null, lockedBy: null, lockedAt: null,
+        tsCriado: firebase.firestore.FieldValue.serverTimestamp(),
+        tsCriadoPor: S.user?.email || '',
+        tsConcluido: null,
+        nomeArquivo: file.name
+      });
+
+      // Salva cada pedido com referência ao lote
       for (const [pedido, itens] of pedidosMap){
-        const ref = db.collection('coletor_pedidos').doc(String(pedido));
-        batch.set(ref, {
-          pedido, itens, total: itens.length,
+        batch.set(db.collection('coletor_pedidos').doc(`${loteId}_${pedido}`), {
+          pedido, loteId, itens, total: itens.length,
           status: 'pendente',
           importadoEm: firebase.firestore.FieldValue.serverTimestamp(),
           importadoPor: S.user?.email || '',
           nomeArquivo: file.name
         });
       }
+
       await batch.commit();
-      setStatus('ok', `✓ ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) enviados para a nuvem. Coletores já podem acessar.`);
+      if(nomeInput) nomeInput.value = '';
+      setStatus('ok', `Lote "${nomeLote}" criado · ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) · Prioridade: ${prioridade}`);
+      renderLotesAdmin();
     } catch(e){
       setStatus('err', 'Erro: ' + (e.message || e));
     }
@@ -4433,6 +4523,129 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
   dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
   dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('drag-over'); const f=e.dataTransfer.files?.[0]; if(f) processPickingFile(f); });
 })();
+
+// ══════════════════════════════════════════════════════════════
+// GESTÃO DE LOTES — admin view
+// ══════════════════════════════════════════════════════════════
+async function renderLotesAdmin(){
+  const container = document.getElementById('lotesAdminContainer');
+  if (!container) return;
+  if (typeof db === 'undefined'){ container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Firebase não disponível.</div>'; return; }
+  container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Carregando…</div>';
+  try {
+    const snap = await db.collection('coletor_lotes').orderBy('tsCriado','desc').limit(50).get();
+    if (snap.empty){ container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Nenhum lote encontrado.</div>'; return; }
+    const statusLabel = { pendente:'Pendente', em_separacao:'Em separação', concluido:'Concluído', cancelado:'Cancelado' };
+    const statusColor = { pendente:'#1e40af', em_separacao:'#b45309', concluido:'#065f46', cancelado:'#991b1b' };
+    const statusBg    = { pendente:'#eff6ff', em_separacao:'#fffbeb', concluido:'#ecfdf5', cancelado:'#fef2f2' };
+
+    const rows = snap.docs.map(d=>{
+      const l = { id:d.id, ...d.data() };
+      const ts = l.tsCriado?.toDate ? l.tsCriado.toDate().toLocaleString('pt-BR') : '—';
+      const tsCon = l.tsConcluido?.toDate ? l.tsConcluido.toDate().toLocaleString('pt-BR') : '—';
+      const st = l.status || 'pendente';
+      const badgeCss = `display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:${statusBg[st]||'#f1f5f9'};color:${statusColor[st]||'#334155'}`;
+      const unlock = (st==='em_separacao')
+        ? `<button onclick="window._forceUnlockLote('${l.id}')" style="font-size:11px;padding:3px 10px;border:1px solid #fed7aa;background:#fff7ed;color:#b45309;border-radius:6px;cursor:pointer">Desbloquear</button>`
+        : '';
+      const cancel = (st==='pendente'||st==='em_separacao')
+        ? `<button onclick="window._cancelLote('${l.id}')" style="font-size:11px;padding:3px 10px;border:1px solid #fca5a5;background:#fef2f2;color:#991b1b;border-radius:6px;cursor:pointer">Cancelar</button>`
+        : '';
+      const logs = `<button onclick="window._viewLoteLogs('${l.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:6px;cursor:pointer">Ver log</button>`;
+      return `<tr>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--muted)">${ts}</td>
+        <td style="padding:10px 12px;font-size:13px;font-weight:600">${l.nome||l.id}</td>
+        <td style="padding:10px 12px"><span style="${badgeCss}">${statusLabel[st]||st}</span></td>
+        <td style="padding:10px 12px;font-size:12px">${l.prioridade==='urgente'?'<span style="color:#b45309;font-weight:600">URGENTE</span>':'Normal'}</td>
+        <td style="padding:10px 12px;font-size:12px">${l.totalPedidos||0} / ${l.totalItens||0}</td>
+        <td style="padding:10px 12px;font-size:12px">${l.separador||'—'}</td>
+        <td style="padding:10px 12px;font-size:12px">${tsCon}</td>
+        <td style="padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap">${unlock}${cancel}${logs}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border)">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--bg2);border-bottom:1px solid var(--border)">
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap">Criado em</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Nome</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Status</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Prioridade</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Ped/Itens</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Separador</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Concluído em</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Ações</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  } catch(e){
+    container.innerHTML = `<div style="padding:16px;color:#991b1b;font-size:13px">Erro: ${e.message||e}</div>`;
+  }
+}
+
+window._forceUnlockLote = async function(loteId){
+  if (!confirm('Desbloquear este lote?')) return;
+  try {
+    await db.collection('coletor_lotes').doc(loteId).update({ status:'pendente', lockedBy:null, lockedAt:null, separador:null });
+    renderLotesAdmin();
+  } catch(e){ alert('Erro: '+(e.message||e)); }
+};
+
+window._cancelLote = async function(loteId){
+  if (!confirm('Cancelar este lote? Esta ação não pode ser desfeita.')) return;
+  try {
+    await db.collection('coletor_lotes').doc(loteId).update({ status:'cancelado' });
+    renderLotesAdmin();
+  } catch(e){ alert('Erro: '+(e.message||e)); }
+};
+
+window._viewLoteLogs = async function(loteId){
+  const modal = document.getElementById('loteLogModal');
+  const body  = document.getElementById('loteLogBody');
+  if (!modal || !body) { alert('Modal não encontrado'); return; }
+  body.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Carregando…</div>';
+  modal.style.display = 'flex';
+  try {
+    const snap = await db.collection('coletor_logs').where('loteId','==',loteId).orderBy('ts','asc').limit(500).get();
+    if (snap.empty){ body.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Nenhum registro encontrado.</div>'; return; }
+    const isoToBR = s => { if(!s) return '—'; try{ const d=new Date(s); return d.toLocaleString('pt-BR'); }catch{ return s; } };
+    const rows = snap.docs.map(d=>{
+      const r = d.data();
+      const cor = r.result==='OK' ? '#065f46' : r.result==='DIVERGENTE' ? '#b45309' : '#991b1b';
+      const bg  = r.result==='OK' ? '#ecfdf5' : r.result==='DIVERGENTE' ? '#fffbeb' : '#fef2f2';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 10px;font-size:11px;color:var(--muted);white-space:nowrap">${isoToBR(r.ts)}</td>
+        <td style="padding:8px 10px;font-size:12px">${r.pedido||'—'}</td>
+        <td style="padding:8px 10px;font-size:12px">${r.local||'—'}</td>
+        <td style="padding:8px 10px;font-size:12px">${r.produto||'—'}</td>
+        <td style="padding:8px 10px;font-size:12px">${r.qtd||'—'} ${r.und||''}</td>
+        <td style="padding:8px 10px"><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:${bg};color:${cor}">${r.result||'—'}</span></td>
+        <td style="padding:8px 10px;font-size:11px;color:var(--muted)">${r.divergenceMotivo||''}</td>
+        <td style="padding:8px 10px;font-size:11px">${r.separador||'—'}</td>
+      </tr>`;
+    }).join('');
+    body.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--bg2)">
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Data/Hora</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Pedido</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Endereço</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Produto</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Qtd</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Status</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Motivo Div.</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--muted)">Separador</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch(e){
+    body.innerHTML = `<div style="padding:16px;color:#991b1b;font-size:13px">Erro: ${e.message||e}</div>`;
+  }
+};
+
+document.addEventListener('DOMContentLoaded', function(){
+  const btn = document.getElementById('btnRefreshLotes');
+  if (btn) btn.addEventListener('click', renderLotesAdmin);
+});
 
   // ══════════════════════════════════════════════════
   // COLETOR DE SEPARAÇÃO — integrado ao WMS
@@ -4559,6 +4772,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       let log = [];
       let logAll = [];
       let loadedFileName = "";
+      let activeLoteId = null;
     
       // Confirmação de produto e visibilidade do lote/validade do pedido
       let productConfirmed = false;
@@ -4904,9 +5118,21 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
           $("startPedido").disabled = true;
           $("nextPedido").disabled = true;
           $("finalizar").disabled = true;
-          showMsg("ok", "Todos os pedidos foram concluídos. Iniciar Pedido bloqueado para evitar duplicidade.");
+          showMsg("ok", "Todos os pedidos foram concluídos.");
           saveState({ pedidoAtivo: "", idx: 0, log, logAll, concluded, separador: getSeparador(), loadedFileName, totalPedidos: pedidosList.length, appVersion: APP_VERSION });
           setMetaMemory();
+          // Finaliza lote no Firestore e libera lock
+          if (typeof db !== 'undefined' && activeLoteId) {
+            db.collection('coletor_lotes').doc(activeLoteId).update({
+              status: 'concluido',
+              lockedBy: null,
+              separador: getSeparador(),
+              tsConcluido: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(()=>{});
+            if (window._loteHeartbeat){ clearInterval(window._loteHeartbeat); window._loteHeartbeat = null; }
+            activeLoteId = null;
+            saveState({ activeLoteId: null });
+          }
         }
       }
     
@@ -5093,12 +5319,17 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         log.push(rec);
         logAll.push(rec);
         $("export").disabled = (logAll.length === 0);
-    
+
         saveState({ pedidoAtivo, idx, log, logAll, separador: getSeparador(), appVersion: APP_VERSION });
         setMetaMemory();
-    
+
         // Backup assíncrono (fire-and-forget)
         pushToServer(rec);
+
+        // Log em tempo real no Firestore
+        if (typeof db !== 'undefined' && activeLoteId) {
+          try { db.collection('coletor_logs').add({...rec, loteId: activeLoteId, tipo: 'validacao'}); } catch(e) {}
+        }
     
         if (loteOk && valOk){
           showMsg("ok","Item validado. Próxima separação liberada.");
@@ -5165,9 +5396,13 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         saveState({ pedidoAtivo, idx, log, logAll, separador: getSeparador(), appVersion: APP_VERSION });
         setMetaMemory();
         pushToServer(rec);
-        // Persistir no Firestore para o relatório cross-device
+        // Persistir no Firestore para relatório cross-device
         if (typeof db !== 'undefined') {
           try { db.collection('coletor_divergencias').add(rec); } catch(e) {}
+        }
+        // Log em tempo real no Firestore
+        if (typeof db !== 'undefined' && activeLoteId) {
+          try { db.collection('coletor_logs').add({...rec, loteId: activeLoteId, tipo: 'divergencia'}); } catch(e) {}
         }
         setTimeout(refresh, 220);
       }
@@ -5586,36 +5821,28 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       $("loadFromFirebase")?.addEventListener("click", async () => {
         if (typeof db === "undefined"){ fbMsg("err","Firebase não disponível."); return; }
         $("loadFromFirebase").disabled = true;
-        fbMsg("ok", "⏳ Buscando pedidos na nuvem...");
+        fbMsg("ok", "Buscando lotes na nuvem...");
         try {
-          // Sem orderBy para evitar índice composto — filtra client-side
-          const snap = await db.collection("coletor_pedidos")
-            .where("status","==","pendente")
-            .limit(50)
+          const snap = await db.collection("coletor_lotes")
+            .where("status","in",["pendente","em_separacao"])
+            .limit(20)
             .get();
           if (snap.empty){
-            fbMsg("warn","Nenhum pedido pendente na nuvem. Importe o Excel pelo computador primeiro.");
+            fbMsg("warn","Nenhum lote disponível. Importe o Excel de pedidos pelo computador primeiro.");
             $("loadFromFirebase").disabled = false;
             return;
           }
-
-          allItems = []; pedidosMap = new Map(); loadedFileName = "Firebase";
-          for (const doc of snap.docs){
-            const data = doc.data();
-            const p = String(data.pedido).trim();
-            if (!pedidosMap.has(p)) pedidosMap.set(p, []);
-            pedidosMap.get(p).push(...(data.itens || []));
-            allItems.push(...(data.itens || []));
-          }
-          $("metaPedidos").textContent = `Pedidos: ${pedidosMap.size}`;
-          $("metaItens").textContent   = `Itens: ${allItems.length}`;
-          $("metaUltimo").textContent  = `Fonte: ☁ Firebase`;
-          $("metaStatus").textContent  = `Status: Carregado ✓`;
-          $("metaRow").style.display   = "flex";
-          saveState({ appVersion: APP_VERSION, loadedFileName });
-          setMetaMemory();
-          setPedidosUI();
-          fbMsg("ok", `✓ ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) carregados. Selecione o pedido abaixo.`);
+          const lotes = snap.docs.map(d=>({id:d.id,...d.data()}));
+          // Urgentes primeiro
+          lotes.sort((a,b)=>{
+            if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
+            if(b.prioridade==='urgente'&&a.prioridade!=='urgente') return 1;
+            return 0;
+          });
+          loadedFileName = "Firebase";
+          renderLoteCards(lotes);
+          fbMsg("ok", `${lotes.length} lote(s) disponível(is). Selecione um abaixo.`);
+          colGoTo('colS2');
         } catch(e){
           fbMsg("err", "Erro: " + (e.message || e));
         } finally {
@@ -5623,11 +5850,96 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         }
       });
 
+      function renderLoteCards(lotes){
+        const wrap = $("lotesList");
+        if(!wrap) return;
+        $("lotePickerWrap").style.display = '';
+        $("pedidoPickerRow").style.display = 'none';
+        const now = Date.now();
+        wrap.innerHTML = lotes.map(l=>{
+          const locked = l.status==='em_separacao';
+          const autoUnlocked = locked && l.lockedAt && (now - l.lockedAt.toMillis()) > 45*60*1000;
+          const isLocked = locked && !autoUnlocked;
+          const cls = [
+            'lote-card',
+            l.prioridade==='urgente'?'urgente':'',
+            isLocked?'locked':''
+          ].filter(Boolean).join(' ');
+          const badge = l.prioridade==='urgente'
+            ? `<span class="lote-badge lote-badge-urgente">URGENTE</span>`
+            : `<span class="lote-badge lote-badge-normal">NORMAL</span>`;
+          const lockInfo = isLocked
+            ? `<span class="lote-badge lote-badge-locked">Em separação — ${l.separador||'outro'}</span>`
+            : '';
+          return `<div class="${cls}" data-loteid="${l.id}" onclick="_onLoteClick('${l.id}',${isLocked})">
+            <div class="lote-info">
+              <div class="lote-nome">${l.nome||l.id}</div>
+              <div class="lote-meta">${l.totalPedidos||0} pedido(s) · ${l.totalItens||0} item(s)</div>
+            </div>
+            ${badge}${lockInfo}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`;
+        }).join('');
+      }
+
+      window._onLoteClick = async function(loteId, isLocked){
+        if(isLocked){
+          $("loteMsg").textContent = "Este lote está sendo separado por outro colaborador.";
+          return;
+        }
+        $("loteMsg").textContent = "Abrindo lote...";
+        try {
+          // Trava o lote
+          await db.collection("coletor_lotes").doc(loteId).update({
+            status: 'em_separacao',
+            separador: getSeparador() || 'Desconhecido',
+            lockedBy: getSeparador() || 'Desconhecido',
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          activeLoteId = loteId;
+
+          // Carrega pedidos do lote
+          const snap = await db.collection("coletor_pedidos")
+            .where("loteId","==",loteId)
+            .get();
+          allItems = []; pedidosMap = new Map();
+          for(const doc of snap.docs){
+            const data = doc.data();
+            const p = String(data.pedido).trim();
+            if(!pedidosMap.has(p)) pedidosMap.set(p,[]);
+            pedidosMap.get(p).push(...(data.itens||[]));
+            allItems.push(...(data.itens||[]));
+          }
+
+          // Inicia heartbeat
+          if(window._loteHeartbeat) clearInterval(window._loteHeartbeat);
+          window._loteHeartbeat = setInterval(()=>{
+            if(activeLoteId && typeof db!=='undefined')
+              db.collection("coletor_lotes").doc(activeLoteId)
+                .update({lockedAt:firebase.firestore.FieldValue.serverTimestamp()});
+          }, 5*60*1000);
+
+          $("metaPedidos").textContent = `Pedidos: ${pedidosMap.size}`;
+          $("metaItens").textContent   = `Itens: ${allItems.length}`;
+          $("metaUltimo").textContent  = `Lote: ${loteId}`;
+          $("metaStatus").textContent  = `Carregado`;
+          $("metaRow").style.display   = "flex";
+          $("lotePickerWrap").style.display = 'none';
+          saveState({ appVersion: APP_VERSION, loadedFileName, activeLoteId });
+          setMetaMemory();
+          setPedidosUI();
+          fbMsg("ok", `Lote carregado · ${pedidosMap.size} pedido(s). Selecione o pedido.`);
+        } catch(e){
+          $("loteMsg").textContent = "Erro: " + (e.message||e);
+        }
+      };
+
       // Boot
       (function init(){
         setExpectedVisible(false);
         const st = loadState();
         if (st?.separador) $("separador").value = st.separador;
+        if (st?.activeLoteId) activeLoteId = st.activeLoteId;
         $("resume").disabled = !hasMemory();
         $("exportCheckpoint").disabled = !hasMemory();
         setMetaMemory();
@@ -6255,5 +6567,18 @@ function _invExport() {
   a.download=`inventario_${new Date().toISOString().slice(0,10)}.csv`;a.click();
 }
 </script>
+
+<!-- Modal: Log do Lote -->
+<div id="loteLogModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--text)">Log de Separação do Lote</div>
+      <button onclick="document.getElementById('loteLogModal').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:4px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="loteLogBody" style="overflow-y:auto;padding:16px;flex:1"></div>
+  </div>
+</div>
 </body>
 </html>
