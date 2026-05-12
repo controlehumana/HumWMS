@@ -459,8 +459,10 @@ header {
 @media (max-width: 640px) {
   /* Header compacto */
   header { padding: 0 12px; height: 48px; }
+  .logo { font-size: 17px; }
   .logo-sub { display: none; }
-  .user-pill { padding: 4px 8px; gap: 4px; }
+  #exportMenu { display: none; }
+  .user-pill { padding: 4px 6px; gap: 4px; }
   .user-pill > span:not(.user-avatar):not(.logout-btn) { display: none; }
 
   /* Abas: scroll horizontal */
@@ -536,8 +538,8 @@ header {
   /* Coletor: layout mobile */
   #pageColetor { padding: 12px 8px 40px; }
   #pageColetor .uploadSection { grid-template-columns: 1fr; }
-  #pageColetor .uploadActions { display:grid !important; grid-template-columns:1fr 1fr; gap:10px; }
-  #pageColetor .uploadActions .btn { height:60px; font-size:16px; justify-content: center; }
+  #pageColetor .uploadActions { display:flex !important; flex-wrap:wrap; gap:8px; }
+  #pageColetor .uploadActions .btn { flex:1; min-width:140px; height:60px; font-size:16px; justify-content:center; }
   #pageColetor .workActions { flex-wrap: wrap; gap: 8px; }
   #pageColetor .workActions .btn { flex: 1; min-width: 100px; justify-content: center; height:52px; font-size:14px; }
 }
@@ -852,7 +854,8 @@ header {
       transition:border-color .15s;
     }
     .textInput:focus{border-color:var(--col-green);}
-    .uploadActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .uploadActions{display:flex;flex-wrap:wrap;gap:10px;}
+    .uploadActions .btn{flex:1;min-width:140px;justify-content:center;}
   
     /* ── BOTÕES ── */
     .btn{
@@ -1202,7 +1205,6 @@ header {
     /* Upload */
     .uploadSection{ padding:12px;gap:10px; }
     .uploadLeft{ grid-template-columns:1fr; gap:10px; }
-    .uploadActions{ display:grid;grid-template-columns:1fr 1fr;gap:10px; }
     .uploadActions .btn{ height:60px;font-size:16px;border-radius:12px; }
     .textInput{ height:56px;font-size:17px; }
 
