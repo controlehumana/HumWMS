@@ -1472,7 +1472,25 @@ header {
         </div>
       </div>
     </div>
-    
+
+    <!-- ══ MODAL: CÓDIGO DIVERGENTE ══ -->
+    <div class="conclusionOverlay" id="errorCodeOverlay" role="dialog" aria-modal="true" aria-labelledby="errorCodeTitle">
+      <div class="conclusionModal">
+        <div class="conclusionTop errorCodeTop">
+          <div class="conclusionIcon errorCodeIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+          <div class="conclusionTitle errorCodeTitle" id="errorCodeTitle">Código divergente</div>
+          <div class="errorCodeDetail" id="errorCodeDetail">Verifique o produto e tente novamente.</div>
+        </div>
+        <div class="conclusionBottom">
+          <div class="conclusionActions">
+            <button class="btn-errorClose" id="errorCodeCloseBtn">Tentar novamente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="wrap">
     <div class="card">
     
@@ -1782,24 +1800,6 @@ header {
   </div><!-- /pageColetor -->
 
 </div><!-- /appShell -->
-
-<!-- ══════════ MODAL: CÓDIGO DIVERGENTE ══════════ -->
-<div class="conclusionOverlay" id="errorCodeOverlay" role="dialog" aria-modal="true" aria-labelledby="errorCodeTitle">
-  <div class="conclusionModal">
-    <div class="conclusionTop errorCodeTop">
-      <div class="conclusionIcon errorCodeIcon" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </div>
-      <div class="conclusionTitle errorCodeTitle" id="errorCodeTitle">Código divergente</div>
-      <div class="errorCodeDetail" id="errorCodeDetail">Verifique o produto e tente novamente.</div>
-    </div>
-    <div class="conclusionBottom">
-      <div class="conclusionActions">
-        <button class="btn-errorClose" id="errorCodeCloseBtn">Tentar novamente</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ══════════ MODAL: EDITAR ENDEREÇO ══════════ -->
 <div class="modal-overlay" id="editAddrModal">
