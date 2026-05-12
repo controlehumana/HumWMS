@@ -1330,7 +1330,7 @@ header {
     <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
-    <button class="tab" data-tab="inventario" id="tabInventario" style="display:none">🔎 Inventário</button>
+    <button class="tab" data-tab="inventario" id="tabInventario" style="display:none">🔎 Col. Endereços</button>
     <button class="tab" data-tab="coletor" id="tabColetor">&#128203; Coletor</button>
   </div></div>
 
@@ -1443,8 +1443,8 @@ header {
   </div>
 
   <!-- ══════════ PAGE: EXPIRY ══════════ -->
-  <div class="page" id="pageExpiry">
-    <div style="padding:20px 24px;max-width:1100px;width:100%">
+  <div class="page" id="pageExpiry" style="align-items:center">
+    <div style="padding:20px 24px;max-width:1100px;width:100%;margin:0 auto">
 
       <!-- Filtro de prazo -->
       <div class="expiry-filter-row" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
@@ -1598,8 +1598,8 @@ header {
   </div>
 
   <!-- ══════════ PAGE: INVENTÁRIO ══════════ -->
-  <div class="page" id="pageInventario">
-    <div class="page-inner" style="max-width:560px">
+  <div class="page" id="pageInventario" style="align-items:center">
+    <div class="page-inner" style="max-width:560px;margin:0 auto">
 
       <!-- Coleta (estado principal) -->
       <div id="invColeta">
@@ -1709,8 +1709,8 @@ header {
   </div>
 
   <!-- ══════════ PAGE: DASHBOARD ══════════ -->
-  <div class="page" id="pageDashboard">
-    <div class="page-inner" style="max-width:1280px">
+  <div class="page" id="pageDashboard" style="align-items:center">
+    <div class="page-inner" style="max-width:1280px;margin:0 auto">
 
       <!-- KPIs -->
       <div class="dash-kpis" id="dashKpis">
@@ -5486,6 +5486,7 @@ function renderInventario() {
   } catch(e) {}
   _invShowState('coleta');
   _invUpdateSessionBar();
+  _invBindActions();
 }
 
 function _invShowState(s) {
