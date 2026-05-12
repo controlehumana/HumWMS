@@ -479,6 +479,64 @@ header {
   #pageColetor .workActions { flex-wrap: wrap; gap: 6px; }
   #pageColetor .workActions .btn { flex: 1; min-width: 100px; justify-content: center; }
 }
+
+/* ── Dashboard ── */
+.dash-kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.dash-kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 16px; box-shadow:var(--shadow); }
+.dash-kpi-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.dash-kpi-val { font-size:22px; font-weight:700; color:var(--text); line-height:1; }
+.dash-kpi-val.c-green { color:var(--accent); }
+.dash-kpi-val.c-red   { color:#dc2626; }
+.dash-kpi-val.c-warn  { color:#b45309; }
+.dash-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+.dash-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; box-shadow:var(--shadow); }
+.dash-card-title { font-size:13px; font-weight:600; margin-bottom:12px; color:var(--text); }
+/* Grade de ocupação */
+.dash-grid-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.dash-grid-table { display:inline-flex; flex-direction:column; gap:2px; }
+.dash-grid-row { display:flex; gap:2px; align-items:center; }
+.dash-grid-lbl { font-size:10px; font-weight:600; width:18px; text-align:center; flex-shrink:0; color:var(--muted); }
+.dash-grid-pos-lbl { font-size:9px; width:18px; text-align:center; flex-shrink:0; color:var(--muted); }
+.dash-cell { width:18px; height:18px; border-radius:3px; flex-shrink:0; cursor:pointer; transition:transform .1s; }
+.dash-cell:hover { transform:scale(1.4); z-index:2; position:relative; }
+.dash-cell-none { background:transparent; cursor:default; }
+.dash-cell-free     { background:#d1fae5; border:1px solid #6ee7b7; }
+.dash-cell-occ      { background:#dbeafe; border:1px solid #93c5fd; }
+.dash-cell-expiring { background:#fef3c7; border:1px solid #fcd34d; }
+.dash-cell-expired  { background:#fee2e2; border:1px solid #fca5a5; }
+.dash-legend { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+.dash-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+.dash-legend-dot { width:12px; height:12px; border-radius:3px; }
+/* Barras por rua */
+.rua-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.rua-lbl { font-size:12px; font-weight:600; width:20px; flex-shrink:0; }
+.rua-bar-bg { flex:1; height:14px; background:var(--bg); border-radius:99px; overflow:hidden; }
+.rua-bar-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .4s; }
+.rua-bar-fill.warn { background:#f59e0b; }
+.rua-bar-fill.bad  { background:#dc2626; }
+.rua-pct { font-size:11px; color:var(--muted); width:60px; text-align:right; flex-shrink:0; }
+/* Lista vencimentos */
+.exp-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.exp-item:last-child { border-bottom:none; }
+.exp-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; flex-shrink:0; }
+.exp-badge.warn  { background:#fef3c7; color:#78350f; }
+.exp-badge.bad   { background:#fee2e2; color:#991b1b; }
+
+/* ── Divergências ── */
+.div-kpis { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+.div-kpi-chip { padding:6px 14px; border-radius:99px; border:1px solid var(--border);
+  background:var(--surface); font-size:12px; font-weight:500; display:inline-flex; align-items:center; gap:6px; }
+.div-kpi-chip .n { font-size:16px; font-weight:700; }
+
+@media(max-width:640px){
+  .dash-2col { grid-template-columns:1fr; }
+  .dash-kpis { grid-template-columns:repeat(3,1fr); gap:8px; }
+  .dash-kpi { padding:10px 12px; }
+  .dash-kpi-val { font-size:18px; }
+  .div-kpis { gap:8px; }
+}
 </style>
 
 <style>
@@ -1215,8 +1273,10 @@ header {
   <!-- Tabs -->
   <div class="tabs" id="appTabs"><div class="tabs-inner">
     <button class="tab active" data-tab="map">🗺 Mapa</button>
+    <button class="tab" data-tab="dashboard" id="tabDashboard">📊 Dashboard</button>
     <button class="tab" data-tab="expiry">⏰ Validades</button>
     <button class="tab" data-tab="pending" id="tabPending">📦 Pendentes <span id="pendingBadge" style="display:none;background:#f59e0b;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">0</span></button>
+    <button class="tab" data-tab="divReport" id="tabDivReport">⚠️ Divergências</button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
@@ -1483,6 +1543,107 @@ header {
           <tbody id="addrsTableBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: DASHBOARD ══════════ -->
+  <div class="page" id="pageDashboard">
+    <div class="page-inner" style="max-width:1280px">
+
+      <!-- KPIs -->
+      <div class="dash-kpis" id="dashKpis">
+        <div class="dash-kpi"><div class="dash-kpi-lbl">Total endereços</div><div class="dash-kpi-val" id="dkTotal">–</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-lbl">Ocupados</div><div class="dash-kpi-val" id="dkOcc">–</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-lbl">Livres</div><div class="dash-kpi-val c-green" id="dkFree">–</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-lbl">% Ocupação</div><div class="dash-kpi-val" id="dkPct">–</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-lbl">Vencendo 30d</div><div class="dash-kpi-val c-warn" id="dkExp30">–</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-lbl">Vencidos</div><div class="dash-kpi-val c-red" id="dkExpired">–</div></div>
+      </div>
+
+      <!-- Grade de Ocupação -->
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-title">Grade de Ocupação</div>
+        <div class="dash-legend">
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#d1fae5;border:1px solid #6ee7b7"></span>Livre</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#dbeafe;border:1px solid #93c5fd"></span>Ocupado</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#fef3c7;border:1px solid #fcd34d"></span>Vencendo ≤30d</span>
+          <span class="dash-legend-item"><span class="dash-legend-dot" style="background:#fee2e2;border:1px solid #fca5a5"></span>Vencido</span>
+        </div>
+        <div class="dash-grid-wrap" id="dashGrid"></div>
+      </div>
+
+      <!-- Barras por Rua + Próximos do vencimento -->
+      <div class="dash-2col">
+        <div class="dash-card">
+          <div class="dash-card-title">Ocupação por Rua</div>
+          <div id="dashRuaBars"></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">Próximos do Vencimento</div>
+          <div id="dashExpiring"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: DIVERGÊNCIAS ══════════ -->
+  <div class="page" id="pageDivReport">
+    <div class="admin-container">
+
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-title">⚠️ Relatório de Divergências</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="divCount" style="font-size:12px;color:var(--muted)"></span>
+          <button class="btn" id="btnExportDiv" style="background:#fffbeb;border-color:#fcd34d;color:#92400e">📤 Exportar</button>
+          <button class="btn" id="btnRefreshDiv">↻ Atualizar</button>
+        </div>
+      </div>
+
+      <!-- KPIs por motivo -->
+      <div class="div-kpis" id="divKpis"></div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+        <div class="search-box" style="max-width:280px">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="divSearch" placeholder="Pedido, produto, separador...">
+        </div>
+        <select id="divFiltMotivo" class="filter-input" style="width:180px">
+          <option value="">Todos os motivos</option>
+          <option value="LOTE_DIVERGENTE">Lote divergente</option>
+          <option value="VALIDADE_DIVERGENTE">Validade divergente</option>
+          <option value="PRODUTO_NAO_ENCONTRADO">Produto não encontrado</option>
+          <option value="AVARIA">Avaria</option>
+          <option value="RUPTURA">Ruptura</option>
+          <option value="ETIQUETA_ILEGIVEL">Etiqueta ilegível</option>
+        </select>
+        <select id="divFiltSeparador" class="filter-input" style="width:160px"><option value="">Todos os separadores</option></select>
+      </div>
+
+      <!-- Tabela -->
+      <div class="table-container" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);">
+        <table style="width:100%;border-collapse:collapse;min-width:700px" id="divTable">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Pedido</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Data/Hora</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Endereço</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Produto</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Motivo</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Observação</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Separador</th>
+            </tr>
+          </thead>
+          <tbody id="divTableBody"></tbody>
+        </table>
+        <div id="divEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+          <div style="font-size:40px;margin-bottom:12px">✅</div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhuma divergência registrada</div>
+          <div style="font-size:13px">As divergências aparecem aqui ao serem registradas no Coletor</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -2016,6 +2177,8 @@ function showTab(tabId) {
     p.classList.toggle('active', p.id === pageId);
   });
   if (tabId === 'map')       renderMap();
+  if (tabId === 'dashboard') renderDashboard();
+  if (tabId === 'divReport') renderDivReport();
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
@@ -4416,6 +4579,10 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         saveState({ pedidoAtivo, idx, log, logAll, separador: getSeparador(), appVersion: APP_VERSION });
         setMetaMemory();
         pushToServer(rec);
+        // Persistir no Firestore para o relatório cross-device
+        if (typeof db !== 'undefined') {
+          try { db.collection('coletor_divergencias').add(rec); } catch(e) {}
+        }
         setTimeout(refresh, 220);
       }
     
@@ -4929,5 +5096,148 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
     </div>
   </div>
 </div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DASHBOARD DE OCUPAÇÃO
+// ══════════════════════════════════════════════════════
+function renderDashboard() {
+  if (!S.addresses || !S.items) return;
+  const iByA = {};
+  S.items.forEach(it => { const k=addrKey(it.rua,it.pos); if(!iByA[k])iByA[k]=[]; iByA[k].push(it); });
+  const total=S.addresses.length;
+  const occ=S.addresses.filter(a=>(iByA[addrKey(a.rua,a.pos)]||[]).length>0).length;
+  const free=total-occ, pctOcc=total>0?((occ/total)*100).toFixed(1):'0';
+  const exp30=S.items.filter(it=>{const d=daysUntil(it.val);return d!==null&&d<=30&&d>=0;}).length;
+  const expired=S.items.filter(it=>{const d=daysUntil(it.val);return d!==null&&d<0;}).length;
+  $('dkTotal').textContent=total; $('dkOcc').textContent=occ; $('dkFree').textContent=free;
+  $('dkPct').textContent=pctOcc+'%'; $('dkExp30').textContent=exp30; $('dkExpired').textContent=expired;
+  $('dkExpired').className='dash-kpi-val '+(expired>0?'c-red':'');
+  _renderDashGrid(iByA); _renderDashRuaBars(iByA); _renderDashExpiring();
+}
+function _renderDashGrid(iByA){
+  const ruas=[...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const poses=[...new Set(S.addresses.map(a=>Number(a.pos)))].sort((a,b)=>a-b);
+  const addrSet=new Set(S.addresses.map(a=>addrKey(a.rua,a.pos)));
+  let html='<div class="dash-grid-table"><div class="dash-grid-row"><div class="dash-grid-lbl"></div>';
+  poses.forEach(p=>{html+=`<div class="dash-grid-pos-lbl">${p%5===0?p:''}</div>`;});
+  html+='</div>';
+  ruas.forEach(rua=>{
+    html+=`<div class="dash-grid-row"><div class="dash-grid-lbl">${rua}</div>`;
+    poses.forEach(pos=>{
+      const k=addrKey(rua,pos);
+      if(!addrSet.has(k)){html+='<div class="dash-cell dash-cell-none"></div>';return;}
+      const its=iByA[k]||[];
+      let cls='dash-cell-free',tip=`${rua}${pos}: Livre`;
+      if(its.length>0){
+        const hasExp=its.some(it=>{const d=daysUntil(it.val);return d!==null&&d<0;});
+        const hasWarn=its.some(it=>{const d=daysUntil(it.val);return d!==null&&d<=30&&d>=0;});
+        cls=hasExp?'dash-cell-expired':hasWarn?'dash-cell-expiring':'dash-cell-occ';
+        tip=`${rua}${pos}: ${(its[0].desc||its[0].sku||'').slice(0,30)} (${its.length})`;
+      }
+      html+=`<div class="dash-cell ${cls}" title="${tip}" onclick="showTab('map');document.getElementById('filterRua').value='${rua}';document.getElementById('filterPos').value='${pos}';renderMap()"></div>`;
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  $('dashGrid').innerHTML=html;
+}
+function _renderDashRuaBars(iByA){
+  const ruas=[...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  $('dashRuaBars').innerHTML=ruas.map(rua=>{
+    const tot=S.addresses.filter(a=>a.rua===rua).length;
+    const occ=S.addresses.filter(a=>a.rua===rua&&(iByA[addrKey(a.rua,a.pos)]||[]).length>0).length;
+    const pct=tot>0?(occ/tot)*100:0;
+    const cls=pct>=90?'bad':pct>=70?'warn':'';
+    return `<div class="rua-row"><span class="rua-lbl">${rua}</span><div class="rua-bar-bg"><div class="rua-bar-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div><span class="rua-pct">${pct.toFixed(0)}% (${occ}/${tot})</span></div>`;
+  }).join('')||'<span style="color:var(--muted);font-size:13px">Sem dados</span>';
+}
+function _renderDashExpiring(){
+  const items=S.items.filter(it=>it.val).map(it=>({...it,days:daysUntil(it.val)}))
+    .filter(it=>it.days!==null&&it.days<=60).sort((a,b)=>a.days-b.days).slice(0,12);
+  if(!items.length){$('dashExpiring').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">✅ Nenhum item vencendo em 60 dias</div>';return;}
+  $('dashExpiring').innerHTML=items.map(it=>{
+    const cls=it.days<0?'bad':'warn', lbl=it.days<0?'VENCIDO':`${it.days}d`;
+    return `<div class="exp-item"><span class="exp-badge ${cls}">${lbl}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.desc||''}">${(it.desc||it.sku||'—').slice(0,28)}</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">${it.rua||''}${it.pos||''}</span></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// RELATÓRIO DE DIVERGÊNCIAS
+// ══════════════════════════════════════════════════════
+let _allDivs=[];
+async function renderDivReport(){
+  _allDivs=[];
+  if(typeof db!=='undefined'){
+    try{
+      const snap=await db.collection('coletor_divergencias').orderBy('ts','desc').limit(1000).get();
+      _allDivs=snap.docs.map(d=>d.data());
+    }catch(e){
+      try{
+        const snap2=await db.collection('coletor_divergencias').limit(1000).get();
+        _allDivs=snap2.docs.map(d=>d.data()).sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+      }catch(e2){}
+    }
+  }
+  if(!_allDivs.length){
+    try{const st=JSON.parse(localStorage.getItem('coletor_sep_v2')||'{}');
+      _allDivs=(st.logAll||[]).filter(r=>r.divergence).sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+    }catch(e){}
+  }
+  const seps=[...new Set(_allDivs.map(d=>d.separador).filter(Boolean))].sort();
+  const sel=$('divFiltSeparador');
+  sel.innerHTML='<option value="">Todos os separadores</option>';
+  seps.forEach(s=>sel.insertAdjacentHTML('beforeend',`<option value="${s}">${s}</option>`));
+  _renderDivKpis(); _renderDivTable();
+  $('btnRefreshDiv').onclick=()=>renderDivReport();
+  $('btnExportDiv').onclick=()=>_exportDivCSV();
+  $('divSearch').oninput=_renderDivTable;
+  $('divFiltMotivo').onchange=_renderDivTable;
+  $('divFiltSeparador').onchange=_renderDivTable;
+}
+function _divFiltered(){
+  const q=($('divSearch').value||'').trim().toLowerCase(),motiv=$('divFiltMotivo').value,sep=$('divFiltSeparador').value;
+  return _allDivs.filter(d=>{
+    if(motiv&&d.divergenceMotivo!==motiv)return false;
+    if(sep&&d.separador!==sep)return false;
+    if(q&&!`${d.pedido} ${d.produto} ${d.separador} ${d.local}`.toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+function _renderDivKpis(){
+  const counts={};
+  _allDivs.forEach(d=>{const k=d.divergenceMotivo||'—';counts[k]=(counts[k]||0)+1;});
+  const ML={LOTE_DIVERGENTE:'Lote divergente',VALIDADE_DIVERGENTE:'Validade divergente',PRODUTO_NAO_ENCONTRADO:'Prod. não encontrado',AVARIA:'Avaria',RUPTURA:'Ruptura',ETIQUETA_ILEGIVEL:'Etiqueta ilegível'};
+  let html=`<div class="div-kpi-chip"><span class="n">${_allDivs.length}</span> total</div>`;
+  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{html+=`<div class="div-kpi-chip"><span class="n">${v}</span> ${ML[k]||k}</div>`;});
+  $('divKpis').innerHTML=html;
+}
+function _renderDivTable(){
+  const data=_divFiltered();
+  $('divCount').textContent=`${data.length} registro(s)`;
+  const tbody=$('divTableBody');
+  $('divEmpty').style.display=data.length===0?'block':'none';
+  if(!data.length){tbody.innerHTML='';return;}
+  const ML={LOTE_DIVERGENTE:'Lote divergente',VALIDADE_DIVERGENTE:'Validade divergente',PRODUTO_NAO_ENCONTRADO:'Produto não encontrado',AVARIA:'Avaria',RUPTURA:'Ruptura (sem estoque)',ETIQUETA_ILEGIVEL:'Etiqueta ilegível'};
+  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const td=(v,s='')=>`<td style="padding:8px 12px;font-size:12px;border-bottom:1px solid var(--border)${s}">${v}</td>`;
+  tbody.innerHTML=data.map(d=>{
+    const ts=d.ts?new Date(d.ts).toLocaleString('pt-BR'):'—';
+    const mot=ML[d.divergenceMotivo]||d.divergenceMotivo||'—';
+    return `<tr>${td(esc(d.pedido||'—'))}${td(ts,';white-space:nowrap')}${td(esc(d.local||'—'))}${td(`<span title="${esc(d.produto||'')}">${esc((d.produto||'—').slice(0,30))}</span>`,';max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}${td(`<span style="background:#fef3c7;color:#78350f;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px">${esc(mot)}</span>`)}${td(`<span style="color:var(--muted)">${esc(d.divergenceObs||'—')}</span>`)}${td(esc(d.separador||'—'))}</tr>`;
+  }).join('');
+}
+function _exportDivCSV(){
+  const data=_divFiltered();
+  if(!data.length){alert('Nenhuma divergência para exportar.');return;}
+  const cols=['pedido','ts','local','codigo','produto','qtd','und','divergenceMotivo','divergenceObs','separador','expectedLote','expectedValBR','typedLote','typedVal'];
+  const hdrs={pedido:'PEDIDO',ts:'DATA_HORA',local:'ENDERECO',codigo:'CODIGO',produto:'PRODUTO',qtd:'QTD',und:'UND',divergenceMotivo:'MOTIVO',divergenceObs:'OBSERVACAO',separador:'SEPARADOR',expectedLote:'LOTE_PEDIDO',expectedValBR:'VALIDADE_PEDIDO',typedLote:'LOTE_INFORMADO',typedVal:'VALIDADE_INFORMADA'};
+  const esc=v=>{const s=String(v??'');return /[;\n"]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;};
+  const lines=[cols.map(c=>hdrs[c]||c).join(';')];
+  data.forEach(d=>{const ts=d.ts?new Date(d.ts).toLocaleString('pt-BR'):'';lines.push(cols.map(c=>esc(c==='ts'?ts:d[c])).join(';'));});
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`divergencias_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+</script>
 </body>
 </html>
