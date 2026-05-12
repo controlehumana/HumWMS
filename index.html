@@ -658,6 +658,9 @@ header {
     .btn-secondary:hover{background:#1f2937;}
     .btn-ghost{background:#fff;color:var(--col-text);border-color:var(--col-line);}
     .btn-ghost:hover{background:var(--col-surface);}
+    .btn-scan{background:#2563eb;color:#fff;border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(37,99,235,.2);}
+    .btn-scan:hover{background:#1d4ed8;box-shadow:0 0 0 5px rgba(37,99,235,.25);}
+    .btn-scan svg{stroke:#fff;}
     .btn-danger{background:var(--col-danger);color:#fff;border-color:#b91c1c;}
     .btn-danger:hover{background:#b91c1c;}
     .btn-warn{background:var(--col-warn);color:#fff;border-color:#92400e;}
@@ -1693,7 +1696,7 @@ header {
                   <label class="inputLabel" for="prodIn">Código do produto (SKU ou EAN-13)</label>
                   <input class="inputField active-step" id="prodIn" inputmode="text" autocomplete="off" placeholder="Leia com scanner ou digite"/>
                 </div>
-                <button class="btn btn-ghost" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras" style="height:44px;padding:0 10px;">
+                <button class="btn btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras" style="height:44px;padding:0 14px;">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
                 </button>
                 <button class="btn btn-secondary" id="confirmProd" disabled>Confirmar</button>
@@ -3784,8 +3787,8 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         $("errorCodeOverlay").classList.add("show");
         $("errorCodeCloseBtn").onclick = function(){
           $("errorCodeOverlay").classList.remove("show");
+          $("prodIn").value = "";
           $("prodIn").focus();
-          $("prodIn").select?.();
         };
       }
     
