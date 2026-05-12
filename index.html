@@ -530,12 +530,61 @@ header {
   background:var(--surface); font-size:12px; font-weight:500; display:inline-flex; align-items:center; gap:6px; }
 .div-kpi-chip .n { font-size:16px; font-weight:700; }
 
+/* ── Busca Rápida ── */
+.search-result-total { font-size:12px; font-weight:600; color:var(--accent);
+  padding:8px 0 6px; border-bottom:1px solid var(--border); margin-bottom:2px; }
+.search-result-item { display:flex; align-items:flex-start; gap:10px;
+  padding:8px 0; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+.search-result-item:last-child { border-bottom:none; }
+.search-result-item:hover { background:var(--bg); margin:0 -16px; padding:8px 16px; border-radius:8px; }
+.search-result-addr { font-size:14px; font-weight:700; font-family:monospace;
+  min-width:44px; color:var(--accent); }
+.search-result-desc { font-size:13px; font-weight:500; }
+.search-result-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+.search-empty { text-align:center; padding:32px; color:var(--muted); font-size:13px; }
+
+/* ── Inventário ── */
+.inv-card { background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); margin-bottom:12px; }
+.inv-lbl { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px; }
+.inv-rua-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.inv-rua-btn { padding:7px 16px; border-radius:8px; border:1.5px solid var(--border);
+  background:var(--bg); cursor:pointer; font-weight:600; font-size:13px; transition:all .15s; font-family:inherit; }
+.inv-rua-btn:hover { border-color:var(--accent); color:var(--accent); }
+.inv-rua-btn.sel { background:var(--accent); color:#fff; border-color:var(--accent); }
+.inv-coleta-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; }
+.inv-addr-big { font-size:26px; font-weight:800; font-family:monospace; letter-spacing:-.02em; }
+.inv-prog-txt { font-size:13px; color:var(--muted); white-space:nowrap; }
+.inv-progress { height:6px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:14px; }
+.inv-progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .3s; }
+.inv-sistema-item { padding:10px 12px; background:var(--bg); border-radius:8px; margin-bottom:8px; }
+.inv-sistema-desc { font-size:15px; font-weight:600; margin-bottom:4px; }
+.inv-sistema-meta { font-size:12px; color:var(--muted); }
+.inv-acoes { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.inv-btn-ok   { height:52px; font-size:15px; background:#ecfdf5; border-color:#6ee7b7; color:var(--accent); font-weight:600; }
+.inv-btn-ok:hover { background:#d1fae5; }
+.inv-btn-div  { height:52px; font-size:15px; background:#fffbeb; border-color:#fcd34d; color:#92400e; font-weight:600; }
+.inv-btn-div:hover { background:#fef3c7; }
+.inv-btn-skip { height:44px; font-size:13px; }
+.inv-obs-wrap { margin-top:10px; display:none; }
+.inv-obs-wrap textarea { width:100%; padding:10px 12px; border:1px solid var(--border);
+  border-radius:8px; font-family:inherit; font-size:14px; resize:vertical; min-height:80px; background:var(--bg); outline:none; }
+.inv-obs-wrap textarea:focus { border-color:var(--accent); background:#fff; }
+.inv-resumo-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin:16px 0; }
+.inv-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; text-align:center; }
+.inv-stat-val { font-size:28px; font-weight:700; }
+.inv-stat-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:4px; }
+.inv-hist-row { display:flex; align-items:center; justify-content:space-between;
+  padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.inv-hist-row:last-child { border-bottom:none; }
+
 @media(max-width:640px){
   .dash-2col { grid-template-columns:1fr; }
   .dash-kpis { grid-template-columns:repeat(3,1fr); gap:8px; }
   .dash-kpi { padding:10px 12px; }
   .dash-kpi-val { font-size:18px; }
   .div-kpis { gap:8px; }
+  .inv-addr-big { font-size:22px; }
 }
 </style>
 
@@ -1263,6 +1312,7 @@ header {
         </button>
       </div>
     </div>
+    <button class="btn" id="btnQuickSearch" title="Busca rápida de produto" style="padding:7px 10px;font-size:16px;border-color:var(--border)">🔍</button>
     <div class="user-pill">
       <div class="user-avatar" id="userAvatar">?</div>
       <span id="userName">–</span>
@@ -1280,6 +1330,7 @@ header {
     <button class="tab" data-tab="import" id="tabImport" style="display:none">📥 Importar ERP</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none">👥 Usuários</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none">📍 Endereços</button>
+    <button class="tab" data-tab="inventario" id="tabInventario" style="display:none">🔎 Inventário</button>
     <button class="tab" data-tab="coletor" id="tabColetor">&#128203; Coletor</button>
   </div></div>
 
@@ -1543,6 +1594,71 @@ header {
           <tbody id="addrsTableBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: INVENTÁRIO ══════════ -->
+  <div class="page" id="pageInventario">
+    <div class="page-inner" style="max-width:640px">
+
+      <!-- Estado 1: Config -->
+      <div id="invConfig">
+        <div class="section-header" style="margin-bottom:16px">
+          <div class="section-title">🔎 Inventário Guiado</div>
+        </div>
+        <div class="inv-card">
+          <div class="inv-lbl">Selecionar ruas</div>
+          <div class="inv-rua-btns" id="invRuaBtns"></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="invAllRuas"> Todas as ruas
+          </label>
+        </div>
+        <button class="btn btn-primary" id="btnStartInv" style="width:100%;height:48px;font-size:15px;justify-content:center">▶ Iniciar inventário</button>
+        <div id="invHistorico" style="margin-top:20px"></div>
+      </div>
+
+      <!-- Estado 2: Coleta -->
+      <div id="invColeta" style="display:none">
+        <div class="inv-coleta-top">
+          <button class="btn" id="btnStopInv">✕ Encerrar</button>
+          <div class="inv-addr-big" id="invAddrLabel">—</div>
+          <div class="inv-prog-txt" id="invProgressText">0/0</div>
+        </div>
+        <div class="inv-progress"><div class="inv-progress-fill" id="invProgressFill" style="width:0%"></div></div>
+        <div class="inv-card">
+          <div class="inv-lbl">O sistema registra:</div>
+          <div id="invSistemaContent"></div>
+        </div>
+        <div class="inv-acoes">
+          <button class="btn inv-btn-ok"  id="btnInvOk">✅ Confere — tudo OK</button>
+          <button class="btn inv-btn-div" id="btnInvDiv">⚠️ Há diferença</button>
+          <button class="btn inv-btn-skip btn-ghost" id="btnInvSkip">→ Pular endereço</button>
+        </div>
+        <div class="inv-obs-wrap" id="invObsWrap">
+          <textarea id="invObs" placeholder="Descreva a diferença encontrada (ex: qtd diferente, produto ausente, SKU errado...)"></textarea>
+          <button class="btn btn-primary" id="btnInvConfirmDiv" style="width:100%;height:46px;margin-top:8px;justify-content:center">Confirmar divergência e avançar</button>
+        </div>
+      </div>
+
+      <!-- Estado 3: Resumo -->
+      <div id="invResumo" style="display:none">
+        <div class="inv-card" style="text-align:center;padding:24px">
+          <div style="font-size:40px;margin-bottom:8px">✅</div>
+          <div style="font-size:18px;font-weight:700">Inventário concluído</div>
+        </div>
+        <div class="inv-resumo-stats">
+          <div class="inv-stat"><div class="inv-stat-val" id="invResTotal">0</div><div class="inv-stat-lbl">Auditados</div></div>
+          <div class="inv-stat"><div class="inv-stat-val" style="color:var(--accent)" id="invResOk">0</div><div class="inv-stat-lbl">OK</div></div>
+          <div class="inv-stat"><div class="inv-stat-val" style="color:#b45309" id="invResDiv">0</div><div class="inv-stat-lbl">Divergências</div></div>
+          <div class="inv-stat"><div class="inv-stat-val" style="color:var(--muted)" id="invResPul">0</div><div class="inv-stat-lbl">Pulados</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-primary" id="btnInvExport" style="flex:1;height:44px;justify-content:center">📤 Exportar CSV</button>
+          <button class="btn" id="btnInvNovo" style="flex:1;height:44px;justify-content:center">▶ Novo inventário</button>
+        </div>
+        <div id="invResDetalhes"></div>
+      </div>
+
     </div>
   </div>
 
@@ -2012,6 +2128,23 @@ header {
 
 </div><!-- /appShell -->
 
+<!-- ══════════ MODAL: BUSCA RÁPIDA ══════════ -->
+<div class="modal-overlay" id="searchModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔍 Busca Rápida de Produto</div>
+      <button class="modal-close" data-close="searchModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="search-box" style="margin-bottom:12px">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="productSearchInput" placeholder="SKU, EAN ou descrição...">
+      </div>
+      <div id="productSearchResults"><div class="search-empty">Digite para buscar</div></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ MODAL: EDITAR ENDEREÇO ══════════ -->
 <div class="modal-overlay" id="editAddrModal">
   <div class="modal">
@@ -2176,9 +2309,10 @@ function showTab(tabId) {
     const pageId = 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(1);
     p.classList.toggle('active', p.id === pageId);
   });
-  if (tabId === 'map')       renderMap();
-  if (tabId === 'dashboard') renderDashboard();
-  if (tabId === 'divReport') renderDivReport();
+  if (tabId === 'map')        renderMap();
+  if (tabId === 'dashboard')  renderDashboard();
+  if (tabId === 'divReport')  renderDivReport();
+  if (tabId === 'inventario') renderInventario();
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
@@ -2269,6 +2403,9 @@ auth.onAuthStateChanged(async user => {
       $('tabImport').style.display = '';
       $('tabUsers').style.display = '';
       $('tabAddresses').style.display = '';
+    }
+    if (S.role === 'admin' || S.role === 'operator') {
+      $('tabInventario').style.display = '';
     }
 
     $('authScreen').classList.add('hidden');
@@ -5237,6 +5374,258 @@ function _exportDivCSV(){
   data.forEach(d=>{const ts=d.ts?new Date(d.ts).toLocaleString('pt-BR'):'';lines.push(cols.map(c=>esc(c==='ts'?ts:d[c])).join(';'));});
   const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`divergencias_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+// ══════════════════════════════════════════════════════
+// BUSCA RÁPIDA DE PRODUTO
+// ══════════════════════════════════════════════════════
+document.getElementById('btnQuickSearch').addEventListener('click', () => {
+  document.getElementById('productSearchInput').value = '';
+  document.getElementById('productSearchResults').innerHTML = '<div class="search-empty">Digite para buscar</div>';
+  openModal('searchModal');
+  setTimeout(() => document.getElementById('productSearchInput').focus(), 150);
+});
+
+document.getElementById('productSearchInput').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  const el = document.getElementById('productSearchResults');
+  if (!q || q.length < 2) { el.innerHTML = '<div class="search-empty">Digite pelo menos 2 caracteres</div>'; return; }
+
+  const matched = S.items.filter(it =>
+    (it.sku||'').toLowerCase().includes(q) ||
+    (it.desc||'').toLowerCase().includes(q)
+  );
+  if (!matched.length) { el.innerHTML = '<div class="search-empty">Nenhum produto encontrado</div>'; return; }
+
+  // Agrupa por SKU
+  const bySku = {};
+  matched.forEach(it => {
+    const key = it.sku || it.desc || '?';
+    if (!bySku[key]) bySku[key] = { desc:it.desc, sku:it.sku, und:it.und, items:[] };
+    bySku[key].items.push(it);
+  });
+
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = '';
+  Object.values(bySku).sort((a,b)=>(a.desc||'').localeCompare(b.desc||'')).forEach(grp => {
+    const totalQty = grp.items.reduce((s,it)=>s+(parseFloat(it.qty)||0),0);
+    html += `<div class="search-result-total">${esc(grp.desc||grp.sku)} &nbsp;·&nbsp; ${grp.items.length} endereço(s) &nbsp;·&nbsp; Total: ${totalQty.toLocaleString('pt-BR')} ${grp.und||'UN'}</div>`;
+    grp.items.forEach(it => {
+      const days = daysUntil(it.val);
+      const valStyle = days===null?'' : days<0?'color:#dc2626;font-weight:600' : days<=30?'color:#b45309;font-weight:600':'';
+      html += `<div class="search-result-item" onclick="closeModal('searchModal');showTab('map');document.getElementById('filterRua').value='${it.rua||''}';document.getElementById('filterPos').value='${it.pos||''}';renderMap()">
+        <div class="search-result-addr">${esc(it.rua||'')}${esc(String(it.pos||''))}</div>
+        <div style="flex:1">
+          <div class="search-result-desc">${esc(it.desc||it.sku||'—')}</div>
+          <div class="search-result-meta">Lote: ${esc(it.lote||'—')} &nbsp;·&nbsp; Val: <span style="${valStyle}">${esc(it.val||'—')}</span> &nbsp;·&nbsp; Qtd: ${it.qty||0} ${it.und||'UN'}</div>
+        </div>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+});
+
+// ══════════════════════════════════════════════════════
+// INVENTÁRIO GUIADO
+// ══════════════════════════════════════════════════════
+const INV_KEY = 'wms_inventario_session_v1';
+let _inv = null;
+
+function renderInventario() {
+  // Retoma sessão em andamento se existir
+  try {
+    const saved = JSON.parse(localStorage.getItem(INV_KEY) || 'null');
+    if (saved && saved.status === 'running') { _inv = saved; _invShowState('coleta'); _invRefreshColeta(); return; }
+  } catch(e) {}
+  _invShowState('config');
+  _invBuildConfig();
+}
+
+function _invShowState(s) {
+  document.getElementById('invConfig').style.display  = s==='config'  ? '' : 'none';
+  document.getElementById('invColeta').style.display  = s==='coleta'  ? '' : 'none';
+  document.getElementById('invResumo').style.display  = s==='resumo'  ? '' : 'none';
+}
+
+function _invBuildConfig() {
+  const ruas = [...new Set(S.addresses.map(a => a.rua))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+  const wrap = document.getElementById('invRuaBtns');
+  wrap.innerHTML = ruas.map(r => `<button class="inv-rua-btn" data-rua="${r}">${r}</button>`).join('');
+  wrap.querySelectorAll('.inv-rua-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('sel');
+      document.getElementById('invAllRuas').checked = false;
+    });
+  });
+
+  document.getElementById('invAllRuas').addEventListener('change', function() {
+    wrap.querySelectorAll('.inv-rua-btn').forEach(b => b.classList.toggle('sel', this.checked));
+  });
+
+  document.getElementById('btnStartInv').onclick = _invStart;
+  _invLoadHistory();
+}
+
+async function _invLoadHistory() {
+  const el = document.getElementById('invHistorico');
+  if (typeof db === 'undefined') return;
+  try {
+    const snap = await db.collection('wms_inventario').orderBy('ts_inicio','desc').limit(5).get();
+    if (snap.empty) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">Últimas sessões</div>' +
+      '<div class="inv-card" style="padding:0 16px">' +
+      snap.docs.map(d => {
+        const s=d.data();
+        const dt = s.ts_inicio ? new Date(s.ts_inicio).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}) : '—';
+        const ruas = s.ruas?.length ? 'Rua(s): '+s.ruas.join(', ') : 'Todas as ruas';
+        return `<div class="inv-hist-row">
+          <div><div style="font-weight:500">${dt} &nbsp;·&nbsp; ${ruas}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.total||0} auditados &nbsp;·&nbsp; ${s.ok||0} OK &nbsp;·&nbsp; ${s.divergencias||0} divergências</div></div>
+          <span class="badge ${s.status==='concluido'?'badge-free':'badge-count'}">${s.status==='concluido'?'Concluído':'Em andamento'}</span>
+        </div>`;
+      }).join('') + '</div>';
+  } catch(e) {}
+}
+
+function _invStart() {
+  if (!S.addresses.length) { alert('Nenhum endereço carregado. Faça uma importação primeiro.'); return; }
+  const allCheck = document.getElementById('invAllRuas').checked;
+  const selRuas = allCheck
+    ? [...new Set(S.addresses.map(a=>a.rua))].sort()
+    : [...document.querySelectorAll('.inv-rua-btn.sel')].map(b=>b.dataset.rua);
+  if (!selRuas.length) { alert('Selecione pelo menos uma rua.'); return; }
+
+  const iByA = {};
+  S.items.forEach(it => { const k=addrKey(it.rua,it.pos); if(!iByA[k])iByA[k]=[]; iByA[k].push(it); });
+
+  const addresses = S.addresses
+    .filter(a => selRuas.includes(a.rua))
+    .sort((a,b)=>{ const r=a.rua.localeCompare(b.rua,'pt-BR'); return r!==0?r:(parseInt(a.pos)||0)-(parseInt(b.pos)||0); })
+    .map(a => ({ rua:a.rua, pos:a.pos, items: iByA[addrKey(a.rua,a.pos)]||[] }));
+
+  _inv = {
+    id: Date.now().toString(),
+    operador: S.user?.email || '',
+    ts_inicio: new Date().toISOString(),
+    ts_fim: null,
+    ruas: selRuas,
+    addresses,
+    idx: 0,
+    results: [],
+    status: 'running'
+  };
+  _invSave();
+  _invShowState('coleta');
+  _invRefreshColeta();
+
+  document.getElementById('btnStopInv').onclick = () => {
+    if (!confirm('Encerrar o inventário? O progresso até aqui será salvo.')) return;
+    _invFinish();
+  };
+  document.getElementById('btnInvOk').onclick   = () => _invConfirm('ok');
+  document.getElementById('btnInvSkip').onclick = () => _invConfirm('pulado');
+  document.getElementById('btnInvDiv').onclick  = () => {
+    const wrap = document.getElementById('invObsWrap');
+    wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+    if (wrap.style.display !== 'none') document.getElementById('invObs').focus();
+  };
+  document.getElementById('btnInvConfirmDiv').onclick = () => {
+    _invConfirm('divergente', document.getElementById('invObs').value.trim());
+  };
+}
+
+function _invRefreshColeta() {
+  if (!_inv) return;
+  const { addresses, idx } = _inv;
+  const cur = addresses[idx];
+  if (!cur) { _invFinish(); return; }
+
+  const total = addresses.length;
+  document.getElementById('invAddrLabel').textContent = `${cur.rua}-${String(cur.pos).padStart(2,'0')}`;
+  document.getElementById('invProgressText').textContent = `${idx+1} / ${total}`;
+  document.getElementById('invProgressFill').style.width = ((idx/total)*100).toFixed(1)+'%';
+  document.getElementById('invObsWrap').style.display = 'none';
+  document.getElementById('invObs').value = '';
+
+  const content = document.getElementById('invSistemaContent');
+  if (!cur.items.length) {
+    content.innerHTML = '<div style="color:var(--muted);font-size:14px;font-style:italic;padding:6px 0">Endereço livre (nenhum item no sistema)</div>';
+  } else {
+    content.innerHTML = cur.items.map(it => {
+      const days = daysUntil(it.val);
+      const vStyle = days===null?'' : days<0?'color:#dc2626' : days<=30?'color:#b45309':'';
+      return `<div class="inv-sistema-item">
+        <div class="inv-sistema-desc">${it.desc||it.sku||'—'}</div>
+        <div class="inv-sistema-meta">SKU: ${it.sku||'—'} &nbsp;·&nbsp; Lote: ${it.lote||'—'} &nbsp;·&nbsp; Val: <span style="${vStyle}">${it.val||'—'}</span> &nbsp;·&nbsp; Qtd: ${it.qty||0} ${it.und||'UN'}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function _invConfirm(resultado, obs='') {
+  if (!_inv) return;
+  const cur = _inv.addresses[_inv.idx];
+  _inv.results.push({ rua:cur.rua, pos:cur.pos, addrKey:addrKey(cur.rua,cur.pos),
+    sistemaItems:cur.items, resultado, obs, ts:new Date().toISOString() });
+  _inv.idx++;
+  _invSave();
+  if (_inv.idx >= _inv.addresses.length) _invFinish(); else _invRefreshColeta();
+}
+
+function _invSave() {
+  try { localStorage.setItem(INV_KEY, JSON.stringify(_inv)); } catch(e) {}
+}
+
+function _invFinish() {
+  if (!_inv) return;
+  _inv.status = 'concluido';
+  _inv.ts_fim = new Date().toISOString();
+  _inv.total       = _inv.results.length;
+  _inv.ok          = _inv.results.filter(r=>r.resultado==='ok').length;
+  _inv.divergencias= _inv.results.filter(r=>r.resultado==='divergente').length;
+  _inv.pulados     = _inv.results.filter(r=>r.resultado==='pulado').length;
+
+  if (typeof db !== 'undefined') {
+    try { db.collection('wms_inventario').doc(_inv.id).set(_inv); } catch(e) {}
+  }
+  localStorage.removeItem(INV_KEY);
+  _invShowState('resumo');
+
+  document.getElementById('invResTotal').textContent = _inv.total;
+  document.getElementById('invResOk').textContent    = _inv.ok;
+  document.getElementById('invResDiv').textContent   = _inv.divergencias;
+  document.getElementById('invResPul').textContent   = _inv.pulados;
+
+  const divs = _inv.results.filter(r=>r.resultado==='divergente');
+  const detEl = document.getElementById('invResDetalhes');
+  if (!divs.length) { detEl.innerHTML = ''; }
+  else {
+    detEl.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px">Divergências registradas</div>' +
+      '<div class="inv-card" style="padding:0 16px">' +
+      divs.map(d=>`<div class="inv-hist-row">
+        <div>
+          <div style="font-weight:700;font-family:monospace">${d.rua}-${String(d.pos).padStart(2,'0')}</div>
+          <div style="font-size:12px;color:var(--muted)">${d.obs||'Sem observação'}</div>
+        </div>
+      </div>`).join('') + '</div>';
+  }
+
+  document.getElementById('btnInvExport').onclick = _invExport;
+  document.getElementById('btnInvNovo').onclick   = () => { _inv=null; renderInventario(); };
+}
+
+function _invExport() {
+  if (!_inv || !_inv.results.length) return;
+  const lines = ['RUA;POSICAO;RESULTADO;SKU_SISTEMA;DESC_SISTEMA;LOTE_SISTEMA;VAL_SISTEMA;QTD_SISTEMA;OBSERVACAO;DATA_HORA'];
+  const esc = v=>{const s=String(v??'');return /[;\n"]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;};
+  _inv.results.forEach(r=>{
+    const it=r.sistemaItems?.[0]||{};
+    const ts=new Date(r.ts).toLocaleString('pt-BR');
+    lines.push([r.rua,r.pos,r.resultado.toUpperCase(),it.sku||'',it.desc||'',it.lote||'',it.val||'',it.qty||'',esc(r.obs||''),ts].join(';'));
+  });
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`inventario_${new Date().toISOString().slice(0,10)}.csv`;a.click();
 }
 </script>
 </body>
