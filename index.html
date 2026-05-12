@@ -932,6 +932,28 @@ header {
     }
     .btn-conclusionSecondary:hover{background:var(--col-surface);}
 
+    /* Variante erro (código divergente) */
+    .errorCodeTop{
+      background:linear-gradient(160deg,var(--col-danger-bg),#fff5f5);
+      border-bottom:1px solid #fecaca;
+    }
+    .errorCodeIcon{
+      background:var(--col-danger);
+      box-shadow:0 0 0 8px rgba(220,38,38,.12);
+    }
+    .errorCodeIcon svg{stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+    .errorCodeTitle{color:var(--col-danger);}
+    .errorCodeDetail{font-size:15px;font-weight:500;color:#7f1d1d;margin-top:6px;line-height:1.4;}
+    .btn-errorClose{
+      width:100%;height:50px;border-radius:var(--col-radius-md);
+      background:var(--col-danger);color:#fff;border:none;
+      font-size:16px;font-weight:600;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:background .12s,transform .06s;
+    }
+    .btn-errorClose:hover{background:#b91c1c;}
+    .btn-errorClose:active{transform:translateY(1px);}
+
   /* ══════════════════════════════════════════
      COLETOR — layout mobile
   ══════════════════════════════════════════ */
@@ -1760,6 +1782,24 @@ header {
   </div><!-- /pageColetor -->
 
 </div><!-- /appShell -->
+
+<!-- ══════════ MODAL: CÓDIGO DIVERGENTE ══════════ -->
+<div class="conclusionOverlay" id="errorCodeOverlay" role="dialog" aria-modal="true" aria-labelledby="errorCodeTitle">
+  <div class="conclusionModal">
+    <div class="conclusionTop errorCodeTop">
+      <div class="conclusionIcon errorCodeIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <div class="conclusionTitle errorCodeTitle" id="errorCodeTitle">Código divergente</div>
+      <div class="errorCodeDetail" id="errorCodeDetail">Verifique o produto e tente novamente.</div>
+    </div>
+    <div class="conclusionBottom">
+      <div class="conclusionActions">
+        <button class="btn-errorClose" id="errorCodeCloseBtn">Tentar novamente</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL: EDITAR ENDEREÇO ══════════ -->
 <div class="modal-overlay" id="editAddrModal">
@@ -3738,6 +3778,16 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         el.style.display = "block";
       }
       function hideMsg(){ $("msg").style.display = "none"; }
+
+      function showErrorModal(detail){
+        $("errorCodeDetail").textContent = detail || "Verifique o produto e tente novamente.";
+        $("errorCodeOverlay").classList.add("show");
+        $("errorCodeCloseBtn").onclick = function(){
+          $("errorCodeOverlay").classList.remove("show");
+          $("prodIn").focus();
+          $("prodIn").select?.();
+        };
+      }
     
       function setExpectedVisible(show){
         expectedShown = !!show;
@@ -4201,10 +4251,8 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
           productConfirmInput = typed;
           productConfirmBy = "";
           updateDivButtonState();
-          showMsg("err", "Código divergente. Verifique o produto e tente novamente.");
           if(window.setStep) window.setStep(1);
-          $("prodIn").focus();
-          $("prodIn").select?.();
+          showErrorModal("Código divergente. Verifique o produto e tente novamente.");
         }
       }
     
@@ -4704,12 +4752,21 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
         const titleEl = $('colNavTitle');
         if (titleEl) titleEl.textContent = COL_TITLES[screenId] || 'Coletor';
         const back = $('colNavBack');
-        if (back) back.style.visibility = screenId === 'colS1' ? 'hidden' : 'visible';
+        if (back){
+          back.style.visibility = 'visible';
+          if (screenId === 'colS1'){
+            back.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Fechar';
+            back.setAttribute('aria-label', 'Fechar coletor');
+          } else {
+            back.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Voltar';
+            back.setAttribute('aria-label', 'Voltar');
+          }
+        }
         const screen = $(screenId);
         if (screen) screen.scrollTop = 0;
       }
 
-      // Back button
+      // Back / Fechar button
       $('colNavBack')?.addEventListener('click', () => {
         const active = ['colS1','colS2','colS3'].find(id => {
           const el = document.getElementById(id);
@@ -4720,6 +4777,8 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
           colGoTo('colS2');
         } else if (active === 'colS2'){
           colGoTo('colS1');
+        } else if (active === 'colS1'){
+          showTab('map');
         }
       });
 
