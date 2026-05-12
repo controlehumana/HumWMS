@@ -1599,62 +1599,108 @@ header {
 
   <!-- ══════════ PAGE: INVENTÁRIO ══════════ -->
   <div class="page" id="pageInventario">
-    <div class="page-inner" style="max-width:640px">
+    <div class="page-inner" style="max-width:560px">
 
-      <!-- Estado 1: Config -->
-      <div id="invConfig">
-        <div class="section-header" style="margin-bottom:16px">
-          <div class="section-title">🔎 Inventário Guiado</div>
+      <!-- Coleta (estado principal) -->
+      <div id="invColeta">
+
+        <!-- Barra de sessão -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:15px;font-weight:700">🔎 Coletor de Endereços</div>
+            <div style="font-size:12px;color:var(--muted)" id="invSessaoInfo">Nenhuma sessão ativa</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="btnInvFinalizar" style="display:none">✓ Finalizar</button>
+            <button class="btn btn-primary" id="btnInvIniciar">▶ Iniciar sessão</button>
+          </div>
         </div>
-        <div class="inv-card">
-          <div class="inv-lbl">Selecionar ruas</div>
-          <div class="inv-rua-btns" id="invRuaBtns"></div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="invAllRuas"> Todas as ruas
-          </label>
+
+        <!-- Input de endereço (desabilitado até iniciar sessão) -->
+        <div class="inv-card" id="invInputCard" style="opacity:.5;pointer-events:none">
+          <div class="inv-lbl">Informe o endereço</div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Rua</div>
+              <select id="invRuaSel" class="filter-input" style="width:72px;font-size:15px;font-weight:700;height:44px"></select>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Posição</div>
+              <input type="number" id="invPosSel" class="filter-input" style="width:100%;height:44px;font-size:15px;font-weight:700" placeholder="Ex: 15" min="1">
+            </div>
+          </div>
         </div>
-        <button class="btn btn-primary" id="btnStartInv" style="width:100%;height:48px;font-size:15px;justify-content:center">▶ Iniciar inventário</button>
-        <div id="invHistorico" style="margin-top:20px"></div>
+
+        <!-- Conteúdo do endereço (aparece após busca) -->
+        <div id="invAddrPanel" style="display:none">
+          <div class="inv-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div class="inv-addr-big" id="invCurAddr"></div>
+              <span id="invCurStatus" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--border)"></span>
+            </div>
+            <div id="invCurContent"></div>
+          </div>
+          <div class="inv-acoes">
+            <button class="btn inv-btn-ok"  id="btnInvOk">✅ Confere — tudo OK</button>
+            <button class="btn inv-btn-div" id="btnInvDiv">⚠️ Registrar diferença</button>
+            <button class="btn inv-btn-skip" id="btnInvVazio">🗑️ Endereço está vazio</button>
+          </div>
+          <div class="inv-obs-wrap" id="invObsWrap">
+            <textarea id="invObs" placeholder="Descreva a diferença (ex: quantidade diferente, produto ausente, SKU errado...)"></textarea>
+            <button class="btn btn-primary" id="btnInvConfirmDiv" style="width:100%;height:46px;margin-top:8px;justify-content:center">Confirmar e avançar</button>
+          </div>
+
+          <!-- Transferência de produto -->
+          <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+            <button class="btn" id="btnInvTransfer" style="width:100%;justify-content:center;gap:8px">
+              📦 Mover produto de outro endereço para cá
+            </button>
+          </div>
+          <div id="invTransferPanel" style="display:none;margin-top:10px">
+            <div class="inv-card" style="background:#f0fdf4;border-color:#b7e4c7">
+              <div class="inv-lbl" style="color:#065f46">Endereço de origem (mover DE)</div>
+              <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Rua</div>
+                  <select id="invTrRuaSel" class="filter-input" style="width:72px;height:40px;font-weight:700"></select>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Posição</div>
+                  <input type="number" id="invTrPosSel" class="filter-input" style="width:100%;height:40px;font-weight:700" placeholder="Ex: 10" min="1">
+                </div>
+                <button class="btn" id="btnInvTrLook" style="height:40px;flex-shrink:0">Buscar</button>
+              </div>
+              <div id="invTrContent" style="display:none">
+                <div class="inv-lbl">Itens que serão movidos:</div>
+                <div id="invTrItems"></div>
+                <button class="btn btn-primary" id="btnInvTrConfirm" style="width:100%;height:46px;margin-top:10px;justify-content:center">
+                  ✓ Confirmar transferência
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini log das últimas confirmações -->
+        <div id="invMiniLog" style="margin-top:12px"></div>
+
       </div>
 
-      <!-- Estado 2: Coleta -->
-      <div id="invColeta" style="display:none">
-        <div class="inv-coleta-top">
-          <button class="btn" id="btnStopInv">✕ Encerrar</button>
-          <div class="inv-addr-big" id="invAddrLabel">—</div>
-          <div class="inv-prog-txt" id="invProgressText">0/0</div>
-        </div>
-        <div class="inv-progress"><div class="inv-progress-fill" id="invProgressFill" style="width:0%"></div></div>
-        <div class="inv-card">
-          <div class="inv-lbl">O sistema registra:</div>
-          <div id="invSistemaContent"></div>
-        </div>
-        <div class="inv-acoes">
-          <button class="btn inv-btn-ok"  id="btnInvOk">✅ Confere — tudo OK</button>
-          <button class="btn inv-btn-div" id="btnInvDiv">⚠️ Há diferença</button>
-          <button class="btn inv-btn-skip btn-ghost" id="btnInvSkip">→ Pular endereço</button>
-        </div>
-        <div class="inv-obs-wrap" id="invObsWrap">
-          <textarea id="invObs" placeholder="Descreva a diferença encontrada (ex: qtd diferente, produto ausente, SKU errado...)"></textarea>
-          <button class="btn btn-primary" id="btnInvConfirmDiv" style="width:100%;height:46px;margin-top:8px;justify-content:center">Confirmar divergência e avançar</button>
-        </div>
-      </div>
-
-      <!-- Estado 3: Resumo -->
+      <!-- Resumo (após finalizar) -->
       <div id="invResumo" style="display:none">
         <div class="inv-card" style="text-align:center;padding:24px">
           <div style="font-size:40px;margin-bottom:8px">✅</div>
-          <div style="font-size:18px;font-weight:700">Inventário concluído</div>
+          <div style="font-size:18px;font-weight:700">Inventário finalizado</div>
         </div>
         <div class="inv-resumo-stats">
           <div class="inv-stat"><div class="inv-stat-val" id="invResTotal">0</div><div class="inv-stat-lbl">Auditados</div></div>
           <div class="inv-stat"><div class="inv-stat-val" style="color:var(--accent)" id="invResOk">0</div><div class="inv-stat-lbl">OK</div></div>
-          <div class="inv-stat"><div class="inv-stat-val" style="color:#b45309" id="invResDiv">0</div><div class="inv-stat-lbl">Divergências</div></div>
-          <div class="inv-stat"><div class="inv-stat-val" style="color:var(--muted)" id="invResPul">0</div><div class="inv-stat-lbl">Pulados</div></div>
+          <div class="inv-stat"><div class="inv-stat-val" style="color:#b45309" id="invResDiv">0</div><div class="inv-stat-lbl">Diferenças</div></div>
+          <div class="inv-stat"><div class="inv-stat-val" style="color:var(--muted)" id="invResVaz">0</div><div class="inv-stat-lbl">Vazios</div></div>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:16px">
           <button class="btn btn-primary" id="btnInvExport" style="flex:1;height:44px;justify-content:center">📤 Exportar CSV</button>
-          <button class="btn" id="btnInvNovo" style="flex:1;height:44px;justify-content:center">▶ Novo inventário</button>
+          <button class="btn" id="btnInvNovo" style="flex:1;height:44px;justify-content:center">▶ Nova sessão</button>
         </div>
         <div id="invResDetalhes"></div>
       </div>
@@ -5426,150 +5472,215 @@ document.getElementById('productSearchInput').addEventListener('input', function
 });
 
 // ══════════════════════════════════════════════════════
-// INVENTÁRIO GUIADO
+// COLETOR DE ENDEREÇOS (Inventário)
 // ══════════════════════════════════════════════════════
 const INV_KEY = 'wms_inventario_session_v1';
 let _inv = null;
 
 function renderInventario() {
+  _invPopulateRuas();
   // Retoma sessão em andamento se existir
   try {
     const saved = JSON.parse(localStorage.getItem(INV_KEY) || 'null');
-    if (saved && saved.status === 'running') { _inv = saved; _invShowState('coleta'); _invRefreshColeta(); return; }
+    if (saved && saved.status === 'running') { _inv = saved; _invActivateSession(); return; }
   } catch(e) {}
-  _invShowState('config');
-  _invBuildConfig();
+  _invShowState('coleta');
+  _invUpdateSessionBar();
 }
 
 function _invShowState(s) {
-  document.getElementById('invConfig').style.display  = s==='config'  ? '' : 'none';
-  document.getElementById('invColeta').style.display  = s==='coleta'  ? '' : 'none';
-  document.getElementById('invResumo').style.display  = s==='resumo'  ? '' : 'none';
+  document.getElementById('invColeta').style.display = s==='coleta' ? '' : 'none';
+  document.getElementById('invResumo').style.display = s==='resumo' ? '' : 'none';
 }
 
-function _invBuildConfig() {
-  const ruas = [...new Set(S.addresses.map(a => a.rua))].sort((a,b) => a.localeCompare(b,'pt-BR'));
-  const wrap = document.getElementById('invRuaBtns');
-  wrap.innerHTML = ruas.map(r => `<button class="inv-rua-btn" data-rua="${r}">${r}</button>`).join('');
-  wrap.querySelectorAll('.inv-rua-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.toggle('sel');
-      document.getElementById('invAllRuas').checked = false;
-    });
-  });
-
-  document.getElementById('invAllRuas').addEventListener('change', function() {
-    wrap.querySelectorAll('.inv-rua-btn').forEach(b => b.classList.toggle('sel', this.checked));
-  });
-
-  document.getElementById('btnStartInv').onclick = _invStart;
-  _invLoadHistory();
+function _invPopulateRuas() {
+  const sel = document.getElementById('invRuaSel');
+  const ruas = [...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  sel.innerHTML = '<option value="">Rua</option>' +
+    ruas.map(r=>`<option value="${r}">${r}</option>`).join('');
 }
 
-async function _invLoadHistory() {
-  const el = document.getElementById('invHistorico');
-  if (typeof db === 'undefined') return;
-  try {
-    const snap = await db.collection('wms_inventario').orderBy('ts_inicio','desc').limit(5).get();
-    if (snap.empty) { el.innerHTML = ''; return; }
-    el.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">Últimas sessões</div>' +
-      '<div class="inv-card" style="padding:0 16px">' +
-      snap.docs.map(d => {
-        const s=d.data();
-        const dt = s.ts_inicio ? new Date(s.ts_inicio).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}) : '—';
-        const ruas = s.ruas?.length ? 'Rua(s): '+s.ruas.join(', ') : 'Todas as ruas';
-        return `<div class="inv-hist-row">
-          <div><div style="font-weight:500">${dt} &nbsp;·&nbsp; ${ruas}</div>
-          <div style="font-size:11px;color:var(--muted)">${s.total||0} auditados &nbsp;·&nbsp; ${s.ok||0} OK &nbsp;·&nbsp; ${s.divergencias||0} divergências</div></div>
-          <span class="badge ${s.status==='concluido'?'badge-free':'badge-count'}">${s.status==='concluido'?'Concluído':'Em andamento'}</span>
-        </div>`;
-      }).join('') + '</div>';
-  } catch(e) {}
+function _invUpdateSessionBar() {
+  const hasSession = _inv && _inv.status === 'running';
+  const count = _inv ? _inv.results.length : 0;
+  const ok  = _inv ? _inv.results.filter(r=>r.resultado==='ok').length : 0;
+  const div = _inv ? _inv.results.filter(r=>r.resultado==='divergente').length : 0;
+  const vaz = _inv ? _inv.results.filter(r=>r.resultado==='vazio').length : 0;
+
+  document.getElementById('invSessaoInfo').textContent = hasSession
+    ? `Sessão ativa · ${count} auditados · ${ok} OK · ${div} dif. · ${vaz} vazios`
+    : 'Nenhuma sessão ativa — clique em Iniciar para começar';
+
+  document.getElementById('btnInvIniciar').style.display = hasSession ? 'none' : '';
+  document.getElementById('btnInvFinalizar').style.display = hasSession ? '' : 'none';
+
+  const card = document.getElementById('invInputCard');
+  card.style.opacity = hasSession ? '1' : '.5';
+  card.style.pointerEvents = hasSession ? '' : 'none';
 }
 
-function _invStart() {
-  if (!S.addresses.length) { alert('Nenhum endereço carregado. Faça uma importação primeiro.'); return; }
-  const allCheck = document.getElementById('invAllRuas').checked;
-  const selRuas = allCheck
-    ? [...new Set(S.addresses.map(a=>a.rua))].sort()
-    : [...document.querySelectorAll('.inv-rua-btn.sel')].map(b=>b.dataset.rua);
-  if (!selRuas.length) { alert('Selecione pelo menos uma rua.'); return; }
-
-  const iByA = {};
-  S.items.forEach(it => { const k=addrKey(it.rua,it.pos); if(!iByA[k])iByA[k]=[]; iByA[k].push(it); });
-
-  const addresses = S.addresses
-    .filter(a => selRuas.includes(a.rua))
-    .sort((a,b)=>{ const r=a.rua.localeCompare(b.rua,'pt-BR'); return r!==0?r:(parseInt(a.pos)||0)-(parseInt(b.pos)||0); })
-    .map(a => ({ rua:a.rua, pos:a.pos, items: iByA[addrKey(a.rua,a.pos)]||[] }));
-
-  _inv = {
-    id: Date.now().toString(),
-    operador: S.user?.email || '',
-    ts_inicio: new Date().toISOString(),
-    ts_fim: null,
-    ruas: selRuas,
-    addresses,
-    idx: 0,
-    results: [],
-    status: 'running'
-  };
-  _invSave();
+function _invActivateSession() {
   _invShowState('coleta');
-  _invRefreshColeta();
+  _invUpdateSessionBar();
+  _invRenderMiniLog();
+  _invBindActions();
+}
 
-  document.getElementById('btnStopInv').onclick = () => {
-    if (!confirm('Encerrar o inventário? O progresso até aqui será salvo.')) return;
+function _invBindActions() {
+  document.getElementById('btnInvIniciar').onclick = () => {
+    if (!S.addresses.length) { alert('Nenhum endereço carregado. Faça uma importação primeiro.'); return; }
+    _inv = { id: Date.now().toString(), operador: S.user?.email||'',
+      ts_inicio: new Date().toISOString(), ts_fim: null, status: 'running', results: [] };
+    _invSave();
+    _invActivateSession();
+    document.getElementById('invRuaSel').focus();
+  };
+
+  document.getElementById('btnInvFinalizar').onclick = () => {
+    if (!_inv || !_inv.results.length) { alert('Nenhum endereço auditado ainda.'); return; }
+    if (!confirm(`Finalizar inventário com ${_inv.results.length} endereços auditados?`)) return;
     _invFinish();
   };
-  document.getElementById('btnInvOk').onclick   = () => _invConfirm('ok');
-  document.getElementById('btnInvSkip').onclick = () => _invConfirm('pulado');
+
+  // Lookup automático quando rua + posição estão preenchidos
+  const lookup = () => {
+    const rua = document.getElementById('invRuaSel').value;
+    const pos = document.getElementById('invPosSel').value.trim();
+    if (!rua || !pos) { document.getElementById('invAddrPanel').style.display='none'; return; }
+    _invLookupAddr(rua, pos);
+  };
+  document.getElementById('invRuaSel').onchange = lookup;
+  document.getElementById('invPosSel').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); lookup(); } };
+  document.getElementById('invPosSel').onblur = lookup;
+
+  document.getElementById('btnInvOk').onclick  = () => _invConfirm('ok');
+  document.getElementById('btnInvVazio').onclick = () => _invConfirm('vazio');
   document.getElementById('btnInvDiv').onclick  = () => {
-    const wrap = document.getElementById('invObsWrap');
-    wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
-    if (wrap.style.display !== 'none') document.getElementById('invObs').focus();
+    const w = document.getElementById('invObsWrap');
+    w.style.display = w.style.display==='none'?'':'none';
+    document.getElementById('invTransferPanel').style.display = 'none';
+    if(w.style.display!=='none') document.getElementById('invObs').focus();
   };
   document.getElementById('btnInvConfirmDiv').onclick = () => {
     _invConfirm('divergente', document.getElementById('invObs').value.trim());
   };
+
+  // Transfer panel
+  const trRuaSel = document.getElementById('invTrRuaSel');
+  const ruas = [...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  trRuaSel.innerHTML = '<option value="">Rua</option>' +
+    ruas.map(r=>`<option value="${r}">${r}</option>`).join('');
+
+  document.getElementById('btnInvTransfer').onclick = () => {
+    const panel = document.getElementById('invTransferPanel');
+    panel.style.display = panel.style.display==='none'?'':'none';
+    document.getElementById('invObsWrap').style.display = 'none';
+    document.getElementById('invTrContent').style.display = 'none';
+    document.getElementById('invTrPosSel').value = '';
+  };
+  document.getElementById('btnInvTrLook').onclick = _invTrLookup;
+  document.getElementById('invTrPosSel').onkeydown = e => { if(e.key==='Enter'){ e.preventDefault(); _invTrLookup(); } };
+  document.getElementById('btnInvTrConfirm').onclick = _invTrConfirm;
 }
 
-function _invRefreshColeta() {
-  if (!_inv) return;
-  const { addresses, idx } = _inv;
-  const cur = addresses[idx];
-  if (!cur) { _invFinish(); return; }
+function _invLookupAddr(rua, pos) {
+  // Verifica se endereço já foi auditado nesta sessão
+  if (_inv) {
+    const already = _inv.results.find(r => r.rua===rua && String(r.pos)===String(pos));
+    if (already) {
+      const icon = already.resultado==='ok'?'✅':already.resultado==='divergente'?'⚠️':'🗑️';
+      if (!confirm(`Endereço ${rua}-${pos} já auditado (${icon}). Auditar novamente?`)) return;
+    }
+  }
 
-  const total = addresses.length;
-  document.getElementById('invAddrLabel').textContent = `${cur.rua}-${String(cur.pos).padStart(2,'0')}`;
-  document.getElementById('invProgressText').textContent = `${idx+1} / ${total}`;
-  document.getElementById('invProgressFill').style.width = ((idx/total)*100).toFixed(1)+'%';
-  document.getElementById('invObsWrap').style.display = 'none';
-  document.getElementById('invObs').value = '';
+  const k = addrKey(rua, pos);
+  const addr = S.addresses.find(a => addrKey(a.rua,a.pos)===k);
+  const panel = document.getElementById('invAddrPanel');
 
-  const content = document.getElementById('invSistemaContent');
-  if (!cur.items.length) {
-    content.innerHTML = '<div style="color:var(--muted);font-size:14px;font-style:italic;padding:6px 0">Endereço livre (nenhum item no sistema)</div>';
+  if (!addr) {
+    panel.style.display = '';
+    document.getElementById('invCurAddr').textContent = `${rua}-${pos}`;
+    document.getElementById('invCurStatus').textContent = '⚠ Não encontrado';
+    document.getElementById('invCurStatus').style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#fef3c7;border:1px solid #fcd34d;color:#78350f';
+    document.getElementById('invCurContent').innerHTML = '<div style="color:var(--muted);font-size:13px;font-style:italic">Endereço não cadastrado no sistema</div>';
+    document.getElementById('invObsWrap').style.display = 'none';
+    return;
+  }
+
+  const items = S.items.filter(it => addrKey(it.rua,it.pos)===k);
+  panel.style.display = '';
+  document.getElementById('invCurAddr').textContent = `${rua}-${String(pos).padStart(2,'0')}`;
+
+  const statusEl = document.getElementById('invCurStatus');
+  if (!items.length) {
+    statusEl.textContent = 'Livre';
+    statusEl.style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#f0fdf4;border:1px solid #6ee7b7;color:#065f46';
+    document.getElementById('invCurContent').innerHTML = '<div style="color:var(--muted);font-size:13px;font-style:italic">Endereço livre — nenhum item no sistema</div>';
   } else {
-    content.innerHTML = cur.items.map(it => {
+    statusEl.textContent = `${items.length} item(s)`;
+    statusEl.style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#dbeafe;border:1px solid #93c5fd;color:#1e40af';
+    document.getElementById('invCurContent').innerHTML = items.map(it => {
       const days = daysUntil(it.val);
-      const vStyle = days===null?'' : days<0?'color:#dc2626' : days<=30?'color:#b45309':'';
+      const vStyle = days===null?'' : days<0?'color:#dc2626':days<=30?'color:#b45309':'';
       return `<div class="inv-sistema-item">
         <div class="inv-sistema-desc">${it.desc||it.sku||'—'}</div>
         <div class="inv-sistema-meta">SKU: ${it.sku||'—'} &nbsp;·&nbsp; Lote: ${it.lote||'—'} &nbsp;·&nbsp; Val: <span style="${vStyle}">${it.val||'—'}</span> &nbsp;·&nbsp; Qtd: ${it.qty||0} ${it.und||'UN'}</div>
       </div>`;
     }).join('');
   }
+  document.getElementById('invObsWrap').style.display = 'none';
+  document.getElementById('invObs').value = '';
+  // Armazena contexto para confirmação
+  panel.dataset.rua = rua;
+  panel.dataset.pos = pos;
+  panel.dataset.items = JSON.stringify(items);
 }
 
 function _invConfirm(resultado, obs='') {
-  if (!_inv) return;
-  const cur = _inv.addresses[_inv.idx];
-  _inv.results.push({ rua:cur.rua, pos:cur.pos, addrKey:addrKey(cur.rua,cur.pos),
-    sistemaItems:cur.items, resultado, obs, ts:new Date().toISOString() });
-  _inv.idx++;
+  const panel = document.getElementById('invAddrPanel');
+  const rua = panel.dataset.rua, pos = panel.dataset.pos;
+  if (!rua || !pos) return;
+
+  let sistemaItems = [];
+  try { sistemaItems = JSON.parse(panel.dataset.items||'[]'); } catch(e){}
+
+  // Remove duplicata se existir (re-auditou)
+  if (_inv) _inv.results = _inv.results.filter(r=>!(r.rua===rua&&String(r.pos)===String(pos)));
+
+  _inv.results.push({ rua, pos, addrKey:addrKey(rua,pos), sistemaItems, resultado, obs, ts:new Date().toISOString() });
   _invSave();
-  if (_inv.idx >= _inv.addresses.length) _invFinish(); else _invRefreshColeta();
+  _invUpdateSessionBar();
+  _invRenderMiniLog();
+
+  // Feedback visual rápido + limpa para próximo
+  const btnOk = document.getElementById('btnInvOk');
+  const icon = resultado==='ok'?'✅ Registrado!':resultado==='divergente'?'⚠️ Registrado!':'🗑️ Registrado!';
+  btnOk.textContent = icon;
+  setTimeout(() => { btnOk.textContent='✅ Confere — tudo OK'; }, 1000);
+
+  // Limpa para próximo endereço
+  document.getElementById('invAddrPanel').style.display = 'none';
+  document.getElementById('invPosSel').value = '';
+  document.getElementById('invObsWrap').style.display = 'none';
+  document.getElementById('invPosSel').focus();
+}
+
+function _invRenderMiniLog() {
+  if (!_inv || !_inv.results.length) { document.getElementById('invMiniLog').innerHTML=''; return; }
+  const last5 = [..._inv.results].reverse().slice(0,5);
+  const icon = r => r.resultado==='ok'?'✅':r.resultado==='divergente'?'⚠️':'🗑️';
+  document.getElementById('invMiniLog').innerHTML =
+    '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Últimas confirmações</div>' +
+    '<div class="inv-card" style="padding:0 16px">' +
+    last5.map(r=>`<div class="inv-hist-row">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">${icon(r)}</span>
+        <div><div style="font-weight:700;font-family:monospace">${r.rua}-${String(r.pos).padStart(2,'0')}</div>
+        ${r.obs?`<div style="font-size:11px;color:var(--muted)">${r.obs.slice(0,40)}</div>`:''}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">${new Date(r.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('') + '</div>';
 }
 
 function _invSave() {
@@ -5580,10 +5691,10 @@ function _invFinish() {
   if (!_inv) return;
   _inv.status = 'concluido';
   _inv.ts_fim = new Date().toISOString();
-  _inv.total       = _inv.results.length;
-  _inv.ok          = _inv.results.filter(r=>r.resultado==='ok').length;
-  _inv.divergencias= _inv.results.filter(r=>r.resultado==='divergente').length;
-  _inv.pulados     = _inv.results.filter(r=>r.resultado==='pulado').length;
+  _inv.total        = _inv.results.length;
+  _inv.ok           = _inv.results.filter(r=>r.resultado==='ok').length;
+  _inv.divergencias = _inv.results.filter(r=>r.resultado==='divergente').length;
+  _inv.vazios       = _inv.results.filter(r=>r.resultado==='vazio').length;
 
   if (typeof db !== 'undefined') {
     try { db.collection('wms_inventario').doc(_inv.id).set(_inv); } catch(e) {}
@@ -5594,24 +5705,116 @@ function _invFinish() {
   document.getElementById('invResTotal').textContent = _inv.total;
   document.getElementById('invResOk').textContent    = _inv.ok;
   document.getElementById('invResDiv').textContent   = _inv.divergencias;
-  document.getElementById('invResPul').textContent   = _inv.pulados;
+  document.getElementById('invResVaz').textContent   = _inv.vazios;
 
-  const divs = _inv.results.filter(r=>r.resultado==='divergente');
+  const diffs = _inv.results.filter(r=>r.resultado==='divergente'||r.resultado==='vazio');
   const detEl = document.getElementById('invResDetalhes');
-  if (!divs.length) { detEl.innerHTML = ''; }
+  if (!diffs.length) { detEl.innerHTML=''; }
   else {
-    detEl.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px">Divergências registradas</div>' +
+    detEl.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px">Registros com diferença</div>' +
       '<div class="inv-card" style="padding:0 16px">' +
-      divs.map(d=>`<div class="inv-hist-row">
+      diffs.map(d=>`<div class="inv-hist-row">
         <div>
-          <div style="font-weight:700;font-family:monospace">${d.rua}-${String(d.pos).padStart(2,'0')}</div>
-          <div style="font-size:12px;color:var(--muted)">${d.obs||'Sem observação'}</div>
+          <div style="font-weight:700;font-family:monospace">${d.rua}-${String(d.pos).padStart(2,'0')} <span style="font-size:12px;font-weight:400">${d.resultado==='vazio'?'🗑️ Vazio':'⚠️ Diferença'}</span></div>
+          ${d.obs?`<div style="font-size:12px;color:var(--muted)">${d.obs}</div>`:''}
         </div>
       </div>`).join('') + '</div>';
   }
 
   document.getElementById('btnInvExport').onclick = _invExport;
   document.getElementById('btnInvNovo').onclick   = () => { _inv=null; renderInventario(); };
+}
+
+// ── Transferência de produto entre endereços ──
+function _invTrLookup() {
+  const rua = document.getElementById('invTrRuaSel').value;
+  const pos = document.getElementById('invTrPosSel').value.trim();
+  const content = document.getElementById('invTrContent');
+  const itemsEl = document.getElementById('invTrItems');
+
+  if (!rua || !pos) { alert('Selecione a rua e a posição de origem.'); return; }
+
+  // Verifica que não é o mesmo endereço atual
+  const panel = document.getElementById('invAddrPanel');
+  if (rua === panel.dataset.rua && String(pos) === String(panel.dataset.pos)) {
+    alert('Origem e destino são o mesmo endereço.'); return;
+  }
+
+  const srcItems = S.items.filter(it => addrKey(it.rua,it.pos) === addrKey(rua,pos));
+  if (!srcItems.length) {
+    itemsEl.innerHTML = '<div style="color:var(--muted);font-size:13px;font-style:italic;padding:6px 0">Nenhum item encontrado nesse endereço</div>';
+    document.getElementById('btnInvTrConfirm').style.display = 'none';
+    content.style.display = '';
+    return;
+  }
+
+  itemsEl.innerHTML = srcItems.map(it => {
+    const days = daysUntil(it.val);
+    const vStyle = days===null?'':days<0?'color:#dc2626':days<=30?'color:#b45309':'';
+    return `<div class="inv-sistema-item" style="margin-bottom:6px">
+      <div class="inv-sistema-desc">${it.desc||it.sku||'—'}</div>
+      <div class="inv-sistema-meta">SKU: ${it.sku||'—'} · Lote: ${it.lote||'—'} · Val: <span style="${vStyle}">${it.val||'—'}</span> · Qtd: ${it.qty||0} ${it.und||'UN'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('btnInvTrConfirm').style.display = '';
+  document.getElementById('btnInvTrConfirm').dataset.srcRua = rua;
+  document.getElementById('btnInvTrConfirm').dataset.srcPos = pos;
+  content.style.display = '';
+}
+
+async function _invTrConfirm() {
+  const btn = document.getElementById('btnInvTrConfirm');
+  const srcRua = btn.dataset.srcRua, srcPos = btn.dataset.srcPos;
+  const panel = document.getElementById('invAddrPanel');
+  const dstRua = panel.dataset.rua, dstPos = panel.dataset.pos;
+
+  if (!srcRua || !srcPos || !dstRua || !dstPos) return;
+
+  const srcItems = S.items.filter(it => addrKey(it.rua,it.pos) === addrKey(srcRua,srcPos));
+  if (!srcItems.length) { alert('Nenhum item para mover.'); return; }
+
+  const msg = `Mover ${srcItems.length} item(s) de ${srcRua}-${srcPos} → ${dstRua}-${dstPos}?`;
+  if (!confirm(msg)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Transferindo...';
+
+  try {
+    if (typeof db !== 'undefined') {
+      const batch = db.batch();
+      srcItems.forEach(it => {
+        if (it._id) batch.update(db.collection('wms_items').doc(it._id),
+          { rua: dstRua, pos: dstPos, manuallyEdited: true });
+      });
+      await batch.commit();
+    }
+
+    // Atualiza estado local
+    srcItems.forEach(it => { it.rua = dstRua; it.pos = String(dstPos); it.manuallyEdited = true; });
+
+    // Registra na sessão de inventário
+    if (_inv) {
+      const obs = `Transferido de ${srcRua}-${srcPos}`;
+      // Remove entradas anteriores do destino se existir
+      _inv.results = _inv.results.filter(r => !(r.rua===dstRua && String(r.pos)===String(dstPos)));
+      _inv.results.push({ rua:dstRua, pos:dstPos, addrKey:addrKey(dstRua,dstPos),
+        sistemaItems:srcItems, resultado:'transferencia', obs, ts:new Date().toISOString() });
+      _invSave();
+      _invUpdateSessionBar();
+      _invRenderMiniLog();
+    }
+
+    // Refresca a exibição do endereço destino
+    document.getElementById('invTransferPanel').style.display = 'none';
+    _invLookupAddr(dstRua, dstPos);
+
+    btn.textContent = '✓ Transferido!';
+    setTimeout(() => { btn.textContent='✓ Confirmar transferência'; btn.disabled=false; }, 1500);
+  } catch(e) {
+    alert('Erro ao transferir: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '✓ Confirmar transferência';
+  }
 }
 
 function _invExport() {
