@@ -3445,17 +3445,21 @@ function parseApiData(data) {
       const parts = String(r.dt_validade).split('-');
       if (parts.length === 3) val = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
+    const desc = String(r.item_descricao || '').trim();
+    const isBombaEnteral = desc.toUpperCase().includes('BOMBA ENTERAL');
+    const itemRua = (rua && pos) ? rua : (isBombaEnteral ? 'P' : '');
+    const itemPos = (rua && pos) ? pos : (isBombaEnteral ? '99' : '');
     const item = {
       sku:   String(r.item_codigo        || '').trim(),
-      desc:  String(r.item_descricao     || '').trim(),
+      desc,
       lote:  String(r.numero_lote        || '').trim(),
       val,
       est:   r.saldo_aberto != null ? String(r.saldo_aberto).trim() : '',
       idEnd: String(r.id_item_enderecamento || '').trim(),
       emp:   String(r.empresa_apelido    || '').trim(),
-      rua, pos
+      rua: itemRua, pos: itemPos
     };
-    if (rua && pos) { addrSet.add(`${rua}|${pos}`); items.push(item); }
+    if (itemRua && itemPos) { addrSet.add(`${itemRua}|${itemPos}`); items.push(item); }
     else { noAddr.push(item); }
   }
   const addresses = Array.from(addrSet).map(k => {
@@ -3503,6 +3507,15 @@ async function _commitImportData(parsed, opts = {}) {
       await batch.commit();
       done += Math.min(CHUNK, addresses.length - i);
       progress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
+    }
+  } else if (addresses.length > 0) {
+    // API: só cria endereços novos (ex: P-99 para Bomba Enteral) sem apagar os existentes
+    for (let i = 0; i < addresses.length; i += CHUNK) {
+      const batch = db.batch();
+      addresses.slice(i, i + CHUNK).forEach(a => {
+        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a, { merge: true });
+      });
+      await batch.commit();
     }
   }
 
