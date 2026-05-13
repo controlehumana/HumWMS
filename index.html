@@ -2462,6 +2462,13 @@ header {
       <button class="modal-close" data-close="cartazManualModal">×</button>
     </div>
     <div class="modal-body">
+
+      <!-- ── Recentes ── -->
+      <div id="cartazHistoryWrap" style="display:none;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Recentes</div>
+        <div id="cartazHistoryList"></div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">SKU / Código</label>
         <input class="form-input" id="cmSku" placeholder="Ex: 2261" autocomplete="off">
@@ -4266,6 +4273,42 @@ $('btnExportExpiry').addEventListener('click', () => {
 //  CARTAZ DE PRATELEIRA
 // ══════════════════════════════════════════════════════
 
+// ── Histórico de cartazes manuais ──
+const _CARTAZ_HK = 'wms_cartaz_history';
+function _getCartazHist(){ try{ return JSON.parse(localStorage.getItem(_CARTAZ_HK)||'[]'); }catch{ return []; } }
+function _saveCartazHist(e){
+  const h = _getCartazHist().filter(x=>!(x.sku===e.sku&&x.lote===e.lote&&x.val===e.val&&x.rua===e.rua&&x.pos===e.pos));
+  h.unshift(e);
+  localStorage.setItem(_CARTAZ_HK, JSON.stringify(h.slice(0,8)));
+}
+function _renderCartazHist(){
+  const h = _getCartazHist();
+  const wrap = document.getElementById('cartazHistoryWrap');
+  const list = document.getElementById('cartazHistoryList');
+  if (!wrap||!list) return;
+  if (!h.length){ wrap.style.display='none'; return; }
+  wrap.style.display='';
+  list.innerHTML = h.map((e,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;${i<h.length-1?'border-bottom:1px solid var(--border)':''}">
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.sku?`[${e.sku}] `:''}${e.desc||'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">Lote: ${e.lote||'—'} · Val: ${e.val||'—'}${e.rua?` · ${e.rua}-${e.pos}`:''}</div>
+      </div>
+      <button onclick="_useCartazHist(${i})" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;white-space:nowrap">Usar</button>
+      <button onclick="_delCartazHist(${i})" style="font-size:12px;padding:2px 7px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;color:var(--muted)">×</button>
+    </div>`).join('');
+}
+window._useCartazHist = function(i){
+  const e = _getCartazHist()[i];
+  if (!e) return;
+  openCartazManual(e.sku,e.desc,e.lote,e.val,e.rua,e.pos);
+};
+window._delCartazHist = function(i){
+  const h = _getCartazHist(); h.splice(i,1);
+  localStorage.setItem(_CARTAZ_HK, JSON.stringify(h));
+  _renderCartazHist();
+};
+
 // Abre o modal de cartaz manual, com campos opcionalmente pré-preenchidos
 function openCartazManual(sku='', desc='', lote='', val='', rua='', pos='') {
   document.getElementById('cmSku').value  = sku;
@@ -4274,6 +4317,7 @@ function openCartazManual(sku='', desc='', lote='', val='', rua='', pos='') {
   document.getElementById('cmVal').value  = val;
   document.getElementById('cmRua').value  = rua;
   document.getElementById('cmPos').value  = pos;
+  _renderCartazHist();
   openModal('cartazManualModal');
   setTimeout(() => document.getElementById(sku ? 'cmLote' : 'cmSku').focus(), 100);
 }
@@ -4737,6 +4781,31 @@ function initPendingListeners() {
   const cartazNovoEl = $('btnCartazNovo');
   if (cartazNovoEl) cartazNovoEl.addEventListener('click', () => openCartazManual());
 
+  // Máscara DD/MM/AAAA no campo de validade do cartaz manual
+  const cmValEl = $('cmVal');
+  if (cmValEl) {
+    cmValEl.setAttribute('placeholder', 'DD/MM/AAAA');
+    cmValEl.setAttribute('maxlength', '10');
+    cmValEl.setAttribute('inputmode', 'numeric');
+    cmValEl.addEventListener('input', function() {
+      let v = this.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 4) v = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+      else if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+      this.value = v;
+    });
+    cmValEl.addEventListener('blur', function() {
+      const parts = this.value.split('/');
+      if (parts.length !== 3) return;
+      let [d, m, y] = parts.map(Number);
+      if (!d || !m || !y || y < 100) return;
+      const maxDay = new Date(y, m, 0).getDate(); // dia 0 do mês seguinte = último dia do mês
+      if (d > maxDay) {
+        d = maxDay;
+        this.value = String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+      }
+    });
+  }
+
   // Imprimir cartaz via modal
   const cartazPrintEl = $('btnCartazManualPrint');
   if (cartazPrintEl) cartazPrintEl.addEventListener('click', () => {
@@ -4746,6 +4815,8 @@ function initPendingListeners() {
     const val  = $('cmVal').value.trim();
     const rua  = $('cmRua').value.trim().toUpperCase();
     const pos  = $('cmPos').value.trim();
+    if (!sku && !desc) { alert('Informe ao menos o SKU ou a descrição do produto.'); return; }
+    _saveCartazHist({ sku, desc, lote, val, rua, pos });
     closeModal('cartazManualModal');
     printCartazManual(sku, desc, lote, val, rua, pos);
   });
