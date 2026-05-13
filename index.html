@@ -1624,6 +1624,31 @@ header {
       </p>
 
       <div id="importStepFile">
+
+        <!-- ── Sincronizar via API ── -->
+        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;background:var(--surface2)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;margin-bottom:4px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                Sincronizar via API
+              </div>
+              <div style="font-size:12px;color:var(--muted)">Estoque em tempo real · Data de referência: <strong id="apiSyncDate">—</strong></div>
+            </div>
+            <button class="btn btn-primary" id="btnSyncApi" style="gap:6px;white-space:nowrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              Sincronizar agora
+            </button>
+          </div>
+          <div id="apiSyncMsg" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em">OU IMPORTE O EXCEL</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
         <div class="drop-zone" id="dropZone">
           <div class="drop-zone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
           <div class="drop-zone-text">Arraste o arquivo aqui</div>
@@ -3294,6 +3319,40 @@ function parseExcel(wb) {
   return { items, noAddr, addresses, stats: { total: items.length + noAddr.length, withAddr: items.length, noAddr: noAddr.length, addrs: addresses.length } };
 }
 
+function parseApiData(data) {
+  if (!Array.isArray(data) || data.length === 0) throw new Error('API retornou dados vazios.');
+  const items = [], noAddr = [], addrSet = new Set();
+  for (const r of data) {
+    const rua = String(r.rua || '').trim().toUpperCase();
+    const pos = String(r.posicao || '').trim();
+    let val = '';
+    if (r.dt_validade) {
+      const parts = String(r.dt_validade).split('-');
+      if (parts.length === 3) val = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const item = {
+      sku:   String(r.item_codigo        || '').trim(),
+      desc:  String(r.item_descricao     || '').trim(),
+      lote:  String(r.numero_lote        || '').trim(),
+      val,
+      est:   r.estoque != null ? String(r.estoque).trim() : '',
+      idEnd: String(r.id_item_enderecamento || '').trim(),
+      emp:   String(r.empresa_apelido    || '').trim(),
+      rua, pos
+    };
+    if (rua && pos) { addrSet.add(`${rua}|${pos}`); items.push(item); }
+    else { noAddr.push(item); }
+  }
+  const addresses = Array.from(addrSet).map(k => {
+    const [rua, pos] = k.split('|');
+    return { rua, pos, cap: 99, active: true };
+  }).sort((a, b) => {
+    const r = a.rua.localeCompare(b.rua, 'pt-BR', {sensitivity:'base'});
+    return r !== 0 ? r : (parseInt(a.pos)||0) - (parseInt(b.pos)||0);
+  });
+  return { items, noAddr, addresses, stats: { total: items.length + noAddr.length, withAddr: items.length, noAddr: noAddr.length, addrs: addresses.length } };
+}
+
 $('importConfirmBtn').addEventListener('click', async () => {
   if (!importParsed) return;
   importShowStep('Progress');
@@ -3387,6 +3446,50 @@ $('importConfirmBtn').addEventListener('click', async () => {
 $('importCancelBtn').addEventListener('click', () => importShowStep('File'));
 $('importRetryBtn').addEventListener('click', () => importShowStep('File'));
 $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowStep('File'); });
+
+// ── Sincronizar via API ──
+(function(){
+  const API_URL  = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php';
+  const API_TOKEN = 'WMS-TOKEN-STOCK-2026';
+  const today    = new Date().toISOString().slice(0, 10);
+  const todayBR  = today.split('-').reverse().join('/');
+  const dateEl   = document.getElementById('apiSyncDate');
+  const btn      = document.getElementById('btnSyncApi');
+  const msgEl    = document.getElementById('apiSyncMsg');
+  if (dateEl) dateEl.textContent = todayBR;
+  if (!btn) return;
+
+  function apiMsg(type, text){
+    if (!msgEl) return;
+    msgEl.style.display = '';
+    msgEl.style.background = type==='ok' ? '#ecfdf5' : type==='err' ? '#fef2f2' : '#fffbeb';
+    msgEl.style.color      = type==='ok' ? '#065f46' : type==='err' ? '#991b1b' : '#92400e';
+    msgEl.textContent = text;
+  }
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    apiMsg('info', 'Consultando API...');
+    try {
+      const resp = await fetch(`${API_URL}?token=${API_TOKEN}&data_limite=${today}`);
+      if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
+      const data = await resp.json();
+      importParsed = parseApiData(data);
+      const s = importParsed.stats;
+      $('importSummary').innerHTML = [
+        { label: 'Total de itens', val: s.total    },
+        { label: 'Com endereço',   val: s.withAddr },
+        { label: 'Sem endereço',   val: s.noAddr   }
+      ].map(x => `<div class="import-stat"><div class="import-stat-val">${x.val}</div><div class="import-stat-lbl">${x.label}</div></div>`).join('');
+      if (msgEl) msgEl.style.display = 'none';
+      importShowStep('Preview');
+    } catch(e) {
+      apiMsg('err', 'Erro: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
 
 // ══════════════════════════════════════════════════════
 //  USERS PAGE
