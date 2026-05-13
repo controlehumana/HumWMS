@@ -143,6 +143,24 @@ header {
   transition: var(--transition);
 }
 .logout-btn:hover { color: #dc2626; background: #fef2f2; }
+.user-pill { cursor: pointer; position: relative; user-select: none; }
+.user-dropdown {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow-md);
+  min-width: 220px; z-index: 200; overflow: hidden;
+}
+.user-dropdown.open { display: block; }
+.user-dropdown-header { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.user-dropdown-item {
+  width: 100%; padding: 10px 16px; text-align: left; border: none;
+  background: none; cursor: pointer; font-family: inherit; font-size: 13px;
+  color: var(--text); display: flex; align-items: center; gap: 10px;
+  transition: background .12s;
+}
+.user-dropdown-item:hover { background: var(--surface2); }
+.user-dropdown-item.danger { color: #dc2626; }
+.user-dropdown-item.danger:hover { background: #fef2f2; }
 
 /* ── Tabs ── */
 .tabs {
@@ -1396,12 +1414,29 @@ header {
     <button class="btn" id="btnQuickSearch" title="Busca rápida de produto" style="padding:8px 10px;width:36px;justify-content:center">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </button>
-    <div class="user-pill">
+    <div class="user-pill" id="userPill">
       <div class="user-avatar" id="userAvatar">?</div>
       <span id="userName" style="font-weight:500;color:var(--text2)">–</span>
-      <button class="logout-btn" id="btnLogout" title="Sair">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted)"><polyline points="6 9 12 15 18 9"/></svg>
+      <div class="user-dropdown" id="userDropdown">
+        <div class="user-dropdown-header">
+          <div style="font-size:13px;font-weight:600;color:var(--text)" id="userDropName">–</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px" id="userDropEmail">–</div>
+        </div>
+        <button class="user-dropdown-item" id="btnDropUsers" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Usuários
+        </button>
+        <button class="user-dropdown-item" id="btnDropConfig" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Configurações
+        </button>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <button class="user-dropdown-item danger" id="btnLogout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sair
+        </button>
+      </div>
     </div>
   </div></header>
 
@@ -1415,9 +1450,7 @@ header {
     <button class="tab" data-tab="inventario" id="tabInventario" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>Col. Endereços</button>
     <button class="tab" data-tab="coletor" id="tabColetor" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importação</button>
-    <button class="tab" data-tab="config" id="tabConfig" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Configurações</button>
     <button class="tab" data-tab="gestao" id="tabGestao" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Ordens de Sep.</button>
-    <button class="tab" data-tab="users" id="tabUsers" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Usuários</button>
   </div></div>
 
   <!-- ══════════ PAGE: MAP ══════════ -->
@@ -2760,7 +2793,23 @@ $('btnGoogleLogin').addEventListener('click', async () => {
   }
 });
 
-$('btnLogout').addEventListener('click', () => auth.signOut());
+// ── Dropdown do usuário ──
+(function(){
+  const pill = $('userPill');
+  const menu = $('userDropdown');
+  if (!pill || !menu) return;
+
+  pill.addEventListener('click', e => {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click', () => menu.classList.remove('open'));
+  menu.addEventListener('click', e => e.stopPropagation());
+
+  $('btnDropConfig')?.addEventListener('click', () => { menu.classList.remove('open'); showTab('config'); });
+  $('btnDropUsers')?.addEventListener('click',  () => { menu.classList.remove('open'); showTab('users'); });
+  $('btnLogout')?.addEventListener('click', () => auth.signOut());
+})();
 
 
 auth.onAuthStateChanged(async user => {
@@ -2788,6 +2837,8 @@ auth.onAuthStateChanged(async user => {
 
     $('userAvatar').textContent = (userData.name || user.email).charAt(0).toUpperCase();
     $('userName').textContent = userData.name || user.email.split('@')[0];
+    $('userDropName').textContent = userData.name || user.email.split('@')[0];
+    $('userDropEmail').textContent = user.email;
 
     if (S.role === 'admin') {
       // Admin: mostra tudo
@@ -2795,6 +2846,8 @@ auth.onAuthStateChanged(async user => {
         const el = $(id); if (el) el.style.display = '';
       });
       document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+      const _du = $('btnDropUsers'); if (_du) _du.style.display = '';
+      const _dc = $('btnDropConfig'); if (_dc) _dc.style.display = '';
     } else if (S.modules !== null) {
       // Novo sistema: visibilidade baseada em módulos
       WMS_MODULES.forEach(m => {
