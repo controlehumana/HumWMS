@@ -3361,10 +3361,12 @@ function parseApiData(data) {
 
 async function _commitImportData(parsed, opts = {}) {
   const { silent = false, fonte = 'manual' } = opts;
+  const isApi = fonte === 'api' || fonte === 'api-auto';
   const { items, noAddr, addresses } = parsed;
   const CHUNK = 400;
   let done = 0;
-  const total = items.length + addresses.length + 2;
+  // API: endereços não são tocados; Excel: tudo é recriado
+  const total = items.length + (isApi ? 0 : addresses.length) + 2;
   const progress = (pct, msg) => {
     if (silent) return;
     $('importProgressFill').style.width = pct + '%';
@@ -3372,7 +3374,8 @@ async function _commitImportData(parsed, opts = {}) {
   };
 
   progress(2, 'Limpando dados anteriores...');
-  for (const col of ['wms_items', 'wms_addresses', 'wms_unaddressed']) {
+  const colsToClear = isApi ? ['wms_items', 'wms_unaddressed'] : ['wms_items', 'wms_addresses', 'wms_unaddressed'];
+  for (const col of colsToClear) {
     const snap = await db.collection(col).get();
     for (let i = 0; i < snap.docs.length; i += CHUNK) {
       const batch = db.batch();
@@ -3381,18 +3384,20 @@ async function _commitImportData(parsed, opts = {}) {
     }
   }
 
-  progress(10, 'Salvando endereços...');
-  for (let i = 0; i < addresses.length; i += CHUNK) {
-    const batch = db.batch();
-    addresses.slice(i, i + CHUNK).forEach(a => {
-      batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
-    });
-    await batch.commit();
-    done += Math.min(CHUNK, addresses.length - i);
-    progress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
+  if (!isApi) {
+    progress(10, 'Salvando endereços...');
+    for (let i = 0; i < addresses.length; i += CHUNK) {
+      const batch = db.batch();
+      addresses.slice(i, i + CHUNK).forEach(a => {
+        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
+      });
+      await batch.commit();
+      done += Math.min(CHUNK, addresses.length - i);
+      progress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
+    }
   }
 
-  progress(75, 'Salvando itens...');
+  progress(isApi ? 10 : 75, 'Salvando itens...');
   for (let i = 0; i < items.length; i += CHUNK) {
     const batch = db.batch();
     items.slice(i, i + CHUNK).forEach((it, j) => {
@@ -3400,10 +3405,11 @@ async function _commitImportData(parsed, opts = {}) {
     });
     await batch.commit();
     done += Math.min(CHUNK, items.length - i);
-    progress(75 + Math.round(((i + CHUNK) / items.length) * 10), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
+    const pBase = isApi ? 10 : 75, pRange = isApi ? 76 : 10;
+    progress(pBase + Math.round(((i + CHUNK) / items.length) * pRange), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
   }
 
-  progress(86, 'Salvando itens sem endereço...');
+  progress(isApi ? 88 : 86, 'Salvando itens sem endereço...');
   const uSnap = await db.collection('wms_unaddressed').get();
   for (let i = 0; i < uSnap.docs.length; i += CHUNK) {
     const batch = db.batch();
