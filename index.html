@@ -1640,6 +1640,10 @@ header {
               Sincronizar agora
             </button>
           </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--muted)">
+            <span>⏱ Última sync: <strong id="lastSyncDisplay">—</strong></span>
+            <span>🔄 Próxima automática: <strong id="nextSyncDisplay">—</strong></span>
+          </div>
           <div id="apiSyncMsg" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px"></div>
         </div>
 
@@ -2824,6 +2828,7 @@ async function loadAll() {
     } else {
       renderMap();
       loadLastImport();
+      if (S.role === 'admin' && typeof window._startAutoSyncScheduler === 'function') window._startAutoSyncScheduler();
     }
   } catch(e) {
     console.error('Erro ao carregar:', e);
@@ -2862,6 +2867,7 @@ async function loadLastImport() {
     $('kpiLastImportDate').textContent = fmt;
     $('kpiLastImportDate').title = `Por: ${log.importedBy} · ${log.totalItens} itens`;
     $('kpiLastImport').style.display = '';
+    if (typeof window._updateLastSyncDisplay === 'function') window._updateLastSyncDisplay(log.ts);
   } catch(e) {
     // silencioso — pode não ter permissão de leitura de logs
   }
@@ -3353,88 +3359,83 @@ function parseApiData(data) {
   return { items, noAddr, addresses, stats: { total: items.length + noAddr.length, withAddr: items.length, noAddr: noAddr.length, addrs: addresses.length } };
 }
 
-$('importConfirmBtn').addEventListener('click', async () => {
-  if (!importParsed) return;
-  importShowStep('Progress');
-  const setProgress = (pct, msg) => {
+async function _commitImportData(parsed, opts = {}) {
+  const { silent = false, fonte = 'manual' } = opts;
+  const { items, noAddr, addresses } = parsed;
+  const CHUNK = 400;
+  let done = 0;
+  const total = items.length + addresses.length + 2;
+  const progress = (pct, msg) => {
+    if (silent) return;
     $('importProgressFill').style.width = pct + '%';
     $('importProgressMsg').textContent = msg;
   };
 
-  try {
-    const { items, noAddr, addresses } = importParsed;
-    const CHUNK = 400;
-    let done = 0;
-    const total = items.length + addresses.length + 2;
-
-    // 1. Limpa coleções antigas (inclui flags de edição manual)
-    setProgress(2, 'Limpando dados anteriores...');
-    for (const col of ['wms_items', 'wms_addresses', 'wms_unaddressed']) {
-      const snap = await db.collection(col).get();
-      for (let i = 0; i < snap.docs.length; i += CHUNK) {
-        const batch = db.batch();
-        snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
-    }
-
-    // 2. Salva endereços
-    setProgress(10, 'Salvando endereços...');
-    for (let i = 0; i < addresses.length; i += CHUNK) {
+  progress(2, 'Limpando dados anteriores...');
+  for (const col of ['wms_items', 'wms_addresses', 'wms_unaddressed']) {
+    const snap = await db.collection(col).get();
+    for (let i = 0; i < snap.docs.length; i += CHUNK) {
       const batch = db.batch();
-      addresses.slice(i, i + CHUNK).forEach(a => {
-        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
-      });
-      await batch.commit();
-      done += Math.min(CHUNK, addresses.length - i);
-      setProgress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
-    }
-
-    // 3. Salva itens com endereço
-    setProgress(75, 'Salvando itens...');
-    for (let i = 0; i < items.length; i += CHUNK) {
-      const batch = db.batch();
-      items.slice(i, i + CHUNK).forEach((it, j) => {
-        const id = `${addrKey(it.rua, it.pos)}_${i+j}`;
-        batch.set(db.collection('wms_items').doc(id), it);
-      });
-      await batch.commit();
-      done += Math.min(CHUNK, items.length - i);
-      setProgress(75 + Math.round(((i + CHUNK) / items.length) * 10), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
-    }
-
-    // 3b. Limpa e salva itens SEM endereço
-    setProgress(86, 'Salvando itens sem endereço...');
-    const uSnap = await db.collection('wms_unaddressed').get();
-    for (let i = 0; i < uSnap.docs.length; i += CHUNK) {
-      const batch = db.batch();
-      uSnap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+      snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
       await batch.commit();
     }
-    const noAddrItems = importParsed.noAddr;
-    for (let i = 0; i < noAddrItems.length; i += CHUNK) {
-      const batch = db.batch();
-      noAddrItems.slice(i, i + CHUNK).forEach((it, j) => {
-        const id = `unaddr_${i+j}_${Date.now()}`;
-        batch.set(db.collection('wms_unaddressed').doc(id), { ...it, pendingAddr: true });
-      });
-      await batch.commit();
-    }
+  }
 
-    // 4. Log com timestamp e detalhes
-    const importTs = new Date().toISOString();
-    await db.collection('wms_import_log').add({
-      ts: importTs,
-      importedBy: S.user.email,
-      importedByName: S.user.displayName || S.user.email,
-      totalItens: items.length,
-      semEndereco: noAddr.length,
-      enderecos: addresses.length
+  progress(10, 'Salvando endereços...');
+  for (let i = 0; i < addresses.length; i += CHUNK) {
+    const batch = db.batch();
+    addresses.slice(i, i + CHUNK).forEach(a => {
+      batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
     });
+    await batch.commit();
+    done += Math.min(CHUNK, addresses.length - i);
+    progress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
+  }
 
-    setProgress(100, 'Concluído!');
+  progress(75, 'Salvando itens...');
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const batch = db.batch();
+    items.slice(i, i + CHUNK).forEach((it, j) => {
+      batch.set(db.collection('wms_items').doc(`${addrKey(it.rua, it.pos)}_${i+j}`), it);
+    });
+    await batch.commit();
+    done += Math.min(CHUNK, items.length - i);
+    progress(75 + Math.round(((i + CHUNK) / items.length) * 10), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
+  }
+
+  progress(86, 'Salvando itens sem endereço...');
+  const uSnap = await db.collection('wms_unaddressed').get();
+  for (let i = 0; i < uSnap.docs.length; i += CHUNK) {
+    const batch = db.batch();
+    uSnap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+  for (let i = 0; i < noAddr.length; i += CHUNK) {
+    const batch = db.batch();
+    noAddr.slice(i, i + CHUNK).forEach((it, j) => {
+      batch.set(db.collection('wms_unaddressed').doc(`unaddr_${i+j}_${Date.now()}`), { ...it, pendingAddr: true });
+    });
+    await batch.commit();
+  }
+
+  const importTs = new Date().toISOString();
+  await db.collection('wms_import_log').add({
+    ts: importTs, fonte,
+    importedBy:     S.user?.email || 'auto',
+    importedByName: S.user?.displayName || S.user?.email || 'auto-sync',
+    totalItens: items.length, semEndereco: noAddr.length, enderecos: addresses.length
+  });
+  progress(100, 'Concluído!');
+  return { items: items.length, addresses: addresses.length, ts: importTs };
+}
+
+$('importConfirmBtn').addEventListener('click', async () => {
+  if (!importParsed) return;
+  importShowStep('Progress');
+  try {
+    const r = await _commitImportData(importParsed, { fonte: 'excel' });
     const nowFmt = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    $('importDoneMsg').textContent = `${items.length} itens importados em ${addresses.length} endereços · ${nowFmt}`;
+    $('importDoneMsg').textContent = `${r.items} itens importados em ${r.addresses} endereços · ${nowFmt}`;
     importShowStep('Done');
     await loadAll();
   } catch(e) {
@@ -3490,6 +3491,93 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       btn.disabled = false;
     }
   });
+})();
+
+// ── Auto-sync agendado (08:00 e 18:00) ──
+(function(){
+  const SYNC_HOURS = [8, 18];
+  const ERP_URL = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php?token=WMS-TOKEN-STOCK-2026';
+  const PROXY   = 'https://corsproxy.io/?';
+
+  function _fmtTime(date){ return date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  function _fmtDateTime(date){ return date.toLocaleDateString('pt-BR') + ' ' + _fmtTime(date); }
+
+  function _nextSyncDate(){
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    for (const h of SYNC_HOURS){
+      const t = new Date(`${today}T${String(h).padStart(2,'0')}:00:00`);
+      if (t > now) return t;
+    }
+    const tom = new Date(now); tom.setDate(tom.getDate()+1);
+    return new Date(`${tom.toISOString().slice(0,10)}T${String(SYNC_HOURS[0]).padStart(2,'0')}:00:00`);
+  }
+
+  function _updateNextDisplay(){
+    const el = document.getElementById('nextSyncDisplay');
+    if (el) el.textContent = _fmtTime(_nextSyncDate());
+  }
+
+  window._updateLastSyncDisplay = function(ts){
+    const el = document.getElementById('lastSyncDisplay');
+    if (!el) return;
+    el.textContent = ts ? _fmtDateTime(new Date(ts)) : '—';
+  };
+
+  function _showSyncToast(msg, type='ok'){
+    const t = document.createElement('div');
+    const bg = type==='ok' ? '#065f46' : '#991b1b';
+    t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);white-space:nowrap`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 4500);
+  }
+
+  async function _fetchApiData(){
+    const today = new Date().toISOString().slice(0,10);
+    const resp = await fetch(PROXY + encodeURIComponent(`${ERP_URL}&data_limite=${today}`));
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  }
+
+  window._runAutoSync = async function(){
+    if (typeof db === 'undefined' || !S.user) return;
+    try {
+      const data = await _fetchApiData();
+      const parsed = parseApiData(data);
+      await _commitImportData(parsed, { silent: true, fonte: 'api-auto' });
+      await loadAll();
+      window._updateLastSyncDisplay(new Date().toISOString());
+      _showSyncToast(`Sincronização automática concluída · ${parsed.stats.withAddr} itens`);
+    } catch(e){
+      console.warn('[WMS auto-sync]', e.message);
+    }
+  };
+
+  async function _checkAndSync(){
+    if (!S.user || S.role !== 'admin') return;
+    if (typeof db === 'undefined') return;
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    try {
+      const snap = await db.collection('wms_import_log').orderBy('ts','desc').limit(1).get();
+      const lastTs = snap.empty ? null : new Date(snap.docs[0].data().ts);
+      window._updateLastSyncDisplay(lastTs ? lastTs.toISOString() : null);
+      for (const h of SYNC_HOURS){
+        const scheduled = new Date(`${today}T${String(h).padStart(2,'0')}:00:00`);
+        if (now >= scheduled && (!lastTs || lastTs < scheduled)){
+          await window._runAutoSync();
+          return;
+        }
+      }
+    } catch(e){ console.warn('[WMS auto-sync check]', e.message); }
+  }
+
+  window._startAutoSyncScheduler = function(){
+    _updateNextDisplay();
+    _checkAndSync();
+    setInterval(()=>{ _updateNextDisplay(); _checkAndSync(); }, 60*1000);
+  };
 })();
 
 // ══════════════════════════════════════════════════════
