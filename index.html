@@ -3433,7 +3433,11 @@ function parseExcel(wb) {
 function parseApiData(data) {
   if (!Array.isArray(data) || data.length === 0) throw new Error('API retornou dados vazios.');
   const items = [], noAddr = [], addrSet = new Set();
+  const seen = new Set();
   for (const r of data) {
+    const dedupKey = `${r.item_id||''}_${r.numero_lote||''}_${r.rua||''}_${r.posicao||''}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
     const rua = String(r.rua || '').trim().toUpperCase();
     const pos = String(r.posicao || '').trim();
     let val = '';
