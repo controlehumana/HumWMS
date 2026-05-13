@@ -3450,7 +3450,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 // ── Sincronizar via API ──
 (function(){
   const ERP_URL  = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php?token=WMS-TOKEN-STOCK-2026';
-  const PROXY    = 'https://api.allorigins.win/get?url=';
+  const PROXY    = 'https://corsproxy.io/?';
   const today    = new Date().toISOString().slice(0, 10);
   const todayBR  = today.split('-').reverse().join('/');
   const dateEl   = document.getElementById('apiSyncDate');
@@ -3474,9 +3474,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       const targetUrl = `${ERP_URL}&data_limite=${today}`;
       const resp = await fetch(PROXY + encodeURIComponent(targetUrl));
       if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
-      const wrapper = await resp.json();
-      if (!wrapper.contents) throw new Error('Resposta vazia do proxy.');
-      const data = JSON.parse(wrapper.contents);
+      const data = await resp.json();
       importParsed = parseApiData(data);
       const s = importParsed.stats;
       $('importSummary').innerHTML = [
