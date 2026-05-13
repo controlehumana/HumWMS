@@ -1767,6 +1767,27 @@ header {
         <span id="pinStatus" style="font-size:12px;color:var(--muted)"></span>
       </div>
 
+      <!-- ── Limpeza de Ordens de Separação ── -->
+      <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
+      <div class="section-header" style="margin-bottom:8px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Limpeza de Ordens de Separação
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Remove ordens já finalizadas do histórico. Ordens pendentes ou em separação não são afetadas.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn" id="btnCleanOrdens" style="gap:7px;background:#fff7ed;border-color:#fed7aa;color:#9a3412">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Limpar concluídas e canceladas
+        </button>
+        <button class="btn" id="btnCleanOrdensTudo" style="gap:7px;background:#fef2f2;border-color:#fca5a5;color:#991b1b">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Limpar tudo
+        </button>
+      </div>
+      <div id="cleanOrdensMsg" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px"></div>
+
     </div>
   </div>
 
@@ -3871,6 +3892,81 @@ $('btnExportEdited').addEventListener('click', async () => {
   } catch(e) { alert('Erro ao exportar: ' + e.message); }
   loading(false);
 });
+
+// ── Limpeza de Ordens de Separação ──
+(function(){
+  const CHUNK = 400;
+
+  function cleanMsg(type, text){
+    const el = $('cleanOrdensMsg');
+    if (!el) return;
+    el.style.display = '';
+    el.style.background = type==='ok' ? '#ecfdf5' : type==='err' ? '#fef2f2' : '#fffbeb';
+    el.style.color      = type==='ok' ? '#065f46' : type==='err' ? '#991b1b' : '#92400e';
+    el.textContent = text;
+  }
+
+  async function deleteLotes(statusFilter) {
+    const cols = ['coletor_lotes','coletor_pedidos','coletor_logs','coletor_divergencias'];
+    let totalDel = 0;
+
+    // Busca lotes a remover
+    let lotesQuery = db.collection('coletor_lotes');
+    if (statusFilter) lotesQuery = lotesQuery.where('status','in', statusFilter);
+    const lotesSnap = await lotesQuery.get();
+    if (lotesSnap.empty) { cleanMsg('info','Nenhuma ordem encontrada para remover.'); return; }
+
+    const loteIds = lotesSnap.docs.map(d => d.id);
+
+    // Remove lotes
+    for (let i = 0; i < loteIds.length; i += CHUNK) {
+      const batch = db.batch();
+      loteIds.slice(i, i + CHUNK).forEach(id => batch.delete(db.collection('coletor_lotes').doc(id)));
+      await batch.commit();
+    }
+    totalDel += loteIds.length;
+
+    // Remove pedidos, logs e divergências dos lotes deletados
+    for (const loteId of loteIds) {
+      for (const col of ['coletor_pedidos','coletor_logs','coletor_divergencias']) {
+        let q;
+        if (col === 'coletor_pedidos') q = db.collection(col).where('loteId','==',loteId);
+        else q = db.collection(col).where('loteId','==',loteId);
+        const snap = await q.get();
+        for (let i = 0; i < snap.docs.length; i += CHUNK) {
+          const batch = db.batch();
+          snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+          await batch.commit();
+          totalDel += Math.min(CHUNK, snap.docs.length - i);
+        }
+      }
+    }
+
+    cleanMsg('ok', `${loteIds.length} ordem(ns) removida(s) · ${totalDel} registros deletados.`);
+    if (typeof renderLotesAdmin === 'function') renderLotesAdmin();
+  }
+
+  $('btnCleanOrdens')?.addEventListener('click', async () => {
+    if (!confirm('Remover todas as ordens CONCLUÍDAS e CANCELADAS?\n\nOrdens pendentes e em separação serão mantidas.')) return;
+    $('btnCleanOrdens').disabled = true;
+    cleanMsg('info','Removendo...');
+    try {
+      await deleteLotes(['concluido','cancelado']);
+    } catch(e) { cleanMsg('err','Erro: '+(e.message||e)); }
+    $('btnCleanOrdens').disabled = false;
+  });
+
+  $('btnCleanOrdensTudo')?.addEventListener('click', async () => {
+    if (!confirm('⚠️ Remover TODAS as ordens de separação?\n\nIsso inclui pendentes e em andamento. Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Confirme novamente: apagar TUDO, incluindo ordens em andamento?')) return;
+    $('btnCleanOrdensTudo').disabled = true;
+    cleanMsg('info','Removendo tudo...');
+    try {
+      await deleteLotes(null);
+    } catch(e) { cleanMsg('err','Erro: '+(e.message||e)); }
+    $('btnCleanOrdensTudo').disabled = false;
+  });
+})();
 
 async function exportToERP(onlyEdited = false) {
   // Busca dados frescos do Firestore
