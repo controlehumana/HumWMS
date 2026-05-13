@@ -1011,12 +1011,16 @@ header {
       line-height:1.3;margin-bottom:4px;letter-spacing:-.01em;
     }
     .productMeta{font-size:12px;color:var(--col-muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-    .qtyBadge{
-      display:inline-flex;align-items:center;gap:4px;
-      background:#fff;border:1px solid var(--col-line);
-      border-radius:999px;padding:2px 10px;
-      font-size:13px;font-weight:600;color:var(--col-text);
+    .qtyBadge{display:none;}
+    .qtyBig{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-width:60px;flex-shrink:0;
+      background:var(--col-green);color:#fff;
+      border-radius:12px;padding:8px 14px;
+      line-height:1;text-align:center;
     }
+    .qtyBigNum{font-size:32px;font-weight:700;letter-spacing:-.02em;}
+    .qtyBigUnd{font-size:12px;font-weight:500;opacity:.85;margin-top:3px;}
   
     /* ── FORM INPUTS ── */
     .inputGroup{display:flex;flex-direction:column;gap:4px;}
@@ -2225,14 +2229,19 @@ header {
     
               <!-- PRODUTO em destaque -->
               <div class="productBlock">
-                <div class="productName" id="produto">—</div>
+                <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+                  <div class="productName" id="produto" style="flex:1">—</div>
+                  <div class="qtyBig">
+                    <span class="qtyBigNum" id="qtd">—</span>
+                    <span class="qtyBigUnd" id="und">UN</span>
+                  </div>
+                </div>
                 <div class="productMeta">
                   <span id="endereco" style="display:flex;align-items:center;gap:4px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--muted)" style="flex-shrink:0"><path d="M12 2c3.9 0 7 3.1 7 7 0 5.2-7 13-7 13S5 14.2 5 9c0-3.9 3.1-7 7-7zm0 9.5A2.5 2.5 0 1 0 12 6.5a2.5 2.5 0 0 0 0 5z"/></svg>
                     —
                   </span>
                   <span id="codigo" style="color:var(--subtle);">Ref: —</span>
-                  <span class="qtyBadge"><span id="qtd">—</span>&nbsp;<span id="und" style="font-weight:400;color:var(--muted);">UN</span></span>
                 </div>
               </div>
     
@@ -5488,7 +5497,7 @@ document.addEventListener('DOMContentLoaded', function(){
       // ============================================================
       // Eventos
       // ============================================================
-      $("pick").addEventListener("click", () => $("file").click());
+      $("pick").addEventListener("click", () => { if (!ensureSeparador()) return; $("file").click(); });
     
       $("file").addEventListener("change", () => {
         const f = $("file").files?.[0];
@@ -5835,6 +5844,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       $("loadFromFirebase")?.addEventListener("click", async () => {
+        if (!ensureSeparador()) return;
         if (typeof db === "undefined"){ fbMsg("err","Firebase não disponível."); return; }
         $("loadFromFirebase").disabled = true;
         fbMsg("ok", "Buscando ordens de separação na nuvem...");
@@ -5875,7 +5885,9 @@ document.addEventListener('DOMContentLoaded', function(){
         wrap.innerHTML = lotes.map(l=>{
           const locked = l.status==='em_separacao';
           const autoUnlocked = locked && l.lockedAt && (now - l.lockedAt.toMillis()) > 45*60*1000;
-          const isLocked = locked && !autoUnlocked;
+          const sep = getSeparador();
+          const isMine = locked && !autoUnlocked && !!sep && (l.separador===sep || l.lockedBy===sep);
+          const isLocked = locked && !autoUnlocked && !isMine;
           const cls = [
             'lote-card',
             l.prioridade==='urgente'?'urgente':'',
@@ -5884,7 +5896,9 @@ document.addEventListener('DOMContentLoaded', function(){
           const badge = l.prioridade==='urgente'
             ? `<span class="lote-badge lote-badge-urgente">URGENTE</span>`
             : `<span class="lote-badge lote-badge-normal">NORMAL</span>`;
-          const lockInfo = isLocked
+          const lockInfo = isMine
+            ? `<span class="lote-badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;">Retomar</span>`
+            : isLocked
             ? `<span class="lote-badge lote-badge-locked">Em separação — ${l.separador||'outro'}</span>`
             : '';
           return `<div class="${cls}" data-loteid="${l.id}" onclick="_onLoteClick('${l.id}',${isLocked})">
@@ -5900,11 +5914,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
       window._onLoteClick = async function(loteId, isLocked){
         if(isLocked){
-          $("loteMsg").textContent = "Este lote está sendo separado por outro colaborador.";
+          $("loteMsg").textContent = "Esta ordem está sendo separada por outro colaborador.";
           return;
         }
-        $("loteMsg").textContent = "Abrindo lote...";
+        $("loteMsg").textContent = "Abrindo ordem...";
         try {
+          // Libera a ordem anterior se estiver trocando
+          if (activeLoteId && activeLoteId !== loteId) {
+            try { await db.collection("coletor_lotes").doc(activeLoteId).update({ status:'pendente', lockedBy:null, separador:null, lockedAt:null }); } catch(e){}
+            if(window._loteHeartbeat){ clearInterval(window._loteHeartbeat); window._loteHeartbeat = null; }
+          }
           // Trava o lote
           await db.collection("coletor_lotes").doc(loteId).update({
             status: 'em_separacao',
