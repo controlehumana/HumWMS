@@ -3438,7 +3438,7 @@ function parseApiData(data) {
       desc:  String(r.item_descricao     || '').trim(),
       lote:  String(r.numero_lote        || '').trim(),
       val,
-      est:   r.estoque != null ? String(r.estoque).trim() : '',
+      est:   r.saldo_aberto != null ? String(r.saldo_aberto).trim() : '',
       idEnd: String(r.id_item_enderecamento || '').trim(),
       emp:   String(r.empresa_apelido    || '').trim(),
       rua, pos
