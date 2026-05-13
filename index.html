@@ -1432,6 +1432,7 @@ header {
     <button class="tab" data-tab="inventario" id="tabInventario" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>Col. Endereços</button>
     <button class="tab" data-tab="coletor" id="tabColetor" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar ERP</button>
+    <button class="tab" data-tab="gestao" id="tabGestao" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Aglutinados</button>
     <button class="tab" data-tab="users" id="tabUsers" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Usuários</button>
   </div></div>
 
@@ -1662,11 +1663,11 @@ header {
         <div class="section-title" style="display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Pedidos de Separação</div>
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-        Cada importação cria um <strong>lote de separação</strong>. Os coletores veem os lotes disponíveis e escolhem qual separar.
+        Cada importação cria um <strong>aglutinado</strong>. Os coletores veem os aglutinados disponíveis e escolhem qual separar.
       </p>
       <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:14px;align-items:end">
         <div>
-          <label class="form-label">Nome do lote</label>
+          <label class="form-label">Nome do aglutinado</label>
           <input class="form-input" id="pickingLoteNome" placeholder="Ex: Rotina segunda-feira (gerado automaticamente se vazio)">
         </div>
         <div>
@@ -1685,22 +1686,6 @@ header {
       <input type="file" id="pickingFileInput" accept=".xlsx,.xls" style="display:none">
       <div id="pickingStatus" style="display:none;margin-top:10px;padding:12px 16px;border-radius:8px;font-size:13px"></div>
 
-      <!-- ── Gestão de Lotes ── -->
-      <hr style="margin:24px 0;border:none;border-top:1px solid var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div class="section-title" style="display:flex;align-items:center;gap:8px">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-          Gestão de Lotes
-        </div>
-        <button class="btn" id="btnRefreshLotes" style="gap:6px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          Atualizar
-        </button>
-      </div>
-      <div id="lotesAdminContainer">
-        <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Clique em Atualizar para ver os lotes</div>
-      </div>
-
       <!-- ── PIN de Supervisor do Coletor ── -->
       <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
       <div class="section-header" style="margin-bottom:8px">
@@ -1718,6 +1703,26 @@ header {
           Definir / Trocar PIN
         </button>
         <span id="pinStatus" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: GESTAO ══════════ -->
+  <div class="page" id="pageGestao">
+    <div style="padding:24px;max-width:1100px;margin:0 auto;width:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Gestão de Aglutinados
+        </div>
+        <button class="btn" id="btnRefreshLotes" style="gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Acompanhe o status dos aglutinados importados, desbloqueie separadores travados e consulte logs de separação.</p>
+      <div id="lotesAdminContainer">
+        <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Carregando…</div>
       </div>
     </div>
   </div>
@@ -2153,7 +2158,7 @@ header {
 
         <!-- SELETOR DE LOTE (Firebase) -->
         <div id="lotePickerWrap" style="display:none;padding:4px 0 12px">
-          <div class="fieldLabel" style="margin-bottom:10px;font-size:15px">Selecione o lote</div>
+          <div class="fieldLabel" style="margin-bottom:10px;font-size:15px">Selecione o aglutinado</div>
           <div id="lotesList"></div>
           <div id="loteMsg" class="hint" style="margin-top:6px"></div>
         </div>
@@ -2605,6 +2610,7 @@ function showTab(tabId) {
   if (tabId === 'divReport')  renderDivReport();
   if (tabId === 'inventario') renderInventario();
   if (tabId === 'import')     setTimeout(() => { if(typeof updatePinStatus==='function') updatePinStatus(); }, 100);
+  if (tabId === 'gestao')    renderLotesAdmin();
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
@@ -2638,6 +2644,7 @@ const WMS_MODULES = [
   { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
   { id:'inventario', label:'Col. Endereços',   icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>' },
   { id:'coletor',    label:'Coletor',          icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>' },
+  { id:'gestao',     label:'Aglutinados',      icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
 ];
 const WMS_POSES = Array.from({length:40}, (_,i) => i+1);
 
@@ -4476,10 +4483,10 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
       const priorInput = document.getElementById('pickingLotePrioridade');
       const now        = new Date();
       const nomeLote   = (nomeInput?.value.trim()) ||
-        `Lote ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+        `Aglutinado ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
       const prioridade = priorInput?.value || 'normal';
 
-      setStatus('info', `Salvando lote "${nomeLote}" (${pedidosMap.size} pedido(s))...`);
+      setStatus('info', `Salvando aglutinado "${nomeLote}" (${pedidosMap.size} pedido(s))...`);
 
       const batch = db.batch();
 
@@ -4510,7 +4517,7 @@ window.addEventListener('DOMContentLoaded', initPendingListeners);
 
       await batch.commit();
       if(nomeInput) nomeInput.value = '';
-      setStatus('ok', `Lote "${nomeLote}" criado · ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) · Prioridade: ${prioridade}`);
+      setStatus('ok', `Aglutinado "${nomeLote}" criado · ${pedidosMap.size} pedido(s) · ${allItems.length} item(s) · Prioridade: ${prioridade}`);
       renderLotesAdmin();
     } catch(e){
       setStatus('err', 'Erro: ' + (e.message || e));
@@ -4534,7 +4541,7 @@ async function renderLotesAdmin(){
   container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Carregando…</div>';
   try {
     const snap = await db.collection('coletor_lotes').orderBy('tsCriado','desc').limit(50).get();
-    if (snap.empty){ container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Nenhum lote encontrado.</div>'; return; }
+    if (snap.empty){ container.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px">Nenhum aglutinado encontrado.</div>'; return; }
     const statusLabel = { pendente:'Pendente', em_separacao:'Em separação', concluido:'Concluído', cancelado:'Cancelado' };
     const statusColor = { pendente:'#1e40af', em_separacao:'#b45309', concluido:'#065f46', cancelado:'#991b1b' };
     const statusBg    = { pendente:'#eff6ff', em_separacao:'#fffbeb', concluido:'#ecfdf5', cancelado:'#fef2f2' };
@@ -4584,7 +4591,7 @@ async function renderLotesAdmin(){
 }
 
 window._forceUnlockLote = async function(loteId){
-  if (!confirm('Desbloquear este lote?')) return;
+  if (!confirm('Desbloquear este aglutinado?')) return;
   try {
     await db.collection('coletor_lotes').doc(loteId).update({ status:'pendente', lockedBy:null, lockedAt:null, separador:null });
     renderLotesAdmin();
@@ -4592,7 +4599,7 @@ window._forceUnlockLote = async function(loteId){
 };
 
 window._cancelLote = async function(loteId){
-  if (!confirm('Cancelar este lote? Esta ação não pode ser desfeita.')) return;
+  if (!confirm('Cancelar este aglutinado? Esta ação não pode ser desfeita.')) return;
   try {
     await db.collection('coletor_lotes').doc(loteId).update({ status:'cancelado' });
     renderLotesAdmin();
@@ -5821,7 +5828,7 @@ document.addEventListener('DOMContentLoaded', function(){
       $("loadFromFirebase")?.addEventListener("click", async () => {
         if (typeof db === "undefined"){ fbMsg("err","Firebase não disponível."); return; }
         $("loadFromFirebase").disabled = true;
-        fbMsg("ok", "Buscando lotes na nuvem...");
+        fbMsg("ok", "Buscando aglutinados na nuvem...");
         try {
           const snap = await db.collection("coletor_lotes")
             .where("status","in",["pendente","em_separacao"])
@@ -5841,7 +5848,7 @@ document.addEventListener('DOMContentLoaded', function(){
           });
           loadedFileName = "Firebase";
           renderLoteCards(lotes);
-          fbMsg("ok", `${lotes.length} lote(s) disponível(is). Selecione um abaixo.`);
+          fbMsg("ok", `${lotes.length} aglutinado(s) disponível(is). Selecione um abaixo.`);
           colGoTo('colS2');
         } catch(e){
           fbMsg("err", "Erro: " + (e.message || e));
@@ -5921,14 +5928,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
           $("metaPedidos").textContent = `Pedidos: ${pedidosMap.size}`;
           $("metaItens").textContent   = `Itens: ${allItems.length}`;
-          $("metaUltimo").textContent  = `Lote: ${loteId}`;
+          $("metaUltimo").textContent  = `Aglutinado: ${loteId}`;
           $("metaStatus").textContent  = `Carregado`;
           $("metaRow").style.display   = "flex";
           $("lotePickerWrap").style.display = 'none';
-          saveState({ appVersion: APP_VERSION, loadedFileName, activeLoteId });
+          // Limpa progresso do aglutinado anterior antes de carregar o novo
+          log = []; logAll = []; idx = 0; pedidoAtivo = "";
+          saveState({ appVersion: APP_VERSION, loadedFileName, activeLoteId, concluded: [], pedidoAtivo: '', idx: 0, log: [], logAll: [] });
           setMetaMemory();
           setPedidosUI();
-          fbMsg("ok", `Lote carregado · ${pedidosMap.size} pedido(s). Selecione o pedido.`);
+          fbMsg("ok", `Aglutinado carregado · ${pedidosMap.size} pedido(s). Selecione o pedido.`);
         } catch(e){
           $("loteMsg").textContent = "Erro: " + (e.message||e);
         }
@@ -6568,11 +6577,11 @@ function _invExport() {
 }
 </script>
 
-<!-- Modal: Log do Lote -->
+<!-- Modal: Log do Aglutinado -->
 <div id="loteLogModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:16px">
   <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:15px;font-weight:600;color:var(--text)">Log de Separação do Lote</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text)">Log de Separação do Aglutinado</div>
       <button onclick="document.getElementById('loteLogModal').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:4px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
