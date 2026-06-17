@@ -2664,6 +2664,44 @@ header {
   </div>
 </div>
 
+<!-- ══════════ MODAL: TRANSFERÊNCIA DE LOCAL ══════════ -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="transferModalTitle">Transferir Item</div>
+      <button class="modal-close" data-close="transferModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="transferStep1">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Selecione o item que deseja transferir:</p>
+        <div id="transferItemList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div id="transferStep2" style="display:none">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Item selecionado</div>
+          <div id="transferSelectedItem" style="font-size:13px;font-weight:600;color:var(--text)"></div>
+          <div id="transferSelectedMeta" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Rua destino</label>
+            <select id="transferDestRua" class="form-select"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Posição destino</label>
+            <select id="transferDestPos" class="form-select"></select>
+          </div>
+        </div>
+        <div id="transferApiMsg" style="display:none;font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="transferCancelBtn" data-close="transferModal">Cancelar</button>
+      <button class="btn btn-primary" id="transferNextBtn">Próximo →</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ FIREBASE CONFIG ══════════ -->
 <script>
 const FIREBASE_CONFIG = {
@@ -3076,6 +3114,12 @@ function renderMap() {
         printCartaz(rua, pos);
       });
     });
+    grid.querySelectorAll('[data-transfer]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const [rua, pos] = btn.dataset.transfer.split('|');
+        openTransferModal(rua, pos);
+      });
+    });
   }
 
   renderPagination(totalPages);
@@ -3122,15 +3166,160 @@ function renderCard(addr) {
     ? `<button class="btn" data-print="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px">🖨 Cartaz</button>`
     : '';
 
+  const transferBtn = canEdit && !isFree
+    ? `<button class="btn" data-transfer="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Transferir</button>`
+    : '';
+
   return `<div class="addr-card ${isFree ? 'is-free' : 'is-occ'}">
     <div class="card-header">
       <span class="card-addr">${addr.rua} · Pos. ${addr.pos}</span>
       ${badge}
     </div>
     <div class="card-items">${itemsHtml}</div>
-    ${(editBtn || printBtn) ? `<div class="card-actions">${editBtn}${printBtn}</div>` : ''}
+    ${(editBtn || printBtn || transferBtn) ? `<div class="card-actions">${editBtn}${printBtn}${transferBtn}</div>` : ''}
   </div>`;
 }
+
+// ── Módulo Transferência de Local ────────────────────────────────────────────
+let _transferSource = null; // { rua, pos }
+let _transferItem   = null; // item escolhido
+
+function openTransferModal(rua, pos) {
+  _transferSource = { rua, pos };
+  _transferItem   = null;
+
+  $('transferModalTitle').textContent = `Transferir de ${rua} · Pos. ${pos}`;
+  $('transferStep1').style.display = '';
+  $('transferStep2').style.display = 'none';
+  $('transferNextBtn').textContent  = 'Próximo →';
+  $('transferNextBtn').disabled     = false;
+  $('transferCancelBtn').textContent = 'Cancelar';
+  $('transferApiMsg').style.display = 'none';
+
+  const items = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos));
+  $('transferItemList').innerHTML = items.map((it, i) => `
+    <label style="display:flex;align-items:flex-start;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .15s">
+      <input type="radio" name="transferItem" value="${i}" style="margin-top:3px;accent-color:var(--accent)">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${it.desc || '–'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">SKU ${it.sku || '–'} · Lote ${it.lote || '–'} · Est. ${it.est || '–'}</div>
+      </div>
+    </label>
+  `).join('');
+
+  // Seleção destino
+  const ruasSel = $('transferDestRua');
+  ruasSel.innerHTML = WMS_RUAS.map(r => `<option value="${r}">${r}</option>`).join('');
+  ruasSel.value = rua;
+  _fillTransferPos();
+  ruasSel.onchange = _fillTransferPos;
+
+  openModal('transferModal');
+}
+
+function _fillTransferPos() {
+  const rua = $('transferDestRua').value;
+  const addrs = S.addresses.filter(a => a.rua === rua && a.active !== false)
+    .sort((a, b) => (parseInt(a.pos) || 0) - (parseInt(b.pos) || 0));
+  $('transferDestPos').innerHTML = addrs.map(a => `<option value="${a.pos}">${a.pos}</option>`).join('');
+}
+
+function _showTransferMsg(type, text) {
+  const styles = {
+    ok:   'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0',
+    warn: 'background:#fffbeb;color:#92400e;border:1px solid #fde68a',
+    err:  'background:#fef2f2;color:#dc2626;border:1px solid #fecaca',
+    info: 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe'
+  };
+  const el = $('transferApiMsg');
+  el.style.cssText = styles[type] || styles.info;
+  el.textContent   = text;
+  el.style.display = 'block';
+}
+
+async function _doTransfer() {
+  const { rua, pos } = _transferSource;
+  const destRua = $('transferDestRua').value;
+  const destPos = $('transferDestPos').value;
+  const btn     = $('transferNextBtn');
+
+  if (destRua === rua && String(destPos) === String(pos)) {
+    _showTransferMsg('warn', 'Destino igual à origem. Escolha um endereço diferente.');
+    return;
+  }
+
+  // Converte val DD/MM/YYYY → YYYY-MM-DD (formato original da API)
+  const valParts = (_transferItem.val || '').split('/');
+  const dtValidade = valParts.length === 3
+    ? `${valParts[2]}-${valParts[1]}-${valParts[0]}`
+    : '';
+
+  const payload = {
+    id_item_enderecamento: _transferItem.idEnd,
+    item_codigo:           _transferItem.sku,
+    item_descricao:        _transferItem.desc,
+    numero_lote:           _transferItem.lote,
+    dt_validade:           dtValidade,
+    empresa_apelido:       _transferItem.emp  || '',
+    rua:                   rua,
+    posicao:               String(pos),
+    rua_destino:           destRua,
+    posicao_destino:       String(destPos),
+    operador:              S.user?.displayName || S.user?.email || ''
+  };
+
+  btn.disabled        = true;
+  btn.textContent     = 'Enviando…';
+  $('transferCancelBtn').textContent = 'Aguarde…';
+  _showTransferMsg('info', 'Enviando transferência ao ERP…');
+
+  const ERP_URL = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/transfer.php?token=WMS-TOKEN-STOCK-2026';
+  const PROXY   = 'https://corsproxy.io/?';
+
+  try {
+    const resp = await fetch(PROXY + encodeURIComponent(ERP_URL), {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(15000)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    _showTransferMsg('ok', `Transferência registrada com sucesso! O mapa será atualizado na próxima sincronização com o ERP.`);
+    btn.textContent = '✓ Concluído';
+    $('transferCancelBtn').textContent = 'Fechar';
+    $('transferCancelBtn').onclick = () => closeModal('transferModal');
+  } catch (e) {
+    _showTransferMsg('err', `Falha ao comunicar com o ERP: ${e.message}`);
+    btn.disabled    = false;
+    btn.textContent = 'Tentar novamente';
+    $('transferCancelBtn').textContent = 'Cancelar';
+  }
+}
+
+// Botão Próximo / Confirmar do modal de transferência
+document.addEventListener('DOMContentLoaded', () => {
+  $('transferNextBtn')?.addEventListener('click', () => {
+    const step1 = $('transferStep1');
+    if (step1.style.display !== 'none') {
+      // Avança do step 1 para step 2
+      const sel = document.querySelector('input[name="transferItem"]:checked');
+      if (!sel) { alert('Selecione um item para transferir.'); return; }
+      const idx = parseInt(sel.value);
+      const { rua, pos } = _transferSource;
+      _transferItem = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos))[idx];
+      $('transferSelectedItem').textContent = _transferItem.desc || '–';
+      $('transferSelectedMeta').textContent = `SKU ${_transferItem.sku || '–'} · Lote ${_transferItem.lote || '–'} · Est. ${_transferItem.est || '–'}`;
+      $('transferApiMsg').style.display = 'none';
+      step1.style.display = 'none';
+      $('transferStep2').style.display = '';
+      $('transferNextBtn').textContent = 'Confirmar Transferência';
+    } else {
+      _doTransfer();
+    }
+  });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 function renderPagination(totalPages) {
   const pg = $('pagination');
