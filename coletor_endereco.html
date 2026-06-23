@@ -231,10 +231,14 @@ body{
             </button>
           </div>
           <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
-          <button class="btn btn-primary" id="btnBuscarSku">Buscar</button>
+          <div class="row2">
+            <button class="btn btn-primary" id="btnBuscarSku" style="margin-top:10px">Buscar</button>
+            <button class="btn btn-ghost" id="btnLimparBusca">✕ Limpar</button>
+          </div>
 
           <div id="matchList" class="matchList"></div>
           <div id="step1Msg" class="msg"></div>
+          <button class="btn btn-ghost" id="btnNovaConsulta" style="display:none">↻ Nova consulta</button>
         </div>
 
         <!-- OVERLAY SCANNER -->
@@ -282,7 +286,12 @@ body{
       <!-- VIEW: CONSULTAR ENDEREÇO =================================== -->
       <div class="view" id="viewConsultar">
         <div class="ruaChips" id="ruaChips"></div>
-        <input class="inputField" id="dashFiltro" autocomplete="off" placeholder="Filtrar por SKU, descrição ou posição" style="margin-bottom:12px">
+        <div class="inputRow" style="margin-bottom:12px">
+          <input class="inputField" id="dashFiltro" autocomplete="off" placeholder="Filtrar por SKU, descrição ou posição">
+          <button class="btn-scan" id="btnLimparFiltro" title="Limpar filtro" aria-label="Limpar filtro" style="background:#fff;border:1.5px solid var(--line);color:var(--muted)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
         <div id="posList" class="posList"></div>
       </div>
 
@@ -400,6 +409,7 @@ function buscarSku(sku) {
 
   if (matches.length === 0) {
     showMsg('step1Msg', 'warn', `Nenhum item encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
+    $('btnNovaConsulta').style.display = '';
     return;
   }
   if (matches.length === 1) {
@@ -418,6 +428,15 @@ function buscarSku(sku) {
   $('matchList').querySelectorAll('[data-idx]').forEach(card => {
     card.addEventListener('click', () => selecionarItem(matches[parseInt(card.dataset.idx)]));
   });
+  $('btnNovaConsulta').style.display = '';
+}
+
+function limparBusca() {
+  $('skuIn').value = '';
+  $('matchList').innerHTML = '';
+  hideMsg('step1Msg');
+  $('btnNovaConsulta').style.display = 'none';
+  $('skuIn').focus();
 }
 
 function selecionarItem(item) {
@@ -526,8 +545,7 @@ async function confirmarEnvio() {
 
     setTimeout(() => {
       showStep(1);
-      $('skuIn').value = '';
-      $('skuIn').focus();
+      limparBusca();
       hideMsg('step3Msg');
     }, 1400);
   } catch (e) {
@@ -592,6 +610,11 @@ function renderPosList() {
 }
 
 $('dashFiltro').addEventListener('input', renderPosList);
+$('btnLimparFiltro').addEventListener('click', () => {
+  $('dashFiltro').value = '';
+  renderPosList();
+  $('dashFiltro').focus();
+});
 
 // ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
 let _scanner = null;
@@ -698,6 +721,8 @@ $('skuIn').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); buscarSku($('skuIn').value); }
 });
 $('btnBuscarSku').addEventListener('click', () => buscarSku($('skuIn').value));
+$('btnLimparBusca').addEventListener('click', limparBusca);
+$('btnNovaConsulta').addEventListener('click', limparBusca);
 
 $('ruaIn').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); $('posIn').focus(); }
@@ -712,8 +737,7 @@ $('btnConfirmSend').addEventListener('click', confirmarEnvio);
 $('btnBack1').addEventListener('click', () => {
   selecionado = null;
   showStep(1);
-  $('skuIn').value = '';
-  $('skuIn').focus();
+  limparBusca();
 });
 $('btnBack2').addEventListener('click', () => showStep(2));
 
