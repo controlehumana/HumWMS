@@ -3828,7 +3828,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     btn.disabled = true;
     apiMsg('info', 'Consultando API...');
     try {
-      const targetUrl = `${_erpUrl()}&data_limite=${today}`;
+      const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`; // cache-bust no corsproxy.io
       const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
       if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
       const data = await resp.json();
@@ -3889,7 +3889,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
   async function _fetchApiData(){
     const today = new Date().toISOString().slice(0,10);
-    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}`));
+    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}&_=${Date.now()}`)); // cache-bust no corsproxy.io
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   }
