@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `index.html` (~367 KB) — Aplicação WMS principal
 - `coletor_v3.html` (~316 KB) — App de coleta/separação standalone (sem Firebase)
 - `API-Stock-v1.md` / `.pdf` — documentação oficial (fornecida pelo ERP) da API `crud-stock`
+- `api_crud_stock_spec.md` — spec complementar da mesma API (fornecida pelo dev do ERP em 2026-06-23), com detalhes de comportamento (ex.: POST retorna `id_item_enderecamento`, log em `api_log`)
 
 ## Como executar
 
@@ -95,7 +96,7 @@ Todas as chamadas passam pelo proxy `corsproxy.io` (CORS não configurado no ser
 
 - **Leitura (GET):** usada na sincronização manual (botão "Sincronizar") e automática (10h/17h). `parseApiData()` também captura `itemId`/`unidadeId` (= `item_id`/`empresa_id` da resposta) e grava nos itens do Firestore — são necessários para criar novos endereçamentos via POST.
 - **Transferência (PUT):** botão "→ Transferir" nos cards do Mapa → `_doTransfer()` envia `{ id_item_enderecamento, rua, posicao }` (apenas o destino) via PUT. Substituiu o antigo `transfer.php` (removido do projeto) — o PUT genérico do crud-stock já faz a mesma atualização sem precisar de endpoint customizado no ERP.
-- **Atribuir endereço a item pendente (POST):** na aba "Pendentes" → modal de atribuição → se o item tiver `itemId`/`unidadeId` (veio da API, não do Excel), `_erpCreateEndereco()` cria o registro no ERP antes de gravar no Firestore. Sem isso, a atribuição seria só local e revertida na próxima sincronização (sync limpa e recria `wms_items`/`wms_unaddressed` a partir do ERP).
+- **Atribuir endereço a item pendente (POST):** na aba "Pendentes" → modal de atribuição → se o item tiver `itemId`/`unidadeId` (veio da API, não do Excel), `_erpCreateEndereco()` cria o registro no ERP antes de gravar no Firestore, usando o `id_item_enderecamento` retornado na resposta do POST (confirmado em produção que a API devolve esse campo). Sem `itemId`/`unidadeId`, a atribuição seria só local e revertida na próxima sincronização (sync limpa e recria `wms_items`/`wms_unaddressed` a partir do ERP).
 - **Excluir registro (DELETE):** no modal "Editar" do Mapa, cada item com `idEnd` ganha um botão 🗑 que chama `_erpDeleteEndereco(idEnd)` (com confirmação, operação irreversível) e remove o doc correspondente no Firestore.
 
 **Funções:** `openTransferModal(rua, pos)`, `_fillTransferPos()`, `_doTransfer()`, `_showTransferMsg(type, text)`
@@ -103,7 +104,7 @@ Todas as chamadas passam pelo proxy `corsproxy.io` (CORS não configurado no ser
 **Cuidados conhecidos:**
 - PUT/DELETE na API do ERP retornam `sucesso:true` mesmo quando o `id_item_enderecamento` não existe (não validam linhas afetadas) — não usar `sucesso` como prova de que algo de fato mudou.
 - `corsproxy.io` cacheia respostas de GET por 1h por padrão; todas as chamadas de sincronização incluem `&_=${Date.now()}` na URL alvo para evitar servir dados desatualizados. Ocasionalmente também retorna 403 "Server-side requests are not allowed" para requisições sem cabeçalhos de navegador — não afeta chamadas reais do app, só testes via curl/servidor.
-- O POST de criação não devolve o `id_item_enderecamento` do novo registro — por isso, após criar endereço (atribuição de pendente), o código dispara `window._runAutoSync()` para repuxar o estado real do ERP em vez de adivinhar o ID.
+- Toda chamada de escrita (POST/PUT/DELETE) é registrada pelo ERP na tabela `api_log` — útil para o dev do ERP investigar requisições perdidas ou divergências, caso algo pareça não ter persistido.
 
 ## Arquitetura — coletor_v3.html
 
