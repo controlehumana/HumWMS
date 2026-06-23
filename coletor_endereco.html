@@ -166,6 +166,34 @@ body{
 #scanReader video{width:100%!important;object-fit:cover}
 #scanReader img{display:none!important}
 .scanHint{color:#aaa;font-size:13px;text-align:center;padding:10px 16px 14px}
+
+/* ── Dashboard de posições (Consultar endereço) ── */
+.ruaChips{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:2px}
+.ruaChip{
+  flex-shrink:0;padding:8px 16px;border-radius:99px;border:1.5px solid var(--line);
+  background:#fff;font-weight:700;font-size:14px;cursor:pointer;color:var(--text);
+}
+.ruaChip.active{background:var(--green);color:#fff;border-color:var(--green-dark)}
+
+.posList{display:flex;flex-direction:column;gap:7px;max-height:58vh;overflow-y:auto;padding-right:2px}
+.posRow{
+  display:flex;align-items:center;gap:10px;border-radius:var(--radius-md);padding:9px 11px;
+  border:1.5px solid var(--line2);background:var(--surface);
+}
+.posRow.occ{border-color:#fecaca;background:#fff8f8}
+.posRow.hide{display:none}
+.posNum{
+  width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex-shrink:0;
+}
+.posRow.occ .posNum{border-color:var(--danger);color:var(--danger)}
+.posInfo{flex:1;min-width:0}
+.posInfo .desc{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posInfo .meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posFreeLabel{font-size:12.5px;color:var(--green-dark);font-weight:600}
+.posBadge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;flex-shrink:0;white-space:nowrap}
+.posRow:not(.occ) .posBadge{background:var(--green-light);color:var(--green-dark)}
+.posRow.occ .posBadge{background:var(--danger-bg);color:var(--danger)}
 </style>
 </head>
 <body>
@@ -253,18 +281,9 @@ body{
 
       <!-- VIEW: CONSULTAR ENDEREÇO =================================== -->
       <div class="view" id="viewConsultar">
-        <label class="label" for="consultaRuaIn">Rua</label>
-        <input class="inputField" id="consultaRuaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
-
-        <div style="height:10px"></div>
-
-        <label class="label" for="consultaPosIn">Posição</label>
-        <input class="inputField" id="consultaPosIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
-
-        <button class="btn btn-primary" id="btnConsultar">Consultar</button>
-
-        <div id="consultaMsg" class="msg"></div>
-        <div id="consultaResult"></div>
+        <div class="ruaChips" id="ruaChips"></div>
+        <input class="inputField" id="dashFiltro" autocomplete="off" placeholder="Filtrar por SKU, descrição ou posição" style="margin-bottom:12px">
+        <div id="posList" class="posList"></div>
       </div>
 
     </div>
@@ -518,40 +537,61 @@ async function confirmarEnvio() {
   }
 }
 
-// ── Consultar endereço ───────────────────────────────────────────────────────
-function consultarEndereco() {
-  const rua = $('consultaRuaIn').value.trim().toUpperCase();
-  const pos = $('consultaPosIn').value.trim();
-  hideMsg('consultaMsg');
-  $('consultaResult').innerHTML = '';
+// ── Dashboard de posições (Consultar endereço) ──────────────────────────────
+const RUAS  = ['A','B','C','D','E','F','G'];
+const POSES = Array.from({ length: 40 }, (_, i) => i + 1);
+let ruaAtiva = 'A';
 
-  if (!rua || !pos) {
-    showMsg('consultaMsg', 'warn', 'Informe a rua e a posição.');
-    return;
-  }
-
-  const itens = estoqueAtual.filter(r =>
-    String(r.rua || '').trim().toUpperCase() === rua &&
-    String(r.posicao || '').trim() === pos
-  );
-
-  if (itens.length === 0) {
-    showMsg('consultaMsg', 'info', `Endereço ${rua} · Pos. ${pos} está livre.`);
-    return;
-  }
-
-  $('consultaResult').innerHTML = itens.map(it => `
-    <div class="itemBox">
-      <div class="desc">${it.item_descricao || '–'}</div>
-      <div class="meta">
-        <span>SKU ${it.item_codigo || '–'}</span>
-        <span>Lote ${it.numero_lote || '–'}</span>
-        <span>Val. ${brDate(it.dt_validade)}</span>
-        <span>Saldo ${it.saldo_aberto || '–'}</span>
-      </div>
-    </div>
-  `).join('');
+function renderRuaChips() {
+  $('ruaChips').innerHTML = RUAS.map(r =>
+    `<button class="ruaChip ${r === ruaAtiva ? 'active' : ''}" data-rua="${r}">${r}</button>`
+  ).join('');
+  $('ruaChips').querySelectorAll('[data-rua]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      ruaAtiva = chip.dataset.rua;
+      renderRuaChips();
+      renderPosList();
+    });
+  });
 }
+
+function renderPosList() {
+  const filtro = $('dashFiltro').value.trim().toLowerCase();
+  const itensRua = estoqueAtual.filter(r => String(r.rua || '').trim().toUpperCase() === ruaAtiva);
+
+  $('posList').innerHTML = POSES.map(pos => {
+    const itens = itensRua.filter(r => String(r.posicao || '').trim() === String(pos));
+    const isFree = itens.length === 0;
+
+    if (filtro) {
+      const bate = String(pos).includes(filtro) || itens.some(it =>
+        (it.item_codigo || '').toLowerCase().includes(filtro) ||
+        (it.item_descricao || '').toLowerCase().includes(filtro)
+      );
+      if (!bate) return '';
+    }
+
+    if (isFree) {
+      return `<div class="posRow">
+        <div class="posNum">${pos}</div>
+        <div class="posInfo"><span class="posFreeLabel">Livre</span></div>
+        <span class="posBadge">Livre</span>
+      </div>`;
+    }
+    const descs = itens.map(it => it.item_descricao || '–').join(' + ');
+    const metas = itens.map(it => `SKU ${it.item_codigo || '–'} · Lote ${it.numero_lote || '–'} · Saldo ${it.saldo_aberto || '–'}`).join(' / ');
+    return `<div class="posRow occ">
+      <div class="posNum">${pos}</div>
+      <div class="posInfo">
+        <div class="desc">${descs}</div>
+        <div class="meta">${metas}</div>
+      </div>
+      <span class="posBadge">${itens.length > 1 ? itens.length + ' itens' : 'Ocupado'}</span>
+    </div>`;
+  }).join('');
+}
+
+$('dashFiltro').addEventListener('input', renderPosList);
 
 // ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
 let _scanner = null;
@@ -648,6 +688,7 @@ if (!navigator.mediaDevices?.getUserMedia) {
 function switchView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewId));
   document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+  if (viewId === 'viewConsultar') renderPosList();
 }
 $('tabEnderecar').addEventListener('click', () => switchView('viewEnderecar'));
 $('tabConsultar').addEventListener('click', () => switchView('viewConsultar'));
@@ -676,18 +717,14 @@ $('btnBack1').addEventListener('click', () => {
 });
 $('btnBack2').addEventListener('click', () => showStep(2));
 
-$('btnRefresh').addEventListener('click', () => carregarEstoque());
-
-$('consultaRuaIn').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); $('consultaPosIn').focus(); }
+$('btnRefresh').addEventListener('click', async () => {
+  await carregarEstoque();
+  renderPosList();
 });
-$('consultaPosIn').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); consultarEndereco(); }
-});
-$('btnConsultar').addEventListener('click', consultarEndereco);
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-carregarEstoque();
+renderRuaChips();
+carregarEstoque().then(renderPosList);
 $('skuIn').focus();
 </script>
 </body>
