@@ -135,6 +135,28 @@ body{
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.inputRow{display:flex;gap:8px}
+.inputRow .inputField{flex:1}
+.btn-scan{
+  width:48px;height:48px;flex-shrink:0;border-radius:var(--radius-sm);
+  background:var(--green);color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.btn-scan:active{background:var(--green-dark)}
+.btn-scan svg{width:20px;height:20px}
+
+/* ── Scanner de câmera ── */
+.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;align-items:center;justify-content:center;padding:16px}
+.scanOverlay.show{display:flex}
+.scanModal{background:#111;border-radius:var(--radius-lg);width:min(440px,100%);overflow:hidden}
+.scanHeader{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#eee;font-size:13px;font-weight:600}
+.scanHeader .iconBtn{background:none;border:none;color:#ccc;cursor:pointer;padding:4px}
+.scanHeader .iconBtn svg{width:18px;height:18px;fill:none;stroke:#ccc;stroke-width:2}
+#scanReader{width:100%;background:#000;min-height:220px}
+#scanReader video{width:100%!important;object-fit:cover}
+#scanReader img{display:none!important}
+.scanHint{color:#aaa;font-size:13px;text-align:center;padding:10px 16px 14px}
 </style>
 </head>
 <body>
@@ -156,12 +178,31 @@ body{
 
       <!-- STEP 1: buscar item pendente -->
       <div class="step active" id="step1">
-        <label class="label" for="skuIn">Escaneie ou digite o SKU</label>
-        <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
-        <div class="hint">Leitor envia Enter automaticamente</div>
+        <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
+        <div class="inputRow">
+          <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
+          <button class="btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          </button>
+        </div>
+        <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
 
         <div id="matchList" class="matchList"></div>
         <div id="step1Msg" class="msg"></div>
+      </div>
+
+      <!-- OVERLAY SCANNER -->
+      <div class="scanOverlay" id="scanOverlay" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
+        <div class="scanModal">
+          <div class="scanHeader">
+            <span>Escanear código de barras</span>
+            <button class="iconBtn" id="scanClose" aria-label="Fechar scanner">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div id="scanReader"></div>
+          <p class="scanHint" id="scanHint">Aponte a câmera para o código de barras</p>
+        </div>
       </div>
 
       <!-- STEP 2: escolher destino -->
@@ -285,10 +326,14 @@ function buscarSku(sku) {
   const skuNorm = sku.trim();
   if (!skuNorm) return;
 
-  const matches = pendentes.filter(r => String(r.item_codigo || '').trim() === skuNorm);
+  // Aceita tanto o SKU interno quanto o EAN do produto (código real do código de barras)
+  const matches = pendentes.filter(r =>
+    String(r.item_codigo || '').trim() === skuNorm ||
+    String(r.item_ean13  || '').trim() === skuNorm
+  );
 
   if (matches.length === 0) {
-    showMsg('step1Msg', 'warn', `Nenhum item pendente encontrado com o SKU "${skuNorm}". Confira o código ou atualize a lista.`);
+    showMsg('step1Msg', 'warn', `Nenhum item pendente encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
     return;
   }
   if (matches.length === 1) {
@@ -386,6 +431,97 @@ async function confirmarEnvio() {
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar Endereçamento';
   }
+}
+
+// ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
+let _scanner = null;
+
+function _onBarcodeDetected(code) {
+  closeScan();
+  const val = String(code || '').trim();
+  if (!val) return;
+  $('skuIn').value = val;
+  buscarSku(val);
+}
+
+async function openScan() {
+  $('scanOverlay').classList.add('show');
+  $('scanHint').textContent = 'Iniciando câmera...';
+
+  // Tenta BarcodeDetector nativo primeiro (Chrome Android)
+  if (typeof BarcodeDetector !== 'undefined') {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const video = document.createElement('video');
+      video.srcObject = stream; video.autoplay = true; video.muted = true; video.playsInline = true;
+      $('scanReader').innerHTML = ''; $('scanReader').appendChild(video);
+      await video.play();
+      const det = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf'] });
+      $('scanHint').textContent = 'Aponte para o código de barras';
+      _scanner = { type: 'native', stream, active: true };
+      const loop = async () => {
+        if (!_scanner?.active) return;
+        try {
+          const res = await det.detect(video);
+          if (res.length) { _onBarcodeDetected(res[0].rawValue); return; }
+        } catch {}
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+      return;
+    } catch (e) { /* sem câmera nativa — tenta html5-qrcode */ }
+  }
+
+  // Fallback: html5-qrcode (carregado sob demanda)
+  if (!window.Html5Qrcode) {
+    $('scanHint').textContent = 'Carregando leitor...';
+    try {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    } catch (e) {
+      $('scanHint').textContent = 'Não foi possível carregar o leitor. Use o leitor físico ou digite.';
+      return;
+    }
+  }
+  try {
+    const qr = new Html5Qrcode('scanReader');
+    _scanner = { type: 'html5', qr, active: true };
+    await qr.start(
+      { facingMode: 'environment' },
+      { fps: 15, qrbox: { width: 260, height: 100 } },
+      (code) => { _onBarcodeDetected(code); }
+    );
+    $('scanHint').textContent = 'Aponte para o código de barras';
+  } catch (e) {
+    $('scanHint').textContent = 'Câmera indisponível. Use o leitor físico ou digite.';
+  }
+}
+
+async function closeScan() {
+  $('scanOverlay').classList.remove('show');
+  const sc = _scanner; _scanner = null;
+  if (!sc) return;
+  sc.active = false;
+  if (sc.type === 'native') {
+    sc.stream?.getTracks().forEach(t => t.stop());
+    $('scanReader').innerHTML = '';
+  } else if (sc.type === 'html5') {
+    try { await sc.qr.stop(); } catch {}
+  }
+}
+
+$('scanBtn').addEventListener('click', openScan);
+$('scanClose').addEventListener('click', closeScan);
+$('scanOverlay').addEventListener('click', e => { if (e.target === $('scanOverlay')) closeScan(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('scanOverlay').classList.contains('show')) closeScan();
+});
+if (!navigator.mediaDevices?.getUserMedia) {
+  const sb = $('scanBtn'); if (sb) sb.style.display = 'none';
 }
 
 // ── Listeners ────────────────────────────────────────────────────────────────
