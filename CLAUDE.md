@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `index.html` (~367 KB) — Aplicação WMS principal
 - `coletor_v3.html` (~316 KB) — App de coleta/separação standalone (sem Firebase)
+- `coletor_endereco.html` — PWA standalone de endereçamento/transferência/consulta, fala direto com a API do ERP (sem Firebase)
+- `manifest-endereco.json`, `sw-endereco.js`, `icons/endereco-*.png` — manifest, service worker e ícones do PWA acima
 - `API-Stock-v1.md` / `.pdf` — documentação oficial (fornecida pelo ERP) da API `crud-stock`
 - `api_crud_stock_spec.md` — spec complementar da mesma API (fornecida pelo dev do ERP em 2026-06-23), com detalhes de comportamento (ex.: POST retorna `id_item_enderecamento`, log em `api_log`)
 
@@ -127,6 +129,25 @@ PIN de supervisor com hash SHA-256 via Web Crypto API. Ações destrutivas (rese
 ### Backup opcional
 
 Endpoint configurável (`coletor_server_endpoint` no localStorage) para POST JSON do registro ao concluir. Falha silenciosa com timeout de 5s.
+
+## Arquitetura — coletor_endereco.html
+
+App standalone mobile-first para endereçar/transferir/consultar posições, **sem Firebase** — fala direto com a API `crud-stock` do ERP (mesma URL/token de `index.html`, helpers próprios `erpGetEstoque()`, `erpWrite()`/`erpCreateEndereco()`/`erpUpdateEndereco()`). Não há intermediário Firestore: o estado vive só em memória (`estoqueAtual`) durante a sessão, recarregado via botão "Atualizar".
+
+### Duas views (tabs), alternadas por `switchView(viewId)`
+
+1. **📦 Endereçar / Transferir** — fluxo de 3 steps:
+   - Step 1: busca por SKU ou EAN (`buscarSku()`) em **todo o estoque** (`estoqueAtual`), não só pendentes. Campo aceita digitação, leitor físico (Enter automático) ou câmera (botão `scanBtn`).
+   - Step 2/3: se o item já tem `rua`/`posicao`, `modoTransferencia=true` e o envio final usa **PUT** (`erpUpdateEndereco`, transferência); se está pendente, usa **POST** (`erpCreateEndereco`, endereçamento novo). Mesmo modal serve para os dois casos, só troca o rótulo e o método de envio em `confirmarEnvio()`.
+2. **📍 Consultar endereço** — dashboard vertical: chips de rua (`renderRuaChips()`) + lista das 40 posições (`renderPosList()`), livre/ocupado à primeira vista, com filtro por SKU/descrição/posição. A lista de ruas (`RUAS`) começa em `RUAS_BASE = A-G` e é recalculada (`atualizarListaRuas()`) a cada carga incluindo qualquer rua extra presente nos dados reais (ex.: `P` usada para Bomba Enteral, e outras como `Q`/`Z`) — **não hardcodear só A-G**, o estoque real usa ruas fora da grade padrão.
+
+### Scanner de câmera
+
+Mesmo padrão de `index.html`: tenta `BarcodeDetector` nativo (Chrome Android) primeiro, com fallback para `html5-qrcode` carregado sob demanda via CDN. Busca aceita tanto `item_codigo` (SKU interno) quanto `item_ean13` (código real impresso/escaneado).
+
+### PWA (instalável na tela inicial)
+
+`manifest-endereco.json` + `sw-endereco.js` (cache stale-while-revalidate) + ícones em `icons/`. Linkado no `<head>` via `<link rel="manifest">` e `apple-touch-icon`/meta tags para iOS. **Cuidado:** por causa do service worker, depois de publicar uma mudança o celular pode mostrar a versão antiga na primeira abertura (atualiza em segundo plano) — só reflete de fato na abertura seguinte.
 
 ## Padrões de código
 
