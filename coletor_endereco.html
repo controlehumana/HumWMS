@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Coletor de Endereçamento</title>
+<style>
+:root{
+  --bg:#f0faf6;
+  --card:#ffffff;
+  --surface:#f8fffe;
+  --text:#111827;
+  --muted:#6b7280;
+  --subtle:#9ca3af;
+  --line:#e5e7eb;
+  --line2:#d1fae5;
+  --green:#059669;
+  --green-light:#d1fae5;
+  --green-dark:#047857;
+  --danger:#dc2626;
+  --danger-bg:#fef2f2;
+  --warn:#b45309;
+  --warn-bg:#fffbeb;
+  --info:#1d4ed8;
+  --info-bg:#eff6ff;
+  --radius-lg:16px;
+  --radius-md:10px;
+  --radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:20px 14px 48px;
+  font-size:15px;
+  line-height:1.5;
+}
+.wrap{width:min(480px,100%);}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 24px rgba(0,0,0,.05);
+  overflow:hidden;
+}
+.header{
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+.appIcon{
+  width:38px;height:38px;border-radius:10px;background:var(--green-light);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.appIcon svg{width:20px;height:20px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.appName{font-weight:700;font-size:15px;color:var(--text)}
+.appSub{font-size:12px;color:var(--muted)}
+.sessionCount{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
+.sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1}
+
+.body{padding:20px}
+.step{display:none}
+.step.active{display:block}
+
+.label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:block}
+.inputField{
+  width:100%;height:48px;padding:0 14px;
+  border:1.5px solid var(--line);border-radius:var(--radius-sm);
+  background:#fff;font-size:17px;color:var(--text);outline:none;
+  transition:border-color .15s,background .15s;
+}
+.inputField:focus{border-color:var(--green);background:#fafffe}
+.hint{font-size:12px;color:var(--subtle);margin-top:6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.btn{
+  width:100%;height:48px;border-radius:var(--radius-sm);border:1.5px solid transparent;
+  font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--green);color:#fff;margin-top:14px}
+.btn-primary:active{background:var(--green-dark)}
+.btn-primary:disabled{opacity:.5;cursor:default}
+.btn-ghost{background:#fff;color:var(--text);border-color:var(--line);margin-top:10px}
+
+.itemBox{
+  background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-md);
+  padding:14px;margin-bottom:16px;
+}
+.itemBox .desc{font-weight:700;font-size:14px;margin-bottom:6px}
+.itemBox .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
+.itemBox .meta span{display:flex;align-items:center;gap:4px}
+
+.matchList{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.matchCard{
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);
+  padding:12px 14px;cursor:pointer;transition:border-color .15s;
+}
+.matchCard:active{border-color:var(--green)}
+.matchCard .desc{font-weight:600;font-size:13px;margin-bottom:4px}
+.matchCard .meta{font-size:11.5px;color:var(--muted)}
+
+.msg{border-radius:var(--radius-md);padding:12px 14px;font-size:13px;margin-top:14px;display:none}
+.msg.ok{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid #a7f3d0}
+.msg.err{display:block;background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca}
+.msg.info{display:block;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
+.msg.warn{display:block;background:var(--warn-bg);color:#92400e;border:1px solid #fde68a}
+
+.footerBar{
+  padding:12px 20px;border-top:1px solid var(--line);background:var(--surface);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.footerBar .hint{margin:0}
+.refreshBtn{
+  font-size:12px;color:var(--green-dark);background:none;border:none;cursor:pointer;
+  display:flex;align-items:center;gap:5px;font-weight:600;padding:4px;
+}
+.refreshBtn:disabled{opacity:.5}
+.refreshBtn svg{width:13px;height:13px}
+
+.summaryRow{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.summaryRow:last-child{border-bottom:none}
+.summaryRow .k{color:var(--muted)}
+.summaryRow .v{font-weight:600;text-align:right}
+
+.spinner{
+  display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.5);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+
+    <div class="header">
+      <div class="appIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </div>
+      <div>
+        <div class="appName">Coletor de Endereçamento</div>
+        <div class="appSub">Humana Alimentar</div>
+      </div>
+      <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
+    </div>
+
+    <div class="body">
+
+      <!-- STEP 1: buscar item pendente -->
+      <div class="step active" id="step1">
+        <label class="label" for="skuIn">Escaneie ou digite o SKU</label>
+        <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
+        <div class="hint">Leitor envia Enter automaticamente</div>
+
+        <div id="matchList" class="matchList"></div>
+        <div id="step1Msg" class="msg"></div>
+      </div>
+
+      <!-- STEP 2: escolher destino -->
+      <div class="step" id="step2">
+        <div class="itemBox" id="itemBoxDestino"></div>
+
+        <label class="label" for="ruaIn">Rua de destino</label>
+        <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
+
+        <div style="height:10px"></div>
+
+        <label class="label" for="posIn">Posição de destino</label>
+        <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
+
+        <div id="step2Msg" class="msg"></div>
+
+        <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
+        <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
+      </div>
+
+      <!-- STEP 3: confirmar e enviar -->
+      <div class="step" id="step3">
+        <div class="itemBox" id="itemBoxConfirm"></div>
+        <div id="step3Msg" class="msg"></div>
+        <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
+        <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+      </div>
+
+    </div>
+
+    <div class="footerBar">
+      <span class="hint" id="pendingCountHint">Carregando pendentes…</span>
+      <button class="refreshBtn" id="btnRefresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Atualizar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Config da API do ERP (mesmos valores usados no WMS principal) ──────────
+const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
+const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
+const ERP_PROXY       = 'https://corsproxy.io/?';
+
+function _erpUrl(extraQs = '') {
+  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+}
+
+async function erpGetPendentes() {
+  const today = new Date().toISOString().slice(0, 10);
+  const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`;
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
+  if (!resp.ok) throw new Error(`Erro HTTP ${resp.status} ao consultar o ERP.`);
+  const data = await resp.json();
+  if (!Array.isArray(data)) throw new Error('Resposta inesperada do ERP.');
+  return data.filter(r => !r.rua && !r.posicao);
+}
+
+async function erpCreateEndereco(payload) {
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+    signal:  AbortSignal.timeout(15000)
+  });
+  let data = null;
+  try { data = await resp.json(); } catch(_) {}
+  if (!resp.ok || (data && data.sucesso === false)) {
+    throw new Error((data && data.mensagem) || `HTTP ${resp.status}`);
+  }
+  return data || {};
+}
+
+function brDate(iso) {
+  if (!iso) return '–';
+  const p = String(iso).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+}
+
+// ── Estado ───────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+let pendentes = [];
+let selecionado = null; // registro do ERP escolhido para endereçar
+let sessionCount = 0;
+
+function showStep(n) {
+  ['step1','step2','step3'].forEach((id, i) => $(id).classList.toggle('active', i === n - 1));
+}
+
+function showMsg(elId, type, text) {
+  const el = $(elId);
+  el.className = 'msg ' + type;
+  el.textContent = text;
+}
+
+function hideMsg(elId) {
+  $(elId).className = 'msg';
+  $(elId).textContent = '';
+}
+
+async function carregarPendentes(silent = false) {
+  const btn = $('btnRefresh');
+  btn.disabled = true;
+  if (!silent) $('pendingCountHint').textContent = 'Atualizando…';
+  try {
+    pendentes = await erpGetPendentes();
+    $('pendingCountHint').textContent = `${pendentes.length} itens pendentes carregados`;
+  } catch (e) {
+    $('pendingCountHint').textContent = 'Falha ao carregar pendentes';
+    showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function buscarSku(sku) {
+  hideMsg('step1Msg');
+  $('matchList').innerHTML = '';
+  const skuNorm = sku.trim();
+  if (!skuNorm) return;
+
+  const matches = pendentes.filter(r => String(r.item_codigo || '').trim() === skuNorm);
+
+  if (matches.length === 0) {
+    showMsg('step1Msg', 'warn', `Nenhum item pendente encontrado com o SKU "${skuNorm}". Confira o código ou atualize a lista.`);
+    return;
+  }
+  if (matches.length === 1) {
+    selecionarItem(matches[0]);
+    return;
+  }
+  // múltiplos lotes do mesmo SKU pendentes — pede pra escolher
+  $('matchList').innerHTML = matches.map((m, i) => `
+    <div class="matchCard" data-idx="${i}">
+      <div class="desc">${m.item_descricao || '–'}</div>
+      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'}</div>
+    </div>
+  `).join('');
+  $('matchList').querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => selecionarItem(matches[parseInt(card.dataset.idx)]));
+  });
+}
+
+function selecionarItem(item) {
+  selecionado = item;
+  $('itemBoxDestino').innerHTML = `
+    <div class="desc">${item.item_descricao || '–'}</div>
+    <div class="meta">
+      <span>SKU ${item.item_codigo || '–'}</span>
+      <span>Lote ${item.numero_lote || '–'}</span>
+      <span>Val. ${brDate(item.dt_validade)}</span>
+      <span>Saldo ${item.saldo_aberto || '–'}</span>
+    </div>`;
+  $('ruaIn').value = '';
+  $('posIn').value = '';
+  hideMsg('step2Msg');
+  showStep(2);
+  $('ruaIn').focus();
+}
+
+function irParaConfirmacao() {
+  const rua = $('ruaIn').value.trim().toUpperCase();
+  const pos = $('posIn').value.trim();
+  if (!rua || !pos) {
+    showMsg('step2Msg', 'warn', 'Informe a rua e a posição de destino.');
+    return;
+  }
+  hideMsg('step2Msg');
+  $('itemBoxConfirm').innerHTML = `
+    <div class="desc">${selecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">SKU</span><span class="v">${selecionado.item_codigo || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Lote</span><span class="v">${selecionado.numero_lote || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Validade</span><span class="v">${brDate(selecionado.dt_validade)}</span></div>
+    <div class="summaryRow"><span class="k">Saldo</span><span class="v">${selecionado.saldo_aberto || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Destino</span><span class="v">${rua} · Pos. ${pos}</span></div>
+  `;
+  hideMsg('step3Msg');
+  showStep(3);
+}
+
+async function confirmarEnvio() {
+  const rua = $('ruaIn').value.trim().toUpperCase();
+  const pos = $('posIn').value.trim();
+  const btn = $('btnConfirmSend');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando…';
+  hideMsg('step3Msg');
+
+  try {
+    const result = await erpCreateEndereco({
+      item_id:       selecionado.item_id,
+      unidade_id:    selecionado.empresa_id,
+      estoque:       selecionado.saldo_aberto || undefined,
+      rua,
+      posicao:       pos,
+      lote:          selecionado.numero_lote || undefined,
+      data_validade: selecionado.dt_validade || undefined
+    });
+
+    // Remove da lista local em memória pra não aparecer de novo na mesma sessão
+    pendentes = pendentes.filter(p => p !== selecionado);
+    $('pendingCountHint').textContent = `${pendentes.length} itens pendentes carregados`;
+
+    sessionCount++;
+    $('sessionCount').textContent = sessionCount;
+
+    showMsg('step3Msg', 'ok', `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos}.`);
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar Endereçamento';
+
+    setTimeout(() => {
+      showStep(1);
+      $('skuIn').value = '';
+      $('skuIn').focus();
+      hideMsg('step3Msg');
+    }, 1400);
+  } catch (e) {
+    showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar Endereçamento';
+  }
+}
+
+// ── Listeners ────────────────────────────────────────────────────────────────
+$('skuIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); buscarSku($('skuIn').value); }
+});
+
+$('ruaIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('posIn').focus(); }
+});
+$('posIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); irParaConfirmacao(); }
+});
+
+$('btnToConfirm').addEventListener('click', irParaConfirmacao);
+$('btnConfirmSend').addEventListener('click', confirmarEnvio);
+
+$('btnBack1').addEventListener('click', () => {
+  selecionado = null;
+  showStep(1);
+  $('skuIn').value = '';
+  $('skuIn').focus();
+});
+$('btnBack2').addEventListener('click', () => showStep(2));
+
+$('btnRefresh').addEventListener('click', () => carregarPendentes());
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+carregarPendentes();
+$('skuIn').focus();
+</script>
+</body>
+</html>
