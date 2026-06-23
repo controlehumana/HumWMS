@@ -388,12 +388,27 @@ function atualizarContagemHint() {
   $('pendingCountHint').textContent = `${estoqueAtual.length} itens no estoque · ${pendentesCount} pendentes`;
 }
 
+// Mesma regra do index.html: Bomba Enteral sem endereço vira P/99 (posição "guarda-chuva"),
+// não conta como pendente. Mantém consistência de contagem/busca entre os dois apps.
+function normalizarBombaEnteral(lista) {
+  lista.forEach(r => {
+    if (!r.rua && !r.posicao) {
+      const desc = String(r.item_descricao || '').toUpperCase();
+      if (desc.includes('BOMBA ENTERAL')) {
+        r.rua = 'P';
+        r.posicao = '99';
+      }
+    }
+  });
+  return lista;
+}
+
 async function carregarEstoque() {
   const btn = $('btnRefresh');
   btn.disabled = true;
   $('pendingCountHint').textContent = 'Atualizando…';
   try {
-    estoqueAtual = await erpGetEstoque();
+    estoqueAtual = normalizarBombaEnteral(await erpGetEstoque());
     atualizarContagemHint();
     atualizarListaRuas();
   } catch (e) {
@@ -593,11 +608,21 @@ function renderRuaChips() {
   });
 }
 
+// Posições padrão (1-40) + quaisquer posições fora dessa faixa que existam de fato
+// nos dados para a rua (ex.: P/99, usada como guarda-chuva para Bomba Enteral)
+function posesParaRua(rua) {
+  const itensRua = estoqueAtual.filter(r => String(r.rua || '').trim().toUpperCase() === rua);
+  const extras = itensRua
+    .map(r => parseInt(r.posicao, 10))
+    .filter(n => !isNaN(n) && !POSES.includes(n));
+  return [...POSES, ...new Set(extras)].sort((a, b) => a - b);
+}
+
 function renderPosList() {
   const filtro = $('dashFiltro').value.trim().toLowerCase();
   const itensRua = estoqueAtual.filter(r => String(r.rua || '').trim().toUpperCase() === ruaAtiva);
 
-  $('posList').innerHTML = POSES.map(pos => {
+  $('posList').innerHTML = posesParaRua(ruaAtiva).map(pos => {
     const itens = itensRua.filter(r => String(r.posicao || '').trim() === String(pos));
     const isFree = itens.length === 0;
 
