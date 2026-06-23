@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Coletor de Endereçamento</title>
+
+<!-- PWA: instalar com ícone na tela inicial -->
+<link rel="manifest" href="manifest-endereco.json">
+<meta name="theme-color" content="#059669">
+<link rel="icon" href="icons/endereco-192.png">
+<link rel="apple-touch-icon" href="icons/endereco-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Endereçamento">
+
 <style>
 :root{
   --bg:#f0faf6;
@@ -750,6 +760,10 @@ $('btnRefresh').addEventListener('click', async () => {
 renderRuaChips();
 carregarEstoque().then(renderPosList);
 $('skuIn').focus();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw-endereco.js').catch(() => {});
+}
 </script>
 </body>
 </html>
