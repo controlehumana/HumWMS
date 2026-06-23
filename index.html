@@ -3181,24 +3181,20 @@ function renderCard(addr) {
 }
 
 // ── ERP API (crud-stock) — config e helpers compartilhados ──────────────────
-// Leitura (GET): endpoint antigo, confirmado ativo em produção.
-const ERP_READ_URL    = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php';
-// Escrita (POST/PUT/DELETE): crud-stock novo — aguardando deploy no servidor do ERP (retornava 404 em 2026-06-23).
-const ERP_WRITE_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
+// crud-stock/index.php: CRUD completo (GET/POST/PUT/DELETE), confirmado ativo em produção desde 2026-06-23.
+const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
 const ERP_PROXY       = 'https://corsproxy.io/?';
 
 function _erpUrl(extraQs = '') {
-  return `${ERP_READ_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
 }
 
-function _erpWriteUrl() {
-  return `${ERP_WRITE_URL}?token=${ERP_STOCK_TOKEN}`;
-}
-
-// POST/PUT/DELETE em crud-stock sempre retornam { sucesso, mensagem }
+// POST/PUT/DELETE em crud-stock sempre retornam { sucesso, mensagem }.
+// ATENÇÃO: a API retorna sucesso:true mesmo quando o id_item_enderecamento não existe
+// (não valida rowCount) — não confiar 100% no "sucesso" para saber se algo de fato mudou.
 async function _erpWrite(method, body) {
-  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpWriteUrl()), {
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
     method,
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
