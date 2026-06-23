@@ -3180,6 +3180,40 @@ function renderCard(addr) {
   </div>`;
 }
 
+// ── ERP API (crud-stock) — config e helpers compartilhados ──────────────────
+const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
+const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
+const ERP_PROXY       = 'https://corsproxy.io/?';
+
+function _erpUrl(extraQs = '') {
+  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+}
+
+// POST/PUT/DELETE em crud-stock sempre retornam { sucesso, mensagem }
+async function _erpWrite(method, body) {
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+    signal:  AbortSignal.timeout(15000)
+  });
+  let data = null;
+  try { data = await resp.json(); } catch(_) {}
+  if (!resp.ok || (data && data.sucesso === false)) {
+    throw new Error((data && data.mensagem) || `HTTP ${resp.status}`);
+  }
+  return data || {};
+}
+
+function _erpCreateEndereco(payload) { return _erpWrite('POST',   payload); }
+function _erpUpdateEndereco(payload) { return _erpWrite('PUT',    payload); }
+function _erpDeleteEndereco(idEnd)   { return _erpWrite('DELETE', { id_item_enderecamento: idEnd }); }
+
+function _brDateToIso(val) {
+  const parts = String(val || '').split('/');
+  return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
+}
+
 // ── Módulo Transferência de Local ────────────────────────────────────────────
 let _transferSource = null; // { rua, pos }
 let _transferItem   = null; // item escolhido
@@ -3247,43 +3281,22 @@ async function _doTransfer() {
     _showTransferMsg('warn', 'Destino igual à origem. Escolha um endereço diferente.');
     return;
   }
-
-  // Converte val DD/MM/YYYY → YYYY-MM-DD (formato original da API)
-  const valParts = (_transferItem.val || '').split('/');
-  const dtValidade = valParts.length === 3
-    ? `${valParts[2]}-${valParts[1]}-${valParts[0]}`
-    : '';
-
-  const payload = {
-    id_item_enderecamento: _transferItem.idEnd,
-    item_codigo:           _transferItem.sku,
-    item_descricao:        _transferItem.desc,
-    numero_lote:           _transferItem.lote,
-    dt_validade:           dtValidade,
-    empresa_apelido:       _transferItem.emp  || '',
-    rua:                   rua,
-    posicao:               String(pos),
-    rua_destino:           destRua,
-    posicao_destino:       String(destPos),
-    operador:              S.user?.displayName || S.user?.email || ''
-  };
+  if (!_transferItem.idEnd) {
+    _showTransferMsg('err', 'Este item não possui ID do ERP (id_item_enderecamento) — não é possível transferir via API. Sincronize com o ERP antes de transferir.');
+    return;
+  }
 
   btn.disabled        = true;
   btn.textContent     = 'Enviando…';
   $('transferCancelBtn').textContent = 'Aguarde…';
   _showTransferMsg('info', 'Enviando transferência ao ERP…');
 
-  const ERP_URL = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/transfer.php?token=WMS-TOKEN-STOCK-2026';
-  const PROXY   = 'https://corsproxy.io/?';
-
   try {
-    const resp = await fetch(PROXY + encodeURIComponent(ERP_URL), {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-      signal:  AbortSignal.timeout(15000)
+    await _erpUpdateEndereco({
+      id_item_enderecamento: _transferItem.idEnd,
+      rua:                   destRua,
+      posicao:                String(destPos)
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     _showTransferMsg('ok', `Transferência registrada com sucesso! O mapa será atualizado na próxima sincronização com o ERP.`);
     btn.textContent = '✓ Concluído';
@@ -3395,7 +3408,10 @@ function renderEditItemList(items) {
     <div class="item-row" data-idx="${i}">
       <div class="item-row-header">
         <span class="item-row-title">Item ${i + 1}</span>
-        <button class="remove-item-btn" data-remove="${i}" title="Remover">×</button>
+        <div style="display:flex;gap:6px">
+          ${it.idEnd ? `<button class="remove-item-btn" data-erp-delete="${it._id||''}" data-idend="${it.idEnd}" title="Excluir permanentemente do ERP" style="color:#dc2626">🗑</button>` : ''}
+          <button class="remove-item-btn" data-remove="${i}" title="Remover da lista">×</button>
+        </div>
       </div>
       <div class="form-row">
         <div><label class="form-label">SKU</label>
@@ -3429,6 +3445,26 @@ function renderEditItemList(items) {
       rows.splice(parseInt(btn.dataset.remove), 1);
       if (rows.length === 0) rows.push(emptyItem());
       renderEditItemList(rows);
+    });
+  });
+
+  list.querySelectorAll('[data-erp-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idEnd = btn.dataset.idend;
+      const docId = btn.dataset.erpDelete;
+      if (!idEnd) return;
+      if (!confirm(`Excluir PERMANENTEMENTE este registro do estoque no ERP?\nID: ${idEnd}\n\nEsta ação não pode ser desfeita.`)) return;
+
+      loading(true, 'Excluindo no ERP...');
+      try {
+        await _erpDeleteEndereco(idEnd);
+        if (docId) await db.collection('wms_items').doc(docId).delete();
+        closeModal('editAddrModal');
+        await loadAll();
+      } catch(e) {
+        alert('Erro ao excluir no ERP: ' + e.message);
+      }
+      loading(false);
     });
   });
 }
@@ -3646,6 +3682,8 @@ function parseApiData(data) {
       est:   r.saldo_aberto != null ? String(r.saldo_aberto).trim() : '',
       idEnd: String(r.id_item_enderecamento || '').trim(),
       emp:   String(r.empresa_apelido    || '').trim(),
+      itemId:    String(r.item_id    || '').trim(), // necessário para POST (criar endereçamento)
+      unidadeId: String(r.empresa_id || '').trim(), // = unidade_id na API de escrita
       rua: itemRua, pos: itemPos
     };
     if (itemRua && itemPos) { addrSet.add(`${itemRua}|${itemPos}`); items.push(item); }
@@ -3767,8 +3805,6 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
 // ── Sincronizar via API ──
 (function(){
-  const ERP_URL  = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php?token=WMS-TOKEN-STOCK-2026';
-  const PROXY    = 'https://corsproxy.io/?';
   const today    = new Date().toISOString().slice(0, 10);
   const todayBR  = today.split('-').reverse().join('/');
   const dateEl   = document.getElementById('apiSyncDate');
@@ -3789,8 +3825,8 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     btn.disabled = true;
     apiMsg('info', 'Consultando API...');
     try {
-      const targetUrl = `${ERP_URL}&data_limite=${today}`;
-      const resp = await fetch(PROXY + encodeURIComponent(targetUrl));
+      const targetUrl = `${_erpUrl()}&data_limite=${today}`;
+      const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
       if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
       const data = await resp.json();
       importParsed = parseApiData(data);
@@ -3813,8 +3849,6 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 // ── Auto-sync agendado (08:00 e 18:00) ──
 (function(){
   const SYNC_HOURS = [10, 17];
-  const ERP_URL = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/stock/index.php?token=WMS-TOKEN-STOCK-2026';
-  const PROXY   = 'https://corsproxy.io/?';
 
   function _fmtTime(date){ return date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
   function _fmtDateTime(date){ return date.toLocaleDateString('pt-BR') + ' ' + _fmtTime(date); }
@@ -3852,7 +3886,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
   async function _fetchApiData(){
     const today = new Date().toISOString().slice(0,10);
-    const resp = await fetch(PROXY + encodeURIComponent(`${ERP_URL}&data_limite=${today}`));
+    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}`));
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   }
@@ -5057,12 +5091,28 @@ function initPendingListeners() {
 
     loading(true, 'Atribuindo endereço...');
     try {
+      let idEnd = it.idEnd || '';
+      if (it.itemId && it.unidadeId) {
+        const result = await _erpCreateEndereco({
+          item_id:       it.itemId,
+          unidade_id:    it.unidadeId,
+          estoque:       it.est || undefined,
+          rua,
+          posicao:       pos,
+          lote:          it.lote || undefined,
+          data_validade: _brDateToIso(it.val) || undefined
+        });
+        if (result.id_item_enderecamento) idEnd = String(result.id_item_enderecamento);
+      } else {
+        console.warn('[WMS] Item sem item_id/unidade_id — endereço não foi persistido no ERP, apenas localmente. Pode reverter na próxima sincronização.');
+      }
+
       const ts   = new Date().toISOString();
       const user = S.user.email;
       const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
       await db.collection('wms_items').doc(newId).set({
         sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
-        est: it.est, idEnd: it.idEnd, emp: it.emp,
+        est: it.est, idEnd, emp: it.emp, itemId: it.itemId || '', unidadeId: it.unidadeId || '',
         rua, pos,
         updatedAt: ts, updatedBy: user,
         manuallyEdited: true
