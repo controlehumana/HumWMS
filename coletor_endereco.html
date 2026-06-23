@@ -395,6 +395,7 @@ async function carregarEstoque() {
   try {
     estoqueAtual = await erpGetEstoque();
     atualizarContagemHint();
+    atualizarListaRuas();
   } catch (e) {
     $('pendingCountHint').textContent = 'Falha ao carregar estoque';
     showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + e.message);
@@ -566,9 +567,18 @@ async function confirmarEnvio() {
 }
 
 // ── Dashboard de posições (Consultar endereço) ──────────────────────────────
-const RUAS  = ['A','B','C','D','E','F','G'];
+const RUAS_BASE = ['A','B','C','D','E','F','G'];
+let RUAS = [...RUAS_BASE];
 const POSES = Array.from({ length: 40 }, (_, i) => i + 1);
 let ruaAtiva = 'A';
+
+// Inclui ruas extras que existirem nos dados reais (ex.: P, Q, Z) além da grade padrão A-G
+function atualizarListaRuas() {
+  const extras = [...new Set(estoqueAtual.map(r => String(r.rua || '').trim().toUpperCase()).filter(Boolean))];
+  const todas = [...RUAS_BASE];
+  extras.forEach(r => { if (!todas.includes(r)) todas.push(r); });
+  RUAS = todas.sort();
+}
 
 function renderRuaChips() {
   $('ruaChips').innerHTML = RUAS.map(r =>
@@ -753,12 +763,16 @@ $('btnBack2').addEventListener('click', () => showStep(2));
 
 $('btnRefresh').addEventListener('click', async () => {
   await carregarEstoque();
+  renderRuaChips();
   renderPosList();
 });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderRuaChips();
-carregarEstoque().then(renderPosList);
+carregarEstoque().then(() => {
+  renderRuaChips();
+  renderPosList();
+});
 $('skuIn').focus();
 
 if ('serviceWorker' in navigator) {
