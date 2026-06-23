@@ -66,9 +66,18 @@ body{
 .sessionCount{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
 .sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1}
 
+.tabBar{display:flex;border-bottom:1px solid var(--line);background:#fff}
+.tabBtn{
+  flex:1;padding:12px 8px;background:none;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--muted);border-bottom:2.5px solid transparent;
+}
+.tabBtn.active{color:var(--green-dark);border-bottom-color:var(--green)}
+
 .body{padding:20px}
 .step{display:none}
 .step.active{display:block}
+.view{display:none}
+.view.active{display:block}
 
 .label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:block}
 .inputField{
@@ -174,67 +183,94 @@ body{
       <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
     </div>
 
+    <div class="tabBar">
+      <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">📦 Endereçar / Transferir</button>
+      <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">📍 Consultar endereço</button>
+    </div>
+
     <div class="body">
 
-      <!-- STEP 1: buscar item pendente -->
-      <div class="step active" id="step1">
-        <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
-        <div class="inputRow">
-          <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
-          <button class="btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
-          </button>
-        </div>
-        <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
+      <!-- VIEW: ENDEREÇAR / TRANSFERIR ============================== -->
+      <div class="view active" id="viewEnderecar">
 
-        <div id="matchList" class="matchList"></div>
-        <div id="step1Msg" class="msg"></div>
-      </div>
-
-      <!-- OVERLAY SCANNER -->
-      <div class="scanOverlay" id="scanOverlay" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
-        <div class="scanModal">
-          <div class="scanHeader">
-            <span>Escanear código de barras</span>
-            <button class="iconBtn" id="scanClose" aria-label="Fechar scanner">
-              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <!-- STEP 1: buscar produto -->
+        <div class="step active" id="step1">
+          <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
+          <div class="inputRow">
+            <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
+            <button class="btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
             </button>
           </div>
-          <div id="scanReader"></div>
-          <p class="scanHint" id="scanHint">Aponte a câmera para o código de barras</p>
+          <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
+          <button class="btn btn-primary" id="btnBuscarSku">Buscar</button>
+
+          <div id="matchList" class="matchList"></div>
+          <div id="step1Msg" class="msg"></div>
         </div>
+
+        <!-- OVERLAY SCANNER -->
+        <div class="scanOverlay" id="scanOverlay" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
+          <div class="scanModal">
+            <div class="scanHeader">
+              <span>Escanear código de barras</span>
+              <button class="iconBtn" id="scanClose" aria-label="Fechar scanner">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div id="scanReader"></div>
+            <p class="scanHint" id="scanHint">Aponte a câmera para o código de barras</p>
+          </div>
+        </div>
+
+        <!-- STEP 2: escolher destino -->
+        <div class="step" id="step2">
+          <div class="itemBox" id="itemBoxDestino"></div>
+
+          <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
+          <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
+
+          <div style="height:10px"></div>
+
+          <label class="label" id="posLabel" for="posIn">Posição de destino</label>
+          <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
+
+          <div id="step2Msg" class="msg"></div>
+
+          <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
+          <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
+        </div>
+
+        <!-- STEP 3: confirmar e enviar -->
+        <div class="step" id="step3">
+          <div class="itemBox" id="itemBoxConfirm"></div>
+          <div id="step3Msg" class="msg"></div>
+          <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
+          <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+        </div>
+
       </div>
 
-      <!-- STEP 2: escolher destino -->
-      <div class="step" id="step2">
-        <div class="itemBox" id="itemBoxDestino"></div>
-
-        <label class="label" for="ruaIn">Rua de destino</label>
-        <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
+      <!-- VIEW: CONSULTAR ENDEREÇO =================================== -->
+      <div class="view" id="viewConsultar">
+        <label class="label" for="consultaRuaIn">Rua</label>
+        <input class="inputField" id="consultaRuaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
 
         <div style="height:10px"></div>
 
-        <label class="label" for="posIn">Posição de destino</label>
-        <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
+        <label class="label" for="consultaPosIn">Posição</label>
+        <input class="inputField" id="consultaPosIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
 
-        <div id="step2Msg" class="msg"></div>
+        <button class="btn btn-primary" id="btnConsultar">Consultar</button>
 
-        <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
-        <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
-      </div>
-
-      <!-- STEP 3: confirmar e enviar -->
-      <div class="step" id="step3">
-        <div class="itemBox" id="itemBoxConfirm"></div>
-        <div id="step3Msg" class="msg"></div>
-        <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
-        <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+        <div id="consultaMsg" class="msg"></div>
+        <div id="consultaResult"></div>
       </div>
 
     </div>
 
     <div class="footerBar">
-      <span class="hint" id="pendingCountHint">Carregando pendentes…</span>
+      <span class="hint" id="pendingCountHint">Carregando estoque…</span>
       <button class="refreshBtn" id="btnRefresh">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         Atualizar
@@ -254,19 +290,19 @@ function _erpUrl(extraQs = '') {
   return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
 }
 
-async function erpGetPendentes() {
+async function erpGetEstoque() {
   const today = new Date().toISOString().slice(0, 10);
   const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`;
   const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
   if (!resp.ok) throw new Error(`Erro HTTP ${resp.status} ao consultar o ERP.`);
   const data = await resp.json();
   if (!Array.isArray(data)) throw new Error('Resposta inesperada do ERP.');
-  return data.filter(r => !r.rua && !r.posicao);
+  return data;
 }
 
-async function erpCreateEndereco(payload) {
+async function erpWrite(method, payload) {
   const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
-    method:  'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(payload),
     signal:  AbortSignal.timeout(15000)
@@ -278,6 +314,8 @@ async function erpCreateEndereco(payload) {
   }
   return data || {};
 }
+const erpCreateEndereco = payload => erpWrite('POST', payload);
+const erpUpdateEndereco = payload => erpWrite('PUT', payload);
 
 function brDate(iso) {
   if (!iso) return '–';
@@ -287,8 +325,9 @@ function brDate(iso) {
 
 // ── Estado ───────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-let pendentes = [];
-let selecionado = null; // registro do ERP escolhido para endereçar
+let estoqueAtual = [];
+let selecionado = null;       // registro do ERP escolhido
+let modoTransferencia = false; // true = item já endereçado (PUT) | false = pendente novo (POST)
 let sessionCount = 0;
 
 function showStep(n) {
@@ -306,15 +345,20 @@ function hideMsg(elId) {
   $(elId).textContent = '';
 }
 
-async function carregarPendentes(silent = false) {
+function atualizarContagemHint() {
+  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao).length;
+  $('pendingCountHint').textContent = `${estoqueAtual.length} itens no estoque · ${pendentesCount} pendentes`;
+}
+
+async function carregarEstoque() {
   const btn = $('btnRefresh');
   btn.disabled = true;
-  if (!silent) $('pendingCountHint').textContent = 'Atualizando…';
+  $('pendingCountHint').textContent = 'Atualizando…';
   try {
-    pendentes = await erpGetPendentes();
-    $('pendingCountHint').textContent = `${pendentes.length} itens pendentes carregados`;
+    estoqueAtual = await erpGetEstoque();
+    atualizarContagemHint();
   } catch (e) {
-    $('pendingCountHint').textContent = 'Falha ao carregar pendentes';
+    $('pendingCountHint').textContent = 'Falha ao carregar estoque';
     showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + e.message);
   }
   btn.disabled = false;
@@ -324,29 +368,34 @@ function buscarSku(sku) {
   hideMsg('step1Msg');
   $('matchList').innerHTML = '';
   const skuNorm = sku.trim();
-  if (!skuNorm) return;
+  if (!skuNorm) {
+    showMsg('step1Msg', 'warn', 'Informe ou escaneie o código do produto.');
+    return;
+  }
 
-  // Aceita tanto o SKU interno quanto o EAN do produto (código real do código de barras)
-  const matches = pendentes.filter(r =>
+  // Busca em todo o estoque (pendentes e já endereçados) — aceita SKU interno ou EAN
+  const matches = estoqueAtual.filter(r =>
     String(r.item_codigo || '').trim() === skuNorm ||
     String(r.item_ean13  || '').trim() === skuNorm
   );
 
   if (matches.length === 0) {
-    showMsg('step1Msg', 'warn', `Nenhum item pendente encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
+    showMsg('step1Msg', 'warn', `Nenhum item encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
     return;
   }
   if (matches.length === 1) {
     selecionarItem(matches[0]);
     return;
   }
-  // múltiplos lotes do mesmo SKU pendentes — pede pra escolher
-  $('matchList').innerHTML = matches.map((m, i) => `
+  // múltiplos lotes/posições do mesmo produto — pede pra escolher
+  $('matchList').innerHTML = matches.map((m, i) => {
+    const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : 'Pendente (sem endereço)';
+    return `
     <div class="matchCard" data-idx="${i}">
       <div class="desc">${m.item_descricao || '–'}</div>
-      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'}</div>
-    </div>
-  `).join('');
+      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'} · ${statusTxt}</div>
+    </div>`;
+  }).join('');
   $('matchList').querySelectorAll('[data-idx]').forEach(card => {
     card.addEventListener('click', () => selecionarItem(matches[parseInt(card.dataset.idx)]));
   });
@@ -354,6 +403,12 @@ function buscarSku(sku) {
 
 function selecionarItem(item) {
   selecionado = item;
+  modoTransferencia = !!(item.rua && item.posicao);
+
+  const statusLine = modoTransferencia
+    ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
+    : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
+
   $('itemBoxDestino').innerHTML = `
     <div class="desc">${item.item_descricao || '–'}</div>
     <div class="meta">
@@ -361,7 +416,12 @@ function selecionarItem(item) {
       <span>Lote ${item.numero_lote || '–'}</span>
       <span>Val. ${brDate(item.dt_validade)}</span>
       <span>Saldo ${item.saldo_aberto || '–'}</span>
-    </div>`;
+    </div>
+    ${statusLine}`;
+
+  $('ruaLabel').textContent = modoTransferencia ? 'Nova rua de destino' : 'Rua de destino';
+  $('posLabel').textContent = modoTransferencia ? 'Nova posição de destino' : 'Posição de destino';
+
   $('ruaIn').value = '';
   $('posIn').value = '';
   hideMsg('step2Msg');
@@ -376,14 +436,26 @@ function irParaConfirmacao() {
     showMsg('step2Msg', 'warn', 'Informe a rua e a posição de destino.');
     return;
   }
+  if (modoTransferencia && rua === String(selecionado.rua).toUpperCase() && pos === String(selecionado.posicao)) {
+    showMsg('step2Msg', 'warn', 'Destino igual ao endereço atual. Escolha um endereço diferente.');
+    return;
+  }
   hideMsg('step2Msg');
+
+  const acaoLabel = modoTransferencia ? 'Transferência' : 'Novo endereço';
+  const origemRow = modoTransferencia
+    ? `<div class="summaryRow"><span class="k">De</span><span class="v">${selecionado.rua} · Pos. ${selecionado.posicao}</span></div>`
+    : '';
+
   $('itemBoxConfirm').innerHTML = `
     <div class="desc">${selecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">Ação</span><span class="v">${acaoLabel}</span></div>
     <div class="summaryRow"><span class="k">SKU</span><span class="v">${selecionado.item_codigo || '–'}</span></div>
     <div class="summaryRow"><span class="k">Lote</span><span class="v">${selecionado.numero_lote || '–'}</span></div>
     <div class="summaryRow"><span class="k">Validade</span><span class="v">${brDate(selecionado.dt_validade)}</span></div>
     <div class="summaryRow"><span class="k">Saldo</span><span class="v">${selecionado.saldo_aberto || '–'}</span></div>
-    <div class="summaryRow"><span class="k">Destino</span><span class="v">${rua} · Pos. ${pos}</span></div>
+    ${origemRow}
+    <div class="summaryRow"><span class="k">Para</span><span class="v">${rua} · Pos. ${pos}</span></div>
   `;
   hideMsg('step3Msg');
   showStep(3);
@@ -399,24 +471,37 @@ async function confirmarEnvio() {
   hideMsg('step3Msg');
 
   try {
-    const result = await erpCreateEndereco({
-      item_id:       selecionado.item_id,
-      unidade_id:    selecionado.empresa_id,
-      estoque:       selecionado.saldo_aberto || undefined,
-      rua,
-      posicao:       pos,
-      lote:          selecionado.numero_lote || undefined,
-      data_validade: selecionado.dt_validade || undefined
-    });
+    let okMsg;
+    if (modoTransferencia) {
+      await erpUpdateEndereco({
+        id_item_enderecamento: selecionado.id_item_enderecamento,
+        rua,
+        posicao: pos
+      });
+      selecionado.rua = rua;
+      selecionado.posicao = pos;
+      okMsg = `Transferido com sucesso para Rua ${rua} · Pos. ${pos}.`;
+    } else {
+      const result = await erpCreateEndereco({
+        item_id:       selecionado.item_id,
+        unidade_id:    selecionado.empresa_id,
+        estoque:       selecionado.saldo_aberto || undefined,
+        rua,
+        posicao:       pos,
+        lote:          selecionado.numero_lote || undefined,
+        data_validade: selecionado.dt_validade || undefined
+      });
+      selecionado.rua = rua;
+      selecionado.posicao = pos;
+      if (result.id_item_enderecamento) selecionado.id_item_enderecamento = result.id_item_enderecamento;
+      okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos}.`;
+    }
 
-    // Remove da lista local em memória pra não aparecer de novo na mesma sessão
-    pendentes = pendentes.filter(p => p !== selecionado);
-    $('pendingCountHint').textContent = `${pendentes.length} itens pendentes carregados`;
-
+    atualizarContagemHint();
     sessionCount++;
     $('sessionCount').textContent = sessionCount;
 
-    showMsg('step3Msg', 'ok', `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos}.`);
+    showMsg('step3Msg', 'ok', okMsg);
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar Endereçamento';
 
@@ -431,6 +516,41 @@ async function confirmarEnvio() {
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar Endereçamento';
   }
+}
+
+// ── Consultar endereço ───────────────────────────────────────────────────────
+function consultarEndereco() {
+  const rua = $('consultaRuaIn').value.trim().toUpperCase();
+  const pos = $('consultaPosIn').value.trim();
+  hideMsg('consultaMsg');
+  $('consultaResult').innerHTML = '';
+
+  if (!rua || !pos) {
+    showMsg('consultaMsg', 'warn', 'Informe a rua e a posição.');
+    return;
+  }
+
+  const itens = estoqueAtual.filter(r =>
+    String(r.rua || '').trim().toUpperCase() === rua &&
+    String(r.posicao || '').trim() === pos
+  );
+
+  if (itens.length === 0) {
+    showMsg('consultaMsg', 'info', `Endereço ${rua} · Pos. ${pos} está livre.`);
+    return;
+  }
+
+  $('consultaResult').innerHTML = itens.map(it => `
+    <div class="itemBox">
+      <div class="desc">${it.item_descricao || '–'}</div>
+      <div class="meta">
+        <span>SKU ${it.item_codigo || '–'}</span>
+        <span>Lote ${it.numero_lote || '–'}</span>
+        <span>Val. ${brDate(it.dt_validade)}</span>
+        <span>Saldo ${it.saldo_aberto || '–'}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
@@ -524,10 +644,19 @@ if (!navigator.mediaDevices?.getUserMedia) {
   const sb = $('scanBtn'); if (sb) sb.style.display = 'none';
 }
 
+// ── Tabs (Endereçar/Transferir x Consultar) ─────────────────────────────────
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewId));
+  document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+}
+$('tabEnderecar').addEventListener('click', () => switchView('viewEnderecar'));
+$('tabConsultar').addEventListener('click', () => switchView('viewConsultar'));
+
 // ── Listeners ────────────────────────────────────────────────────────────────
 $('skuIn').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); buscarSku($('skuIn').value); }
 });
+$('btnBuscarSku').addEventListener('click', () => buscarSku($('skuIn').value));
 
 $('ruaIn').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); $('posIn').focus(); }
@@ -547,10 +676,18 @@ $('btnBack1').addEventListener('click', () => {
 });
 $('btnBack2').addEventListener('click', () => showStep(2));
 
-$('btnRefresh').addEventListener('click', () => carregarPendentes());
+$('btnRefresh').addEventListener('click', () => carregarEstoque());
+
+$('consultaRuaIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('consultaPosIn').focus(); }
+});
+$('consultaPosIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); consultarEndereco(); }
+});
+$('btnConsultar').addEventListener('click', consultarEndereco);
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-carregarPendentes();
+carregarEstoque();
 $('skuIn').focus();
 </script>
 </body>
