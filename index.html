@@ -5094,9 +5094,8 @@ function initPendingListeners() {
 
     loading(true, 'Atribuindo endereço...');
     try {
-      let idEnd = it.idEnd || '';
       if (it.itemId && it.unidadeId) {
-        const result = await _erpCreateEndereco({
+        await _erpCreateEndereco({
           item_id:       it.itemId,
           unidade_id:    it.unidadeId,
           estoque:       it.est || undefined,
@@ -5105,25 +5104,27 @@ function initPendingListeners() {
           lote:          it.lote || undefined,
           data_validade: _brDateToIso(it.val) || undefined
         });
-        if (result.id_item_enderecamento) idEnd = String(result.id_item_enderecamento);
+        // O POST não devolve o id_item_enderecamento criado — sincroniza para
+        // puxar o registro real do ERP (com idEnd correto) em vez de adivinhar.
+        loading(true, 'Sincronizando com o ERP...');
+        await window._runAutoSync();
       } else {
         console.warn('[WMS] Item sem item_id/unidade_id — endereço não foi persistido no ERP, apenas localmente. Pode reverter na próxima sincronização.');
-      }
-
-      const ts   = new Date().toISOString();
-      const user = S.user.email;
-      const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
-      await db.collection('wms_items').doc(newId).set({
-        sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
-        est: it.est, idEnd, emp: it.emp, itemId: it.itemId || '', unidadeId: it.unidadeId || '',
-        rua, pos,
-        updatedAt: ts, updatedBy: user,
-        manuallyEdited: true
-      });
-      if (assignTargetId) {
-        const snap = await db.collection('wms_unaddressed').get();
-        const doc  = snap.docs.find(d => d.id === assignTargetId || d.data()._id === assignTargetId);
-        if (doc) await doc.ref.delete();
+        const ts   = new Date().toISOString();
+        const user = S.user.email;
+        const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
+        await db.collection('wms_items').doc(newId).set({
+          sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
+          est: it.est, idEnd: it.idEnd || '', emp: it.emp,
+          rua, pos,
+          updatedAt: ts, updatedBy: user,
+          manuallyEdited: true
+        });
+        if (assignTargetId) {
+          const snap = await db.collection('wms_unaddressed').get();
+          const doc  = snap.docs.find(d => d.id === assignTargetId || d.data()._id === assignTargetId);
+          if (doc) await doc.ref.delete();
+        }
       }
       $('assignModal').style.display = 'none';
       await loadAll();
