@@ -14,6 +14,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Endereçamento">
 
+<link rel="preconnect" href="https://corsproxy.io" crossorigin>
+<link rel="dns-prefetch" href="//corsproxy.io">
+<link rel="preconnect" href="https://gestao.humanaalimentar.com.br" crossorigin>
+
 <style>
 :root{
   --bg:#f0faf6;
@@ -323,6 +327,7 @@ body{
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
 const ERP_PROXY       = 'https://corsproxy.io/?';
+let erpDirectWriteAvailable = false;
 
 function _erpUrl(extraQs = '') {
   return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
@@ -338,19 +343,44 @@ async function erpGetEstoque() {
   return data;
 }
 
+async function probeDirectWrite() {
+  try {
+    const resp = await fetch(_erpUrl(), {
+      method: 'OPTIONS',
+      signal: AbortSignal.timeout(3500),
+      cache: 'no-store'
+    });
+    const methods = resp.headers.get('access-control-allow-methods') || '';
+    const headers = resp.headers.get('access-control-allow-headers') || '';
+    erpDirectWriteAvailable = resp.ok
+      && /POST/i.test(methods)
+      && /PUT/i.test(methods)
+      && /content-type/i.test(headers);
+  } catch (_) {
+    erpDirectWriteAvailable = false;
+  }
+}
+
 async function erpWrite(method, payload) {
-  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+  const startedAt = performance.now();
+  const requestUrl = erpDirectWriteAvailable
+    ? _erpUrl()
+    : ERP_PROXY + encodeURIComponent(_erpUrl());
+  const resp = await fetch(requestUrl, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(payload),
-    signal:  AbortSignal.timeout(15000)
+    signal:  AbortSignal.timeout(12000),
+    cache:   'no-store'
   });
   let data = null;
   try { data = await resp.json(); } catch(_) {}
   if (!resp.ok || (data && data.sucesso === false)) {
     throw new Error((data && data.mensagem) || `HTTP ${resp.status}`);
   }
-  return data || {};
+  data = data || {};
+  data._elapsedMs = Math.round(performance.now() - startedAt);
+  return data;
 }
 const erpCreateEndereco = payload => erpWrite('POST', payload);
 const erpUpdateEndereco = payload => erpWrite('PUT', payload);
@@ -536,17 +566,18 @@ async function confirmarEnvio() {
 
   try {
     let okMsg;
+    let result;
     if (modoTransferencia) {
-      await erpUpdateEndereco({
+      result = await erpUpdateEndereco({
         id_item_enderecamento: selecionado.id_item_enderecamento,
         rua,
         posicao: pos
       });
       selecionado.rua = rua;
       selecionado.posicao = pos;
-      okMsg = `Transferido com sucesso para Rua ${rua} · Pos. ${pos}.`;
+      okMsg = `Transferido com sucesso para Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
     } else {
-      const result = await erpCreateEndereco({
+      result = await erpCreateEndereco({
         item_id:       selecionado.item_id,
         unidade_id:    selecionado.empresa_id,
         estoque:       selecionado.saldo_aberto || undefined,
@@ -558,7 +589,7 @@ async function confirmarEnvio() {
       selecionado.rua = rua;
       selecionado.posicao = pos;
       if (result.id_item_enderecamento) selecionado.id_item_enderecamento = result.id_item_enderecamento;
-      okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos}.`;
+      okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
     }
 
     atualizarContagemHint();
@@ -573,7 +604,7 @@ async function confirmarEnvio() {
       showStep(1);
       limparBusca();
       hideMsg('step3Msg');
-    }, 1400);
+    }, 650);
   } catch (e) {
     showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + e.message);
     btn.disabled = false;
@@ -663,8 +694,13 @@ $('btnLimparFiltro').addEventListener('click', () => {
 
 // ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
 let _scanner = null;
+let _scanOpening = false;
+let _lastDetectionAt = 0;
 
 function _onBarcodeDetected(code) {
+  const now = Date.now();
+  if (now - _lastDetectionAt < 1200) return;
+  _lastDetectionAt = now;
   closeScan();
   const val = String(code || '').trim();
   if (!val) return;
@@ -673,72 +709,148 @@ function _onBarcodeDetected(code) {
 }
 
 async function openScan() {
+  if (_scanOpening || _scanner?.active) return;
+  _scanOpening = true;
   $('scanOverlay').classList.add('show');
   $('scanHint').textContent = 'Iniciando câmera...';
 
-  // Tenta BarcodeDetector nativo primeiro (Chrome Android)
+  // BarcodeDetector é rápido quando o navegador suporta os formatos necessários.
   if (typeof BarcodeDetector !== 'undefined') {
+    let stream = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const supported = typeof BarcodeDetector.getSupportedFormats === 'function'
+        ? await BarcodeDetector.getSupportedFormats()
+        : [];
+      const wanted = ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf'];
+      const formats = supported.length ? wanted.filter(f => supported.includes(f)) : wanted;
+      if (!formats.length) throw new Error('Formatos de barras não suportados');
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
       const video = document.createElement('video');
-      video.srcObject = stream; video.autoplay = true; video.muted = true; video.playsInline = true;
-      $('scanReader').innerHTML = ''; $('scanReader').appendChild(video);
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      $('scanReader').innerHTML = '';
+      $('scanReader').appendChild(video);
       await video.play();
-      const det = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf'] });
-      $('scanHint').textContent = 'Aponte para o código de barras';
+
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track?.getCapabilities?.();
+      if (capabilities?.focusMode?.includes('continuous')) {
+        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+
+      const det = new BarcodeDetector({ formats });
+      $('scanHint').textContent = 'Centralize o código e mantenha o celular firme';
       _scanner = { type: 'native', stream, active: true };
+      _scanOpening = false;
+
       const loop = async () => {
         if (!_scanner?.active) return;
         try {
           const res = await det.detect(video);
-          if (res.length) { _onBarcodeDetected(res[0].rawValue); return; }
+          if (res.length) {
+            _onBarcodeDetected(res[0].rawValue);
+            return;
+          }
         } catch {}
-        requestAnimationFrame(loop);
+        setTimeout(loop, 90);
       };
-      requestAnimationFrame(loop);
+      setTimeout(loop, 120);
       return;
-    } catch (e) { /* sem câmera nativa — tenta html5-qrcode */ }
+    } catch (e) {
+      stream?.getTracks().forEach(t => t.stop());
+      $('scanReader').innerHTML = '';
+    }
   }
 
-  // Fallback: html5-qrcode (carregado sob demanda)
+  // Fallback compatível com navegadores sem BarcodeDetector.
   if (!window.Html5Qrcode) {
     $('scanHint').textContent = 'Carregando leitor...';
     try {
       await new Promise((res, rej) => {
+        const existing = document.querySelector('script[data-html5-qrcode]');
+        if (existing) {
+          existing.addEventListener('load', res, { once: true });
+          existing.addEventListener('error', rej, { once: true });
+          return;
+        }
         const s = document.createElement('script');
+        s.dataset.html5Qrcode = '1';
         s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        s.onload = res; s.onerror = rej;
+        s.onload = res;
+        s.onerror = rej;
         document.head.appendChild(s);
       });
     } catch (e) {
+      _scanOpening = false;
       $('scanHint').textContent = 'Não foi possível carregar o leitor. Use o leitor físico ou digite.';
       return;
     }
   }
+
   try {
-    const qr = new Html5Qrcode('scanReader');
+    const qr = new Html5Qrcode('scanReader', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF
+      ],
+      verbose: false
+    });
     _scanner = { type: 'html5', qr, active: true };
     await qr.start(
       { facingMode: 'environment' },
-      { fps: 15, qrbox: { width: 260, height: 100 } },
-      (code) => { _onBarcodeDetected(code); }
+      {
+        fps: 12,
+        qrbox: (w, h) => ({
+          width: Math.min(320, Math.floor(w * .88)),
+          height: Math.min(150, Math.floor(h * .42))
+        }),
+        aspectRatio: 1.777778,
+        disableFlip: true
+      },
+      (code) => _onBarcodeDetected(code)
     );
-    $('scanHint').textContent = 'Aponte para o código de barras';
+    _scanOpening = false;
+    $('scanHint').textContent = 'Centralize o código e mantenha o celular firme';
   } catch (e) {
-    $('scanHint').textContent = 'Câmera indisponível. Use o leitor físico ou digite.';
+    _scanOpening = false;
+    _scanner = null;
+    $('scanReader').innerHTML = '';
+    $('scanHint').textContent = 'Câmera indisponível ou sem permissão. Verifique a permissão do navegador.';
   }
 }
 
 async function closeScan() {
+  _scanOpening = false;
   $('scanOverlay').classList.remove('show');
-  const sc = _scanner; _scanner = null;
-  if (!sc) return;
+  const sc = _scanner;
+  _scanner = null;
+  if (!sc) {
+    $('scanReader').innerHTML = '';
+    return;
+  }
   sc.active = false;
   if (sc.type === 'native') {
     sc.stream?.getTracks().forEach(t => t.stop());
     $('scanReader').innerHTML = '';
   } else if (sc.type === 'html5') {
     try { await sc.qr.stop(); } catch {}
+    try { await sc.qr.clear(); } catch {}
+    $('scanReader').innerHTML = '';
   }
 }
 
@@ -794,6 +906,7 @@ $('btnRefresh').addEventListener('click', async () => {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderRuaChips();
+probeDirectWrite();
 carregarEstoque().then(() => {
   renderRuaChips();
   renderPosList();
