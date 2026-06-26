@@ -416,21 +416,30 @@ body{
           <div id="altStep1Msg" class="msg"></div>
         </div>
 
-        <!-- STEP 2: exibir item e ações -->
+        <!-- STEP 2: exibir item e definir destino -->
         <div class="step" id="altStep2">
           <div class="itemBox" id="altItemBox"></div>
+
+          <label class="label" for="altRuaIn" style="margin-top:14px">Nova rua de destino</label>
+          <input class="inputField" id="altRuaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="1" style="text-transform:uppercase">
+
+          <div style="height:10px"></div>
+
+          <label class="label" for="altPosIn">Nova posição de destino</label>
+          <input class="inputField" id="altPosIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
+
           <div id="altStep2Msg" class="msg"></div>
-          <button class="btn btn-danger" id="btnAltRemover" style="margin-top:14px">🗑 Remover deste endereço</button>
+
+          <button class="btn btn-primary" id="btnAltConfirmarDestino" style="margin-top:14px">Confirmar destino →</button>
           <button class="btn btn-ghost" id="btnAltVoltarBusca" style="margin-top:8px">← Buscar outro</button>
         </div>
 
-        <!-- STEP 3: confirmar remoção -->
+        <!-- STEP 3: confirmar transferência -->
         <div class="step" id="altStep3">
-          <div class="msg warn" style="display:block;margin-bottom:14px">⚠ Operação irreversível. O item será desvinculado do endereço no ERP.</div>
           <div class="itemBox" id="altItemBoxConfirm"></div>
           <div id="altStep3Msg" class="msg"></div>
-          <button class="btn btn-danger" id="btnAltConfirmDel" style="margin-top:14px">Confirmar remoção</button>
-          <button class="btn btn-ghost" id="btnAltCancelarDel" style="margin-top:8px">← Cancelar</button>
+          <button class="btn btn-primary" id="btnAltConfirmTrf" style="margin-top:14px">✓ Confirmar transferência</button>
+          <button class="btn btn-ghost" id="btnAltCancelarTrf" style="margin-top:8px">← Voltar</button>
         </div>
 
       </div>
@@ -457,7 +466,7 @@ body{
     <input class="inputField" id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" style="margin-bottom:10px">
     <input class="inputField" id="loginSenha" type="password" autocomplete="current-password" placeholder="Senha">
     <div id="loginErro" class="loginErrMsg"></div>
-    <button class="btn btn-primary" id="btnLoginEntrar">Entrar</button>
+    <button class="btn btn-primary" id="btnLoginEntrar" type="button">Entrar</button>
   </div>
 </div>
 
@@ -534,7 +543,6 @@ async function erpWrite(method, payload) {
 }
 const erpCreateEndereco = payload => erpWrite('POST', payload);
 const erpUpdateEndereco = payload => erpWrite('PUT', payload);
-const erpDeleteEndereco = idEnd   => erpWrite('DELETE', { id_item_enderecamento: idEnd });
 
 function brDate(iso) {
   if (!iso) return '–';
@@ -1324,66 +1332,103 @@ $('btnAltBuscar').addEventListener('click', () => altBuscarSku($('altSkuIn').val
 $('altSkuIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); altBuscarSku($('altSkuIn').value); } });
 $('altScanBtn').addEventListener('click', openScan);
 
-$('btnAltRemover').addEventListener('click', () => {
-  if (!altSelecionado) return;
+$('altRuaIn').addEventListener('input', () => {
+  if ($('altRuaIn').value.trim().length >= 1) setTimeout(() => $('altPosIn').focus(), 80);
+});
+$('altRuaIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('altPosIn').focus(); }
+});
+$('altPosIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); irParaAltConfirmacao(); }
+});
+
+function irParaAltConfirmacao() {
+  const rua = $('altRuaIn').value.trim().toUpperCase();
+  const pos = $('altPosIn').value.trim();
+  if (!rua || !pos) {
+    showMsg('altStep2Msg', 'warn', 'Informe a rua e a posição de destino.');
+    return;
+  }
+  if (rua === String(altSelecionado.rua).toUpperCase() && pos === String(altSelecionado.posicao)) {
+    showMsg('altStep2Msg', 'warn', 'Destino igual ao endereço atual. Escolha um endereço diferente.');
+    return;
+  }
+  hideMsg('altStep2Msg');
   $('altItemBoxConfirm').innerHTML = `
     <div class="desc">${altSelecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">Ação</span><span class="v">Transferência</span></div>
     <div class="summaryRow"><span class="k">SKU</span><span class="v">${altSelecionado.item_codigo || '–'}</span></div>
     <div class="summaryRow"><span class="k">Lote</span><span class="v">${altSelecionado.numero_lote || '–'}</span></div>
-    <div class="summaryRow"><span class="k">Endereço a remover</span><span class="v">${altSelecionado.rua} · Pos. ${altSelecionado.posicao}</span></div>`;
+    <div class="summaryRow"><span class="k">De</span><span class="v">${altSelecionado.rua} · Pos. ${altSelecionado.posicao}</span></div>
+    <div class="summaryRow"><span class="k">Para</span><span class="v">${rua} · Pos. ${pos}</span></div>`;
   hideMsg('altStep3Msg');
   showAltStep(3);
-});
+}
+
+$('btnAltConfirmarDestino').addEventListener('click', irParaAltConfirmacao);
 
 $('btnAltVoltarBusca').addEventListener('click', () => {
   altSelecionado = null;
   $('altSkuIn').value = '';
   $('altMatchList').innerHTML = '';
+  $('altRuaIn').value = '';
+  $('altPosIn').value = '';
   hideMsg('altStep1Msg');
   showAltStep(1);
   $('altSkuIn').focus();
 });
 
-$('btnAltCancelarDel').addEventListener('click', () => showAltStep(2));
+$('btnAltCancelarTrf').addEventListener('click', () => showAltStep(2));
 
-$('btnAltConfirmDel').addEventListener('click', async () => {
+$('btnAltConfirmTrf').addEventListener('click', async () => {
   if (!altSelecionado) return;
-  const btn = $('btnAltConfirmDel');
+  const rua = $('altRuaIn').value.trim().toUpperCase();
+  const pos = $('altPosIn').value.trim();
+  const prevRua = String(altSelecionado.rua || '');
+  const prevPos = String(altSelecionado.posicao || '');
+  const btn = $('btnAltConfirmTrf');
+
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Removendo…';
+  btn.innerHTML = '<span class="spinner"></span> Transferindo…';
   hideMsg('altStep3Msg');
+
   try {
-    await erpDeleteEndereco(altSelecionado.id_item_enderecamento);
+    const result = await erpUpdateEndereco({
+      id_item_enderecamento: altSelecionado.id_item_enderecamento,
+      rua,
+      posicao: pos
+    });
     appendLog({
-      acao: 'Remoção',
+      acao: 'Transferência',
       sku:  altSelecionado.item_codigo || '',
       desc: altSelecionado.item_descricao || '',
       lote: altSelecionado.numero_lote || '',
-      rua:  altSelecionado.rua,
-      pos:  altSelecionado.posicao,
-      de_rua: altSelecionado.rua,
-      de_pos: altSelecionado.posicao
+      rua, pos,
+      de_rua: prevRua,
+      de_pos: prevPos
     });
-    const idx = estoqueAtual.indexOf(altSelecionado);
-    if (idx >= 0) estoqueAtual.splice(idx, 1);
+    altSelecionado.rua = rua;
+    altSelecionado.posicao = pos;
     atualizarContagemHint();
     sessionCount++;
     $('sessionCount').textContent = sessionCount;
-    showMsg('altStep3Msg', 'ok', `Endereço ${altSelecionado.rua}/${altSelecionado.posicao} removido com sucesso.`);
+    showMsg('altStep3Msg', 'ok', `Transferido para Rua ${rua} · Pos. ${pos} (${(result._elapsedMs/1000).toFixed(1)}s).`);
     btn.disabled = false;
-    btn.innerHTML = 'Confirmar remoção';
+    btn.innerHTML = '✓ Confirmar transferência';
     setTimeout(() => {
       altSelecionado = null;
       $('altSkuIn').value = '';
       $('altMatchList').innerHTML = '';
+      $('altRuaIn').value = '';
+      $('altPosIn').value = '';
       hideMsg('altStep1Msg');
       showAltStep(1);
       $('altSkuIn').focus();
     }, 1500);
   } catch(e) {
-    showMsg('altStep3Msg', 'err', 'Falha ao remover: ' + e.message);
+    showMsg('altStep3Msg', 'err', 'Falha ao transferir: ' + e.message);
     btn.disabled = false;
-    btn.innerHTML = 'Confirmar remoção';
+    btn.innerHTML = '✓ Confirmar transferência';
   }
 });
 
