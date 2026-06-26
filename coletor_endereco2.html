@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Coletor de Endereçamento</title>
+
+<!-- PWA: instalar com ícone na tela inicial -->
+<link rel="manifest" href="manifest-endereco.json">
+<meta name="theme-color" content="#059669">
+<link rel="icon" href="icons/endereco-192.png">
+<link rel="apple-touch-icon" href="icons/endereco-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Endereçamento">
+
+<link rel="preconnect" href="https://corsproxy.io" crossorigin>
+<link rel="dns-prefetch" href="//corsproxy.io">
+<link rel="preconnect" href="https://gestao.humanaalimentar.com.br" crossorigin>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --bg:#f0faf6;
+  --card:#ffffff;
+  --surface:#f8fffe;
+  --text:#111827;
+  --muted:#6b7280;
+  --subtle:#9ca3af;
+  --line:#e5e7eb;
+  --line2:#d1fae5;
+  --green:#059669;
+  --green-light:#d1fae5;
+  --green-dark:#047857;
+  --danger:#dc2626;
+  --danger-bg:#fef2f2;
+  --warn:#b45309;
+  --warn-bg:#fffbeb;
+  --info:#1d4ed8;
+  --info-bg:#eff6ff;
+  --radius-lg:16px;
+  --radius-md:10px;
+  --radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:20px 14px 48px;
+  font-size:15px;
+  line-height:1.5;
+}
+.wrap{width:min(480px,100%);}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 24px rgba(0,0,0,.05);
+  overflow:hidden;
+}
+.header{
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+.appIcon{
+  width:38px;height:38px;border-radius:10px;background:var(--green-light);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.appIcon svg{width:20px;height:20px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.appName{font-weight:700;font-size:15px;color:var(--text)}
+.appSub{font-size:12px;color:var(--muted)}
+.sessionCount{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
+.sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1}
+
+.tabBar{display:flex;border-bottom:1px solid var(--line);background:#fff}
+.tabBtn{
+  flex:1;padding:12px 8px;background:none;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--muted);border-bottom:2.5px solid transparent;
+}
+.tabBtn.active{color:var(--green-dark);border-bottom-color:var(--green)}
+
+.body{padding:20px}
+.step{display:none}
+.step.active{display:block}
+.view{display:none}
+.view.active{display:block}
+
+.label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:block}
+.inputField{
+  width:100%;height:48px;padding:0 14px;
+  border:1.5px solid var(--line);border-radius:var(--radius-sm);
+  background:#fff;font-size:17px;color:var(--text);outline:none;
+  transition:border-color .15s,background .15s;
+}
+.inputField:focus{border-color:var(--green);background:#fafffe}
+.hint{font-size:12px;color:var(--subtle);margin-top:6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.btn{
+  width:100%;height:48px;border-radius:var(--radius-sm);border:1.5px solid transparent;
+  font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--green);color:#fff;margin-top:14px}
+.btn-primary:active{background:var(--green-dark)}
+.btn-primary:disabled{opacity:.5;cursor:default}
+.btn-ghost{background:#fff;color:var(--text);border-color:var(--line);margin-top:10px}
+
+.itemBox{
+  background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-md);
+  padding:14px;margin-bottom:16px;
+}
+.itemBox .desc{font-weight:700;font-size:14px;margin-bottom:6px}
+.itemBox .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
+.itemBox .meta span{display:flex;align-items:center;gap:4px}
+
+.matchList{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.matchCard{
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);
+  padding:12px 14px;cursor:pointer;transition:border-color .15s;
+}
+.matchCard:active{border-color:var(--green)}
+.matchCard .desc{font-weight:600;font-size:13px;margin-bottom:4px}
+.matchCard .meta{font-size:11.5px;color:var(--muted)}
+
+.msg{border-radius:var(--radius-md);padding:12px 14px;font-size:13px;margin-top:14px;display:none}
+.msg.ok{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid #a7f3d0}
+.msg.err{display:block;background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca}
+.msg.info{display:block;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
+.msg.warn{display:block;background:var(--warn-bg);color:#92400e;border:1px solid #fde68a}
+
+.footerBar{
+  padding:12px 20px;border-top:1px solid var(--line);background:var(--surface);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.footerBar .hint{margin:0}
+.refreshBtn{
+  font-size:14px;color:#fff;background:var(--green);border:none;border-radius:var(--radius-sm);cursor:pointer;
+  display:flex;align-items:center;gap:7px;font-weight:700;padding:10px 18px;flex-shrink:0;
+}
+.refreshBtn:active{background:var(--green-dark)}
+.refreshBtn:disabled{opacity:.5;cursor:default}
+.refreshBtn svg{width:16px;height:16px}
+
+.summaryRow{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.summaryRow:last-child{border-bottom:none}
+.summaryRow .k{color:var(--muted)}
+.summaryRow .v{font-weight:600;text-align:right}
+
+.spinner{
+  display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.5);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.inputRow{display:flex;gap:8px}
+.inputRow .inputField{flex:1}
+.btn-scan{
+  width:48px;height:48px;flex-shrink:0;border-radius:var(--radius-sm);
+  background:var(--green);color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.btn-scan:active{background:var(--green-dark)}
+.btn-scan svg{width:20px;height:20px}
+
+/* ── Scanner de câmera ── */
+.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;align-items:center;justify-content:center;padding:16px}
+.scanOverlay.show{display:flex}
+.scanModal{background:#111;border-radius:var(--radius-lg);width:min(440px,100%);overflow:hidden}
+.scanHeader{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#eee;font-size:13px;font-weight:600}
+.scanHeader .iconBtn{background:none;border:none;color:#ccc;cursor:pointer;padding:4px}
+.scanHeader .iconBtn svg{width:18px;height:18px;fill:none;stroke:#ccc;stroke-width:2}
+#scanReader{width:100%;background:#000;min-height:220px}
+#scanReader video{width:100%!important;object-fit:cover}
+#scanReader img{display:none!important}
+.scanHint{color:#aaa;font-size:13px;text-align:center;padding:10px 16px 14px}
+
+/* ── Dashboard de posições (Consultar endereço) ── */
+.ruaChips{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:2px}
+.ruaChip{
+  flex-shrink:0;padding:8px 16px;border-radius:99px;border:1.5px solid var(--line);
+  background:#fff;font-weight:700;font-size:14px;cursor:pointer;color:var(--text);
+}
+.ruaChip.active{background:var(--green);color:#fff;border-color:var(--green-dark)}
+
+.posList{display:flex;flex-direction:column;gap:7px;max-height:58vh;overflow-y:auto;padding-right:2px}
+.posRow{
+  display:flex;align-items:center;gap:10px;border-radius:var(--radius-md);padding:9px 11px;
+  border:1.5px solid var(--line2);background:var(--surface);
+}
+.posRow.occ{border-color:#fecaca;background:#fff8f8}
+.posRow.hide{display:none}
+.posNum{
+  width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex-shrink:0;
+}
+.posRow.occ .posNum{border-color:var(--danger);color:var(--danger)}
+.posInfo{flex:1;min-width:0}
+.posInfo .desc{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posInfo .meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posFreeLabel{font-size:12.5px;color:var(--green-dark);font-weight:600}
+.posBadge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;flex-shrink:0;white-space:nowrap}
+.posRow:not(.occ) .posBadge{background:var(--green-light);color:var(--green-dark)}
+.posRow.occ .posBadge{background:var(--danger-bg);color:var(--danger)}
+
+/* ── Botão de usuário logado ── */
+.userBtn{
+  display:inline-flex;align-items:center;gap:4px;margin-top:3px;
+  font-size:11px;font-weight:600;color:var(--green-dark);
+  background:var(--green-light);border:1px solid #a7f3d0;border-radius:99px;
+  padding:2px 8px;cursor:pointer;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ── Login overlay ── */
+.loginOverlay{
+  position:fixed;inset:0;z-index:500;
+  background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#059669 100%);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.loginOverlay.hidden{display:none!important}
+.loginCard{
+  background:#fff;border-radius:20px;padding:36px 28px;width:min(360px,100%);
+  text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.32);
+}
+.loginLogo{font-size:36px;margin-bottom:8px}
+.loginTitle{font-weight:700;font-size:17px;color:var(--text);margin-bottom:4px}
+.loginSub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.loginErrMsg{border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-top:10px;
+  background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca;display:none}
+
+/* ── Overlay do usuário logado (info + sair) ── */
+.uiOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;align-items:center;justify-content:center;padding:16px}
+.uiOverlay.show{display:flex}
+.uiModal{background:#fff;border-radius:var(--radius-lg);width:min(320px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25);text-align:center}
+.uiModalTitle{font-weight:700;font-size:15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.uiModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
+.uiUserName{font-weight:700;font-size:16px;margin-bottom:4px}
+.uiUserEmail{font-size:12px;color:var(--muted);margin-bottom:16px}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)!important}
+.btn-danger:active{background:#b91c1c}
+
+/* ── Histórico ── */
+.logDay{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.logEntry{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:10px 12px}
+.logTop{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.logTime{font-size:11px;color:var(--muted);font-weight:600}
+.logOp{font-size:11px;color:var(--subtle)}
+.logBadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0}
+.logBadge.end{background:var(--green-light);color:var(--green-dark)}
+.logBadge.trf{background:var(--info-bg);color:var(--info)}
+.logDesc{font-weight:600;font-size:12.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logMeta{font-size:11px;color:var(--muted)}
+.logLoc{font-weight:700;color:var(--text)}
+.logScroll{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto;padding-right:2px}
+.histActions{display:flex;gap:8px;margin-bottom:14px}
+.histActions .btn{margin-top:0;flex:1}
+.histEmpty{display:none;border-radius:var(--radius-md);padding:12px 14px;font-size:13px;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+
+    <div class="header">
+      <div class="appIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="appName">Coletor de Endereçamento</div>
+        <div class="appSub">Humana Alimentar</div>
+        <button class="userBtn" id="btnUser">👤 …</button>
+      </div>
+      <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
+    </div>
+
+    <div class="tabBar">
+      <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">📦 Endereçar</button>
+      <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">📍 Consultar</button>
+      <button class="tabBtn" id="tabHistorico" data-view="viewHistorico">📋 Histórico</button>
+      <button class="tabBtn" id="tabAlterar" data-view="viewAlterar" style="display:none">✏️ Alterar</button>
+    </div>
+
+    <div class="body">
+
+      <!-- VIEW: ENDEREÇAR / TRANSFERIR ============================== -->
+      <div class="view active" id="viewEnderecar">
+
+        <!-- STEP 1: buscar produto -->
+        <div class="step active" id="step1">
+          <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
+          <div class="inputRow">
+            <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
+            <button class="btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+            </button>
+          </div>
+          <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
+          <div class="row2">
+            <button class="btn btn-primary" id="btnBuscarSku" style="margin-top:10px">Buscar</button>
+            <button class="btn btn-ghost" id="btnLimparBusca">✕ Limpar</button>
+          </div>
+
+          <div id="matchList" class="matchList"></div>
+          <div id="step1Msg" class="msg"></div>
+          <button class="btn btn-ghost" id="btnNovaConsulta" style="display:none">↻ Nova consulta</button>
+        </div>
+
+        <!-- OVERLAY SCANNER -->
+        <div class="scanOverlay" id="scanOverlay" role="dialog" aria-modal="true" aria-label="Scanner de código de barras">
+          <div class="scanModal">
+            <div class="scanHeader">
+              <span>Escanear código de barras</span>
+              <button class="iconBtn" id="scanClose" aria-label="Fechar scanner">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div id="scanReader"></div>
+            <p class="scanHint" id="scanHint">Aponte a câmera para o código de barras</p>
+          </div>
+        </div>
+
+        <!-- STEP 2: escolher destino -->
+        <div class="step" id="step2">
+          <div class="itemBox" id="itemBoxDestino"></div>
+
+          <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
+          <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="1" style="text-transform:uppercase">
+
+          <div style="height:10px"></div>
+
+          <label class="label" id="posLabel" for="posIn">Posição de destino</label>
+          <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12">
+
+          <div id="step2Msg" class="msg"></div>
+
+          <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
+          <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
+        </div>
+
+        <!-- STEP 3: confirmar e enviar -->
+        <div class="step" id="step3">
+          <div class="itemBox" id="itemBoxConfirm"></div>
+          <div id="step3Msg" class="msg"></div>
+          <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
+          <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+        </div>
+
+      </div>
+
+      <!-- VIEW: CONSULTAR ENDEREÇO =================================== -->
+      <div class="view" id="viewConsultar">
+        <div class="ruaChips" id="ruaChips"></div>
+        <div class="inputRow" style="margin-bottom:12px">
+          <input class="inputField" id="dashFiltro" autocomplete="off" placeholder="Filtrar por SKU, descrição ou posição">
+          <button class="btn-scan" id="btnLimparFiltro" title="Limpar filtro" aria-label="Limpar filtro" style="background:#fff;border:1.5px solid var(--line);color:var(--muted)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="posList" class="posList"></div>
+      </div>
+
+      <!-- VIEW: HISTÓRICO ============================================= -->
+      <div class="view" id="viewHistorico">
+        <div class="histActions">
+          <button class="btn btn-primary" id="btnExportCSV">⬇ Exportar CSV</button>
+          <button class="btn btn-ghost" id="btnClearLog">🗑 Limpar</button>
+        </div>
+        <div id="histEmpty" class="histEmpty">Nenhuma ação registrada neste dispositivo ainda.</div>
+        <div id="logScroll" class="logScroll"></div>
+      </div>
+
+      <!-- VIEW: ALTERAR ENDEREÇO ====================================== -->
+      <div class="view" id="viewAlterar">
+
+        <!-- STEP 1: buscar produto -->
+        <div class="step active" id="altStep1">
+          <label class="label" for="altSkuIn">Código do produto (SKU ou EAN)</label>
+          <div class="inputRow">
+            <input class="inputField" id="altSkuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155">
+            <button class="btn-scan" id="altScanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+            </button>
+          </div>
+          <div class="hint">Busca apenas itens que já possuem endereço. Use o leitor físico ou câmera.</div>
+          <button class="btn btn-primary" id="btnAltBuscar" style="margin-top:10px">Buscar</button>
+          <div id="altMatchList" class="matchList"></div>
+          <div id="altStep1Msg" class="msg"></div>
+        </div>
+
+        <!-- STEP 2: exibir item e ações -->
+        <div class="step" id="altStep2">
+          <div class="itemBox" id="altItemBox"></div>
+          <div id="altStep2Msg" class="msg"></div>
+          <button class="btn btn-danger" id="btnAltRemover" style="margin-top:14px">🗑 Remover deste endereço</button>
+          <button class="btn btn-ghost" id="btnAltVoltarBusca" style="margin-top:8px">← Buscar outro</button>
+        </div>
+
+        <!-- STEP 3: confirmar remoção -->
+        <div class="step" id="altStep3">
+          <div class="msg warn" style="display:block;margin-bottom:14px">⚠ Operação irreversível. O item será desvinculado do endereço no ERP.</div>
+          <div class="itemBox" id="altItemBoxConfirm"></div>
+          <div id="altStep3Msg" class="msg"></div>
+          <button class="btn btn-danger" id="btnAltConfirmDel" style="margin-top:14px">Confirmar remoção</button>
+          <button class="btn btn-ghost" id="btnAltCancelarDel" style="margin-top:8px">← Cancelar</button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="footerBar">
+      <span class="hint" id="pendingCountHint">Carregando estoque…</span>
+      <button class="refreshBtn" id="btnRefresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Atualizar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- OVERLAY: Login Firebase -->
+<div class="loginOverlay" id="loginOverlay">
+  <div class="loginCard">
+    <div class="loginLogo">📦</div>
+    <div class="loginTitle">Coletor de Endereçamento</div>
+    <div class="loginSub">Humana Alimentar</div>
+    <input class="inputField" id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" style="margin-bottom:10px">
+    <input class="inputField" id="loginSenha" type="password" autocomplete="current-password" placeholder="Senha">
+    <div id="loginErro" class="loginErrMsg"></div>
+    <button class="btn btn-primary" id="btnLoginEntrar">Entrar</button>
+  </div>
+</div>
+
+<!-- OVERLAY: info do usuário logado -->
+<div class="uiOverlay" id="uiOverlay">
+  <div class="uiModal">
+    <div class="uiModalTitle">
+      <span>Sessão atual</span>
+      <button id="uiClose" aria-label="Fechar">✕</button>
+    </div>
+    <div class="uiUserName" id="uiUserName">–</div>
+    <div class="uiUserEmail" id="uiUserEmail">–</div>
+    <button class="btn btn-danger" id="btnLogout" style="margin-top:0">Sair da conta</button>
+  </div>
+</div>
+
+<script>
+// ── Firebase ─────────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:            "AIzaSyDuWq9BH0NmmOJZHDlusDffZzTvRGNRsc4",
+  authDomain:        "mapaestoque-1c121.firebaseapp.com",
+  projectId:         "mapaestoque-1c121",
+  storageBucket:     "mapaestoque-1c121.firebasestorage.app",
+  messagingSenderId: "1008752949095",
+  appId:             "1:1008752949095:web:223fa026e6e11cd94c21c2"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── Config da API do ERP (mesmos valores usados no WMS principal) ──────────
+const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
+const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
+const ERP_PROXY       = 'https://corsproxy.io/?';
+
+function _erpUrl(extraQs = '') {
+  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+}
+
+async function erpGetEstoque() {
+  const today = new Date().toISOString().slice(0, 10);
+  const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`;
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
+  if (!resp.ok) throw new Error(`Erro HTTP ${resp.status} ao consultar o ERP.`);
+  const data = await resp.json();
+  if (!Array.isArray(data)) throw new Error('Resposta inesperada do ERP.');
+  return data;
+}
+
+async function erpWrite(method, payload) {
+  const startedAt = performance.now();
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  };
+  let resp;
+  try {
+    // Tenta direto primeiro — se CORS bloqueado, falha em < 100 ms (sem custo de timeout)
+    resp = await fetch(_erpUrl(), { ...opts, signal: AbortSignal.timeout(5000) });
+  } catch (_) {
+    resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+      ...opts, signal: AbortSignal.timeout(10000)
+    });
+  }
+  let data = null;
+  try { data = await resp.json(); } catch(_) {}
+  if (!resp.ok || (data && data.sucesso === false)) {
+    throw new Error((data && data.mensagem) || `HTTP ${resp.status}`);
+  }
+  data = data || {};
+  data._elapsedMs = Math.round(performance.now() - startedAt);
+  return data;
+}
+const erpCreateEndereco = payload => erpWrite('POST', payload);
+const erpUpdateEndereco = payload => erpWrite('PUT', payload);
+const erpDeleteEndereco = idEnd   => erpWrite('DELETE', { id_item_enderecamento: idEnd });
+
+function brDate(iso) {
+  if (!iso) return '–';
+  const p = String(iso).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+}
+
+// ── Estado ───────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+let estoqueAtual = [];
+let selecionado = null;       // registro do ERP escolhido
+let modoTransferencia = false; // true = item já endereçado (PUT) | false = pendente novo (POST)
+let sessionCount = 0;
+
+// ── Autenticação Firebase ─────────────────────────────────────────────────────
+let wmsUser = null;
+let canAlterarEnd = false;
+let operadorAtivo = '';
+
+function getOperador() { return operadorAtivo; }
+
+function renderUserBtn() {
+  $('btnUser').textContent = `👤 ${operadorAtivo || '…'}`;
+}
+
+function showLoginOverlay(errMsg) {
+  $('loginOverlay').classList.remove('hidden');
+  const el = $('loginErro');
+  if (errMsg) { el.textContent = errMsg; el.style.display = 'block'; }
+  else { el.style.display = 'none'; }
+  setTimeout(() => $('loginEmail').focus(), 80);
+}
+
+function hideLoginOverlay() {
+  $('loginOverlay').classList.add('hidden');
+}
+
+function abrirUserInfoOverlay() {
+  $('uiUserName').textContent = wmsUser?.name || operadorAtivo || '–';
+  $('uiUserEmail').textContent = auth.currentUser?.email || '–';
+  $('uiOverlay').classList.add('show');
+}
+
+function fecharUserInfoOverlay() {
+  $('uiOverlay').classList.remove('show');
+}
+
+async function doLogin() {
+  const email = $('loginEmail').value.trim();
+  const senha = $('loginSenha').value;
+  const btn = $('btnLoginEntrar');
+  const errEl = $('loginErro');
+  errEl.style.display = 'none';
+
+  if (!email || !senha) {
+    errEl.textContent = 'Preencha e-mail e senha.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, senha);
+    // onAuthStateChanged cuida do restante
+  } catch(e) {
+    const msgMap = {
+      'auth/user-not-found':    'Usuário não encontrado.',
+      'auth/wrong-password':    'Senha incorreta.',
+      'auth/invalid-email':     'E-mail inválido.',
+      'auth/invalid-credential':'E-mail ou senha incorretos.',
+      'auth/too-many-requests': 'Muitas tentativas. Tente mais tarde.'
+    };
+    errEl.textContent = msgMap[e.code] || 'Erro ao entrar: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Entrar';
+  }
+}
+
+async function doLogout() {
+  fecharUserInfoOverlay();
+  await auth.signOut();
+  wmsUser = null;
+  canAlterarEnd = false;
+  operadorAtivo = '';
+  $('tabAlterar').style.display = 'none';
+  showLoginOverlay();
+}
+
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    showLoginOverlay();
+    return;
+  }
+  try {
+    const snap = await db.collection('wms_users').doc(user.email).get();
+    if (!snap.exists || snap.data().active === false) {
+      await auth.signOut();
+      showLoginOverlay('Usuário sem acesso. Contate o administrador.');
+      return;
+    }
+    wmsUser = snap.data();
+    operadorAtivo = wmsUser.name || user.displayName || user.email.split('@')[0];
+    renderUserBtn();
+
+    canAlterarEnd = wmsUser.role === 'admin' ||
+      (Array.isArray(wmsUser.modules) && wmsUser.modules.includes('alterar_end'));
+    $('tabAlterar').style.display = canAlterarEnd ? '' : 'none';
+
+    hideLoginOverlay();
+    setTimeout(() => $('skuIn').focus(), 100);
+
+    carregarEstoque().then(() => {
+      renderRuaChips();
+      renderPosList();
+    });
+  } catch(e) {
+    await auth.signOut();
+    showLoginOverlay('Erro ao verificar acesso: ' + e.message);
+  }
+});
+
+// ── Log local ────────────────────────────────────────────────────────────────
+const LOG_KEY = 'hum_log';
+const LOG_MAX = 500;
+function loadLog() {
+  try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; }
+}
+function appendLog(entry) {
+  const log = loadLog();
+  log.unshift({ ts: new Date().toISOString(), op: getOperador(), ...entry });
+  if (log.length > LOG_MAX) log.splice(LOG_MAX);
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+function clearLog() { localStorage.removeItem(LOG_KEY); }
+
+function renderHistorico() {
+  const log = loadLog();
+  const empty = $('histEmpty');
+  const scroll = $('logScroll');
+  if (!log.length) {
+    empty.style.display = 'block';
+    scroll.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  let lastDay = '';
+  scroll.innerHTML = log.map(e => {
+    const d = new Date(e.ts);
+    const day = d.toLocaleDateString('pt-BR');
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const dayHeader = day !== lastDay
+      ? `<div class="logDay">${day}</div>`
+      : '';
+    lastDay = day;
+    const isTrf = e.acao === 'Transferência';
+    const locHtml = isTrf
+      ? `<span class="logLoc">${e.de_rua}/${e.de_pos} → ${e.rua}/${e.pos}</span>`
+      : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
+    const opHtml = e.op ? ` · <span class="logOp">${e.op}</span>` : '';
+    return `${dayHeader}<div class="logEntry">
+      <div class="logTop">
+        <span class="logTime">${time}</span>
+        <span class="logBadge ${isTrf ? 'trf' : 'end'}">${e.acao}</span>${opHtml}
+      </div>
+      <div class="logDesc">${e.desc || '–'}</div>
+      <div class="logMeta">SKU ${e.sku || '–'} · Lote ${e.lote || '–'} · ${locHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function exportCSV() {
+  const log = loadLog();
+  if (!log.length) return;
+  const header = 'Data/Hora,Operador,Ação,SKU,Descrição,Lote,De,Para';
+  const rows = log.map(e => {
+    const dt = new Date(e.ts).toLocaleString('pt-BR');
+    const de = e.de_rua ? `${e.de_rua}/${e.de_pos}` : '';
+    const para = `${e.rua}/${e.pos}`;
+    return [dt, e.op, e.acao, e.sku, e.desc, e.lote, de, para]
+      .map(v => `"${String(v || '').replace(/"/g, '""')}"`)
+      .join(',');
+  });
+  const csv = '﻿' + [header, ...rows].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `hum_log_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showStep(n) {
+  ['step1','step2','step3'].forEach((id, i) => $(id).classList.toggle('active', i === n - 1));
+}
+
+function showMsg(elId, type, text) {
+  const el = $(elId);
+  el.className = 'msg ' + type;
+  el.textContent = text;
+}
+
+function hideMsg(elId) {
+  $(elId).className = 'msg';
+  $(elId).textContent = '';
+}
+
+function atualizarContagemHint() {
+  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao).length;
+  $('pendingCountHint').textContent = `${estoqueAtual.length} itens no estoque · ${pendentesCount} pendentes`;
+}
+
+// Mesma regra do index.html: Bomba Enteral sem endereço vira P/99 (posição "guarda-chuva"),
+// não conta como pendente. Mantém consistência de contagem/busca entre os dois apps.
+function normalizarBombaEnteral(lista) {
+  lista.forEach(r => {
+    if (!r.rua && !r.posicao) {
+      const desc = String(r.item_descricao || '').toUpperCase();
+      if (desc.includes('BOMBA ENTERAL')) {
+        r.rua = 'P';
+        r.posicao = '99';
+      }
+    }
+  });
+  return lista;
+}
+
+async function carregarEstoque() {
+  const btn = $('btnRefresh');
+  btn.disabled = true;
+  $('pendingCountHint').textContent = 'Atualizando…';
+  try {
+    estoqueAtual = normalizarBombaEnteral(await erpGetEstoque());
+    atualizarContagemHint();
+    atualizarListaRuas();
+  } catch (e) {
+    $('pendingCountHint').textContent = 'Falha ao carregar estoque';
+    showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function buscarSku(sku) {
+  hideMsg('step1Msg');
+  $('matchList').innerHTML = '';
+  const skuNorm = sku.trim();
+  if (!skuNorm) {
+    showMsg('step1Msg', 'warn', 'Informe ou escaneie o código do produto.');
+    return;
+  }
+
+  // Busca em todo o estoque (pendentes e já endereçados) — aceita SKU interno ou EAN
+  const matches = estoqueAtual.filter(r =>
+    String(r.item_codigo || '').trim() === skuNorm ||
+    String(r.item_ean13  || '').trim() === skuNorm
+  );
+
+  if (matches.length === 0) {
+    showMsg('step1Msg', 'warn', `Nenhum item encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
+    $('btnNovaConsulta').style.display = '';
+    return;
+  }
+  if (matches.length === 1) {
+    selecionarItem(matches[0]);
+    return;
+  }
+  // múltiplos lotes/posições do mesmo produto — pede pra escolher
+  $('matchList').innerHTML = matches.map((m, i) => {
+    const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : 'Pendente (sem endereço)';
+    return `
+    <div class="matchCard" data-idx="${i}">
+      <div class="desc">${m.item_descricao || '–'}</div>
+      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'} · ${statusTxt}</div>
+    </div>`;
+  }).join('');
+  $('matchList').querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => selecionarItem(matches[parseInt(card.dataset.idx)]));
+  });
+  $('btnNovaConsulta').style.display = '';
+}
+
+function limparBusca() {
+  $('skuIn').value = '';
+  $('matchList').innerHTML = '';
+  hideMsg('step1Msg');
+  $('btnNovaConsulta').style.display = 'none';
+  $('skuIn').focus();
+}
+
+function selecionarItem(item) {
+  selecionado = item;
+  modoTransferencia = !!(item.rua && item.posicao);
+
+  const statusLine = modoTransferencia
+    ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
+    : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
+
+  $('itemBoxDestino').innerHTML = `
+    <div class="desc">${item.item_descricao || '–'}</div>
+    <div class="meta">
+      <span>SKU ${item.item_codigo || '–'}</span>
+      <span>Lote ${item.numero_lote || '–'}</span>
+      <span>Val. ${brDate(item.dt_validade)}</span>
+      <span>Saldo ${item.saldo_aberto || '–'}</span>
+    </div>
+    ${statusLine}`;
+
+  $('ruaLabel').textContent = modoTransferencia ? 'Nova rua de destino' : 'Rua de destino';
+  $('posLabel').textContent = modoTransferencia ? 'Nova posição de destino' : 'Posição de destino';
+
+  $('ruaIn').value = '';
+  $('posIn').value = '';
+  hideMsg('step2Msg');
+  showStep(2);
+  $('ruaIn').focus();
+}
+
+function irParaConfirmacao() {
+  const rua = $('ruaIn').value.trim().toUpperCase();
+  const pos = $('posIn').value.trim();
+  if (!rua || !pos) {
+    showMsg('step2Msg', 'warn', 'Informe a rua e a posição de destino.');
+    return false;
+  }
+  if (modoTransferencia && rua === String(selecionado.rua).toUpperCase() && pos === String(selecionado.posicao)) {
+    showMsg('step2Msg', 'warn', 'Destino igual ao endereço atual. Escolha um endereço diferente.');
+    return false;
+  }
+  hideMsg('step2Msg');
+
+  const acaoLabel = modoTransferencia ? 'Transferência' : 'Novo endereço';
+  const origemRow = modoTransferencia
+    ? `<div class="summaryRow"><span class="k">De</span><span class="v">${selecionado.rua} · Pos. ${selecionado.posicao}</span></div>`
+    : '';
+
+  $('itemBoxConfirm').innerHTML = `
+    <div class="desc">${selecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">Ação</span><span class="v">${acaoLabel}</span></div>
+    <div class="summaryRow"><span class="k">SKU</span><span class="v">${selecionado.item_codigo || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Lote</span><span class="v">${selecionado.numero_lote || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Validade</span><span class="v">${brDate(selecionado.dt_validade)}</span></div>
+    <div class="summaryRow"><span class="k">Saldo</span><span class="v">${selecionado.saldo_aberto || '–'}</span></div>
+    ${origemRow}
+    <div class="summaryRow"><span class="k">Para</span><span class="v">${rua} · Pos. ${pos}</span></div>
+  `;
+  hideMsg('step3Msg');
+  showStep(3);
+  return true;
+}
+
+async function confirmarEnvio() {
+  const rua = $('ruaIn').value.trim().toUpperCase();
+  const pos = $('posIn').value.trim();
+  const prevRua = String(selecionado.rua || '');
+  const prevPos = String(selecionado.posicao || '');
+  const btn = $('btnConfirmSend');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando…';
+  hideMsg('step3Msg');
+
+  try {
+    let okMsg;
+    let result;
+    if (modoTransferencia) {
+      result = await erpUpdateEndereco({
+        id_item_enderecamento: selecionado.id_item_enderecamento,
+        rua,
+        posicao: pos
+      });
+      selecionado.rua = rua;
+      selecionado.posicao = pos;
+      okMsg = `Transferido com sucesso para Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
+    } else {
+      result = await erpCreateEndereco({
+        item_id:       selecionado.item_id,
+        unidade_id:    selecionado.empresa_id,
+        estoque:       selecionado.saldo_aberto || undefined,
+        rua,
+        posicao:       pos,
+        lote:          selecionado.numero_lote || undefined,
+        data_validade: selecionado.dt_validade || undefined
+      });
+      selecionado.rua = rua;
+      selecionado.posicao = pos;
+      if (result.id_item_enderecamento) selecionado.id_item_enderecamento = result.id_item_enderecamento;
+      okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
+    }
+
+    appendLog({
+      acao: modoTransferencia ? 'Transferência' : 'Endereçamento',
+      sku:  selecionado.item_codigo   || '',
+      desc: selecionado.item_descricao || '',
+      lote: selecionado.numero_lote   || '',
+      rua, pos,
+      de_rua: modoTransferencia ? prevRua : '',
+      de_pos: modoTransferencia ? prevPos : ''
+    });
+
+    atualizarContagemHint();
+    sessionCount++;
+    $('sessionCount').textContent = sessionCount;
+
+    showMsg('step3Msg', 'ok', okMsg);
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar Endereçamento';
+
+    setTimeout(() => {
+      showStep(1);
+      limparBusca();
+      hideMsg('step3Msg');
+    }, 400);
+  } catch (e) {
+    showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar Endereçamento';
+  }
+}
+
+// ── Dashboard de posições (Consultar endereço) ──────────────────────────────
+const RUAS_BASE = ['A','B','C','D','E','F','G'];
+let RUAS = [...RUAS_BASE];
+const POSES = Array.from({ length: 40 }, (_, i) => i + 1);
+let ruaAtiva = 'A';
+
+// Inclui ruas extras que existirem nos dados reais (ex.: P, Q, Z) além da grade padrão A-G
+function atualizarListaRuas() {
+  const extras = [...new Set(estoqueAtual.map(r => String(r.rua || '').trim().toUpperCase()).filter(Boolean))];
+  const todas = [...RUAS_BASE];
+  extras.forEach(r => { if (!todas.includes(r)) todas.push(r); });
+  RUAS = todas.sort();
+}
+
+function renderRuaChips() {
+  $('ruaChips').innerHTML = RUAS.map(r =>
+    `<button class="ruaChip ${r === ruaAtiva ? 'active' : ''}" data-rua="${r}">${r}</button>`
+  ).join('');
+  $('ruaChips').querySelectorAll('[data-rua]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      ruaAtiva = chip.dataset.rua;
+      renderRuaChips();
+      renderPosList();
+    });
+  });
+}
+
+// Posições padrão (1-40) + quaisquer posições fora dessa faixa que existam de fato
+// nos dados para a rua (ex.: P/99, usada como guarda-chuva para Bomba Enteral)
+function posesParaRua(rua) {
+  const itensRua = estoqueAtual.filter(r => String(r.rua || '').trim().toUpperCase() === rua);
+  const extras = itensRua
+    .map(r => parseInt(r.posicao, 10))
+    .filter(n => !isNaN(n) && !POSES.includes(n));
+  return [...POSES, ...new Set(extras)].sort((a, b) => a - b);
+}
+
+function renderPosList() {
+  const filtro = $('dashFiltro').value.trim().toLowerCase();
+  const itensRua = estoqueAtual.filter(r => String(r.rua || '').trim().toUpperCase() === ruaAtiva);
+
+  $('posList').innerHTML = posesParaRua(ruaAtiva).map(pos => {
+    const itens = itensRua.filter(r => String(r.posicao || '').trim() === String(pos));
+    const isFree = itens.length === 0;
+
+    if (filtro) {
+      const bate = String(pos).includes(filtro) || itens.some(it =>
+        (it.item_codigo || '').toLowerCase().includes(filtro) ||
+        (it.item_descricao || '').toLowerCase().includes(filtro)
+      );
+      if (!bate) return '';
+    }
+
+    if (isFree) {
+      return `<div class="posRow">
+        <div class="posNum">${pos}</div>
+        <div class="posInfo"><span class="posFreeLabel">Livre</span></div>
+        <span class="posBadge">Livre</span>
+      </div>`;
+    }
+    const descs = itens.map(it => it.item_descricao || '–').join(' + ');
+    const metas = itens.map(it => `SKU ${it.item_codigo || '–'} · Lote ${it.numero_lote || '–'} · Saldo ${it.saldo_aberto || '–'}`).join(' / ');
+    return `<div class="posRow occ">
+      <div class="posNum">${pos}</div>
+      <div class="posInfo">
+        <div class="desc">${descs}</div>
+        <div class="meta">${metas}</div>
+      </div>
+      <span class="posBadge">${itens.length > 1 ? itens.length + ' itens' : 'Ocupado'}</span>
+    </div>`;
+  }).join('');
+}
+
+$('dashFiltro').addEventListener('input', renderPosList);
+$('btnLimparFiltro').addEventListener('click', () => {
+  $('dashFiltro').value = '';
+  renderPosList();
+  $('dashFiltro').focus();
+});
+
+// ── Scanner de câmera (mesmo padrão usado no index.html) ────────────────────
+let _scanner = null;
+let _scanOpening = false;
+let _lastDetectionAt = 0;
+
+function _onBarcodeDetected(code) {
+  const now = Date.now();
+  if (now - _lastDetectionAt < 1200) return;
+  _lastDetectionAt = now;
+  closeScan();
+  const val = String(code || '').trim();
+  if (!val) return;
+  // Direciona para a aba que está ativa
+  if ($('viewAlterar').classList.contains('active')) {
+    $('altSkuIn').value = val;
+    altBuscarSku(val);
+  } else {
+    $('skuIn').value = val;
+    buscarSku(val);
+  }
+}
+
+async function openScan() {
+  if (_scanOpening || _scanner?.active) return;
+  _scanOpening = true;
+  $('scanOverlay').classList.add('show');
+  $('scanHint').textContent = 'Iniciando câmera...';
+
+  // BarcodeDetector é rápido quando o navegador suporta os formatos necessários.
+  if (typeof BarcodeDetector !== 'undefined') {
+    let stream = null;
+    try {
+      const supported = typeof BarcodeDetector.getSupportedFormats === 'function'
+        ? await BarcodeDetector.getSupportedFormats()
+        : [];
+      const wanted = ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf'];
+      const formats = supported.length ? wanted.filter(f => supported.includes(f)) : wanted;
+      if (!formats.length) throw new Error('Formatos de barras não suportados');
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      $('scanReader').innerHTML = '';
+      $('scanReader').appendChild(video);
+      await video.play();
+
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track?.getCapabilities?.();
+      if (capabilities?.focusMode?.includes('continuous')) {
+        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+
+      const det = new BarcodeDetector({ formats });
+      $('scanHint').textContent = 'Centralize o código e mantenha o celular firme';
+      _scanner = { type: 'native', stream, active: true };
+      _scanOpening = false;
+
+      const loop = async () => {
+        if (!_scanner?.active) return;
+        try {
+          const res = await det.detect(video);
+          if (res.length) {
+            _onBarcodeDetected(res[0].rawValue);
+            return;
+          }
+        } catch {}
+        setTimeout(loop, 90);
+      };
+      setTimeout(loop, 120);
+      return;
+    } catch (e) {
+      stream?.getTracks().forEach(t => t.stop());
+      $('scanReader').innerHTML = '';
+    }
+  }
+
+  // Fallback compatível com navegadores sem BarcodeDetector.
+  if (!window.Html5Qrcode) {
+    $('scanHint').textContent = 'Carregando leitor...';
+    try {
+      await new Promise((res, rej) => {
+        const existing = document.querySelector('script[data-html5-qrcode]');
+        if (existing) {
+          existing.addEventListener('load', res, { once: true });
+          existing.addEventListener('error', rej, { once: true });
+          return;
+        }
+        const s = document.createElement('script');
+        s.dataset.html5Qrcode = '1';
+        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        s.onload = res;
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    } catch (e) {
+      _scanOpening = false;
+      $('scanHint').textContent = 'Não foi possível carregar o leitor. Use o leitor físico ou digite.';
+      return;
+    }
+  }
+
+  try {
+    const qr = new Html5Qrcode('scanReader', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF
+      ],
+      verbose: false
+    });
+    _scanner = { type: 'html5', qr, active: true };
+    await qr.start(
+      { facingMode: 'environment' },
+      {
+        fps: 12,
+        qrbox: (w, h) => ({
+          width: Math.min(320, Math.floor(w * .88)),
+          height: Math.min(150, Math.floor(h * .42))
+        }),
+        aspectRatio: 1.777778,
+        disableFlip: true
+      },
+      (code) => _onBarcodeDetected(code)
+    );
+    _scanOpening = false;
+    $('scanHint').textContent = 'Centralize o código e mantenha o celular firme';
+  } catch (e) {
+    _scanOpening = false;
+    _scanner = null;
+    $('scanReader').innerHTML = '';
+    $('scanHint').textContent = 'Câmera indisponível ou sem permissão. Verifique a permissão do navegador.';
+  }
+}
+
+async function closeScan() {
+  _scanOpening = false;
+  $('scanOverlay').classList.remove('show');
+  const sc = _scanner;
+  _scanner = null;
+  if (!sc) {
+    $('scanReader').innerHTML = '';
+    return;
+  }
+  sc.active = false;
+  if (sc.type === 'native') {
+    sc.stream?.getTracks().forEach(t => t.stop());
+    $('scanReader').innerHTML = '';
+  } else if (sc.type === 'html5') {
+    try { await sc.qr.stop(); } catch {}
+    try { await sc.qr.clear(); } catch {}
+    $('scanReader').innerHTML = '';
+  }
+}
+
+$('scanBtn').addEventListener('click', openScan);
+$('scanClose').addEventListener('click', closeScan);
+$('scanOverlay').addEventListener('click', e => { if (e.target === $('scanOverlay')) closeScan(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('scanOverlay').classList.contains('show')) closeScan();
+});
+if (!navigator.mediaDevices?.getUserMedia) {
+  const sb = $('scanBtn'); if (sb) sb.style.display = 'none';
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewId));
+  document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+  if (viewId === 'viewConsultar') renderPosList();
+  if (viewId === 'viewHistorico') renderHistorico();
+  if (viewId === 'viewAlterar')   { showAltStep(1); $('altSkuIn').focus(); }
+}
+$('tabEnderecar').addEventListener('click', () => switchView('viewEnderecar'));
+$('tabConsultar').addEventListener('click', () => switchView('viewConsultar'));
+$('tabHistorico').addEventListener('click', () => switchView('viewHistorico'));
+$('tabAlterar').addEventListener('click',   () => switchView('viewAlterar'));
+
+// ── Listeners ────────────────────────────────────────────────────────────────
+$('skuIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); buscarSku($('skuIn').value); }
+});
+$('btnBuscarSku').addEventListener('click', () => buscarSku($('skuIn').value));
+$('btnLimparBusca').addEventListener('click', limparBusca);
+$('btnNovaConsulta').addEventListener('click', limparBusca);
+
+$('ruaIn').addEventListener('input', () => {
+  if ($('ruaIn').value.trim().length >= 1) setTimeout(() => $('posIn').focus(), 80);
+});
+$('ruaIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('posIn').focus(); }
+});
+$('posIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); if (irParaConfirmacao()) confirmarEnvio(); }
+});
+
+$('btnToConfirm').addEventListener('click', irParaConfirmacao);
+$('btnConfirmSend').addEventListener('click', confirmarEnvio);
+
+$('btnBack1').addEventListener('click', () => {
+  selecionado = null;
+  showStep(1);
+  limparBusca();
+});
+$('btnBack2').addEventListener('click', () => showStep(2));
+
+$('btnRefresh').addEventListener('click', async () => {
+  await carregarEstoque();
+  renderRuaChips();
+  renderPosList();
+});
+
+// ── Usuário logado: listeners ─────────────────────────────────────────────────
+$('btnUser').addEventListener('click', abrirUserInfoOverlay);
+$('uiClose').addEventListener('click', fecharUserInfoOverlay);
+$('uiOverlay').addEventListener('click', e => { if (e.target === $('uiOverlay')) fecharUserInfoOverlay(); });
+$('btnLogout').addEventListener('click', doLogout);
+$('btnLoginEntrar').addEventListener('click', doLogin);
+$('loginSenha').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doLogin(); } });
+$('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('loginSenha').focus(); } });
+
+// ── Módulo Alterar: funções ───────────────────────────────────────────────────
+let altSelecionado = null;
+
+function showAltStep(n) {
+  ['altStep1','altStep2','altStep3'].forEach((id, i) => $(id).classList.toggle('active', i === n - 1));
+}
+
+function altBuscarSku(sku) {
+  const skuNorm = sku.trim();
+  $('altMatchList').innerHTML = '';
+  hideMsg('altStep1Msg');
+  if (!skuNorm) {
+    showMsg('altStep1Msg', 'warn', 'Informe ou escaneie o código do produto.');
+    return;
+  }
+  const matches = estoqueAtual.filter(r =>
+    (String(r.item_codigo || '').trim() === skuNorm || String(r.item_ean13 || '').trim() === skuNorm)
+    && r.rua && r.posicao && r.id_item_enderecamento
+  );
+  if (matches.length === 0) {
+    showMsg('altStep1Msg', 'warn', `Nenhum item endereçado encontrado com "${skuNorm}". Atualize a lista se necessário.`);
+    return;
+  }
+  if (matches.length === 1) { altSelecionarItem(matches[0]); return; }
+  $('altMatchList').innerHTML = matches.map((m, i) => `
+    <div class="matchCard" data-idx="${i}">
+      <div class="desc">${m.item_descricao || '–'}</div>
+      <div class="meta">Lote ${m.numero_lote || '–'} · Em ${m.rua}/${m.posicao} · Saldo ${m.saldo_aberto || '–'}</div>
+    </div>`).join('');
+  $('altMatchList').querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => altSelecionarItem(matches[parseInt(card.dataset.idx)]));
+  });
+}
+
+function altSelecionarItem(item) {
+  altSelecionado = item;
+  $('altItemBox').innerHTML = `
+    <div class="desc">${item.item_descricao || '–'}</div>
+    <div class="meta">
+      <span>SKU ${item.item_codigo || '–'}</span>
+      <span>Lote ${item.numero_lote || '–'}</span>
+      <span>Val. ${brDate(item.dt_validade)}</span>
+      <span>Saldo ${item.saldo_aberto || '–'}</span>
+    </div>
+    <div class="summaryRow" style="margin-top:10px"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>
+    <div class="summaryRow"><span class="k">ID no ERP</span><span class="v">${item.id_item_enderecamento}</span></div>`;
+  hideMsg('altStep2Msg');
+  showAltStep(2);
+}
+
+$('btnAltBuscar').addEventListener('click', () => altBuscarSku($('altSkuIn').value));
+$('altSkuIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); altBuscarSku($('altSkuIn').value); } });
+$('altScanBtn').addEventListener('click', openScan);
+
+$('btnAltRemover').addEventListener('click', () => {
+  if (!altSelecionado) return;
+  $('altItemBoxConfirm').innerHTML = `
+    <div class="desc">${altSelecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">SKU</span><span class="v">${altSelecionado.item_codigo || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Lote</span><span class="v">${altSelecionado.numero_lote || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Endereço a remover</span><span class="v">${altSelecionado.rua} · Pos. ${altSelecionado.posicao}</span></div>`;
+  hideMsg('altStep3Msg');
+  showAltStep(3);
+});
+
+$('btnAltVoltarBusca').addEventListener('click', () => {
+  altSelecionado = null;
+  $('altSkuIn').value = '';
+  $('altMatchList').innerHTML = '';
+  hideMsg('altStep1Msg');
+  showAltStep(1);
+  $('altSkuIn').focus();
+});
+
+$('btnAltCancelarDel').addEventListener('click', () => showAltStep(2));
+
+$('btnAltConfirmDel').addEventListener('click', async () => {
+  if (!altSelecionado) return;
+  const btn = $('btnAltConfirmDel');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Removendo…';
+  hideMsg('altStep3Msg');
+  try {
+    await erpDeleteEndereco(altSelecionado.id_item_enderecamento);
+    appendLog({
+      acao: 'Remoção',
+      sku:  altSelecionado.item_codigo || '',
+      desc: altSelecionado.item_descricao || '',
+      lote: altSelecionado.numero_lote || '',
+      rua:  altSelecionado.rua,
+      pos:  altSelecionado.posicao,
+      de_rua: altSelecionado.rua,
+      de_pos: altSelecionado.posicao
+    });
+    const idx = estoqueAtual.indexOf(altSelecionado);
+    if (idx >= 0) estoqueAtual.splice(idx, 1);
+    atualizarContagemHint();
+    sessionCount++;
+    $('sessionCount').textContent = sessionCount;
+    showMsg('altStep3Msg', 'ok', `Endereço ${altSelecionado.rua}/${altSelecionado.posicao} removido com sucesso.`);
+    btn.disabled = false;
+    btn.innerHTML = 'Confirmar remoção';
+    setTimeout(() => {
+      altSelecionado = null;
+      $('altSkuIn').value = '';
+      $('altMatchList').innerHTML = '';
+      hideMsg('altStep1Msg');
+      showAltStep(1);
+      $('altSkuIn').focus();
+    }, 1500);
+  } catch(e) {
+    showMsg('altStep3Msg', 'err', 'Falha ao remover: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = 'Confirmar remoção';
+  }
+});
+
+// ── Histórico: listeners ──────────────────────────────────────────────────────
+$('btnExportCSV').addEventListener('click', exportCSV);
+
+let clearPending = false;
+$('btnClearLog').addEventListener('click', () => {
+  if (!clearPending) {
+    clearPending = true;
+    $('btnClearLog').textContent = '⚠ Confirmar?';
+    setTimeout(() => { clearPending = false; $('btnClearLog').textContent = '🗑 Limpar'; }, 3000);
+  } else {
+    clearLog();
+    clearPending = false;
+    $('btnClearLog').textContent = '🗑 Limpar';
+    renderHistorico();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+// Firebase onAuthStateChanged gerencia a inicialização da sessão.
+// Renderiza chips vazios enquanto aguarda auth.
+renderRuaChips();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw-endereco.js').catch(() => {});
+}
+</script>
+</body>
+</html>
