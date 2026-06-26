@@ -2576,12 +2576,26 @@ header {
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label class="form-label">E-mail Google</label>
-        <input class="form-input" id="userEmail" type="email" placeholder="usuario@gmail.com">
+        <label class="form-label">E-mail</label>
+        <input class="form-input" id="userEmail" type="email" placeholder="usuario@email.com">
       </div>
       <div class="form-group">
         <label class="form-label">Nome</label>
         <input class="form-input" id="userName2" type="text" placeholder="Nome completo">
+      </div>
+      <!-- Campos de senha — só visíveis ao criar novo usuário -->
+      <div id="userPasswordSection" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input class="form-input" id="userPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+          <div class="form-hint">Cria uma conta com e-mail e senha no Firebase.</div>
+        </div>
+      </div>
+      <!-- Redefinir senha — só visível ao editar usuário existente -->
+      <div id="resetPasswordSection" style="display:none">
+        <div class="form-group">
+          <button class="btn" id="btnResetPassword" style="padding:6px 14px;font-size:13px;color:var(--muted)">📧 Enviar e-mail de redefinição de senha</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Tipo de acesso</label>
@@ -2786,9 +2800,10 @@ const WMS_RUAS = ['A','B','C','D','E','F','G'];
 
 // Módulos disponíveis para configuração por usuário
 const WMS_MODULES = [
-  { id:'map',        label:'Mapa',            icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
-  { id:'dashboard',  label:'Dashboard',       icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
-  { id:'expiry',     label:'Validades',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+  { id:'map',        label:'Mapa',                       icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
+  { id:'dashboard',  label:'Dashboard',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+  { id:'expiry',     label:'Validades',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+  { id:'alterar_end',label:'Coletor — Alterar Endereço', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
   { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
   { id:'coletor',    label:'Coletor',          icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>' },
   { id:'gestao',     label:'Ordens de Sep.',    icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
@@ -3998,10 +4013,14 @@ function _renderModuleCheckboxes(selectedModules) {
 
 function openUserModal(email, data) {
   S.editUserId = email || null;
-  $('userModalTitle').textContent = email ? 'Editar usuário' : 'Convidar usuário';
+  const isNew = !email;
+  $('userModalTitle').textContent = isNew ? 'Criar usuário' : 'Editar usuário';
   $('userEmail').value = email || '';
   $('userEmail').readOnly = !!email;
   $('userName2').value = data?.name || '';
+  if ($('userPassword')) $('userPassword').value = '';
+  $('userPasswordSection').style.display = isNew ? '' : 'none';
+  $('resetPasswordSection').style.display = isNew ? 'none' : '';
 
   // Normaliza role legado para 'custom' no novo sistema
   const rawRole = data?.role || 'custom';
@@ -4028,10 +4047,15 @@ function openUserModal(email, data) {
 $('btnAddUser').addEventListener('click', () => openUserModal(null, null));
 
 $('saveUserBtn').addEventListener('click', async () => {
-  const email = $('userEmail').value.trim();
-  const name  = $('userName2').value.trim();
-  const role  = $('userRole').value;
+  const email    = $('userEmail').value.trim();
+  const name     = $('userName2').value.trim();
+  const role     = $('userRole').value;
+  const isNew    = !S.editUserId;
+  const password = isNew ? ($('userPassword')?.value || '') : '';
+
   if (!email) { alert('Informe o e-mail.'); return; }
+  if (isNew && !password) { alert('Informe a senha para o novo usuário.'); return; }
+  if (isNew && password.length < 6) { alert('A senha deve ter ao menos 6 caracteres.'); return; }
 
   const modules = role === 'admin'
     ? null
@@ -4041,6 +4065,24 @@ $('saveUserBtn').addEventListener('click', async () => {
 
   loading(true, 'Salvando...');
   try {
+    if (isNew) {
+      // Cria conta Firebase Auth via app secundário (sem deslogar o admin)
+      const secApp = firebase.initializeApp(firebase.app().options, 'wms-secondary-' + Date.now());
+      try {
+        const secAuth = secApp.auth();
+        await secAuth.createUserWithEmailAndPassword(email, password);
+        if (name) await secAuth.currentUser?.updateProfile({ displayName: name });
+        await secAuth.signOut();
+      } catch(e) {
+        if (e.code !== 'auth/email-already-in-use') {
+          await secApp.delete();
+          throw new Error('Erro ao criar conta: ' + e.message);
+        }
+        // Se o usuário já existe no Auth, só atualiza o Firestore
+      }
+      await secApp.delete();
+    }
+
     await db.collection('wms_users').doc(email).set(
       { name, role, modules, canColetor, active: true, updatedAt: new Date().toISOString() },
       { merge: true }
@@ -4049,6 +4091,17 @@ $('saveUserBtn').addEventListener('click', async () => {
     renderUsers();
   } catch(e) { alert('Erro: ' + e.message); }
   loading(false);
+});
+
+$('btnResetPassword')?.addEventListener('click', async () => {
+  const email = $('userEmail').value.trim();
+  if (!email) return;
+  try {
+    await auth.sendPasswordResetEmail(email);
+    alert(`E-mail de redefinição enviado para ${email}`);
+  } catch(e) {
+    alert('Erro ao enviar e-mail: ' + e.message);
+  }
 });
 
 // ══════════════════════════════════════════════════════
