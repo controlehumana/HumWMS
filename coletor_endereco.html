@@ -378,10 +378,10 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
       <span>Identificação do operador</span>
       <button id="opClose" aria-label="Fechar">✕</button>
     </div>
-    <p class="opWelcome" id="opWelcome">Informe seu nome para liberar o sistema. Isso garante o rastreio de cada operação.</p>
+    <p class="opWelcome" id="opWelcome">Confirme sua identidade para liberar o sistema. O nome é registrado em cada operação.</p>
     <label class="label" for="opInput">Seu nome</label>
     <input class="inputField" id="opInput" autocomplete="off" placeholder="Ex: João Silva" maxlength="40">
-    <button class="btn btn-primary" id="btnSalvarOp">Salvar</button>
+    <button class="btn btn-primary" id="btnSalvarOp">Confirmar e entrar</button>
   </div>
 </div>
 
@@ -448,27 +448,33 @@ let modoTransferencia = false; // true = item já endereçado (PUT) | false = pe
 let sessionCount = 0;
 
 // ── Operador ─────────────────────────────────────────────────────────────────
+// operadorAtivo: só em memória — zerado a cada abertura do app (exige nova confirmação)
+// localStorage guarda apenas a sugestão para pré-preencher o campo
 const OP_KEY = 'hum_operador';
-function getOperador() { return localStorage.getItem(OP_KEY) || ''; }
+let operadorAtivo = '';
+function getOperador() { return operadorAtivo; }
 function setOperador(nome) {
-  if (nome.trim()) localStorage.setItem(OP_KEY, nome.trim());
-  else localStorage.removeItem(OP_KEY);
+  operadorAtivo = nome.trim();
+  if (operadorAtivo) localStorage.setItem(OP_KEY, operadorAtivo);
 }
 function renderOperadorBtn() {
-  const nome = getOperador();
-  $('btnOperador').textContent = nome ? `👤 ${nome}` : '👤 Toque para identificar';
+  $('btnOperador').textContent = operadorAtivo ? `👤 ${operadorAtivo}` : '👤 Toque para identificar';
 }
 function abrirOpOverlay() {
-  const temNome = !!getOperador();
-  $('opInput').value = getOperador();
+  const confirmando = !operadorAtivo; // true = sessão nova, obrigatório confirmar
+  // pré-preenche com o último nome usado (só sugestão, ainda precisa confirmar)
+  $('opInput').value = localStorage.getItem(OP_KEY) || '';
   $('opInput').style.borderColor = '';
-  $('opOverlay').classList.toggle('required', !temNome);
+  $('opOverlay').classList.toggle('required', confirmando);
   $('opOverlay').classList.add('show');
-  if (!temNome) document.body.classList.add('op-locked');
-  setTimeout(() => $('opInput').focus(), 60);
+  if (confirmando) document.body.classList.add('op-locked');
+  setTimeout(() => {
+    if ($('opInput').value) $('opInput').select(); // seleciona tudo p/ trocar rápido
+    else $('opInput').focus();
+  }, 60);
 }
 function fecharOpOverlay() {
-  if (!getOperador()) return; // bloqueia fechar sem nome salvo
+  if (!operadorAtivo) return; // bloqueia fechar sem confirmação
   $('opOverlay').classList.remove('show', 'required');
   document.body.classList.remove('op-locked');
 }
