@@ -142,11 +142,12 @@ body{
 }
 .footerBar .hint{margin:0}
 .refreshBtn{
-  font-size:12px;color:var(--green-dark);background:none;border:none;cursor:pointer;
-  display:flex;align-items:center;gap:5px;font-weight:600;padding:4px;
+  font-size:14px;color:#fff;background:var(--green);border:none;border-radius:var(--radius-sm);cursor:pointer;
+  display:flex;align-items:center;gap:7px;font-weight:700;padding:10px 18px;flex-shrink:0;
 }
-.refreshBtn:disabled{opacity:.5}
-.refreshBtn svg{width:13px;height:13px}
+.refreshBtn:active{background:var(--green-dark)}
+.refreshBtn:disabled{opacity:.5;cursor:default}
+.refreshBtn svg{width:16px;height:16px}
 
 .summaryRow{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
 .summaryRow:last-child{border-bottom:none}
@@ -274,7 +275,7 @@ body{
           <div class="itemBox" id="itemBoxDestino"></div>
 
           <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
-          <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="2" style="text-transform:uppercase">
+          <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="1" style="text-transform:uppercase">
 
           <div style="height:10px"></div>
 
@@ -327,7 +328,6 @@ body{
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
 const ERP_PROXY       = 'https://corsproxy.io/?';
-let erpDirectWriteAvailable = false;
 
 function _erpUrl(extraQs = '') {
   return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
@@ -343,36 +343,23 @@ async function erpGetEstoque() {
   return data;
 }
 
-async function probeDirectWrite() {
-  try {
-    const resp = await fetch(_erpUrl(), {
-      method: 'OPTIONS',
-      signal: AbortSignal.timeout(3500),
-      cache: 'no-store'
-    });
-    const methods = resp.headers.get('access-control-allow-methods') || '';
-    const headers = resp.headers.get('access-control-allow-headers') || '';
-    erpDirectWriteAvailable = resp.ok
-      && /POST/i.test(methods)
-      && /PUT/i.test(methods)
-      && /content-type/i.test(headers);
-  } catch (_) {
-    erpDirectWriteAvailable = false;
-  }
-}
-
 async function erpWrite(method, payload) {
   const startedAt = performance.now();
-  const requestUrl = erpDirectWriteAvailable
-    ? _erpUrl()
-    : ERP_PROXY + encodeURIComponent(_erpUrl());
-  const resp = await fetch(requestUrl, {
+  const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-    signal:  AbortSignal.timeout(12000),
-    cache:   'no-store'
-  });
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  };
+  let resp;
+  try {
+    // Tenta direto primeiro — se CORS bloqueado, falha em < 100 ms (sem custo de timeout)
+    resp = await fetch(_erpUrl(), { ...opts, signal: AbortSignal.timeout(5000) });
+  } catch (_) {
+    resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+      ...opts, signal: AbortSignal.timeout(10000)
+    });
+  }
   let data = null;
   try { data = await resp.json(); } catch(_) {}
   if (!resp.ok || (data && data.sucesso === false)) {
@@ -528,11 +515,11 @@ function irParaConfirmacao() {
   const pos = $('posIn').value.trim();
   if (!rua || !pos) {
     showMsg('step2Msg', 'warn', 'Informe a rua e a posição de destino.');
-    return;
+    return false;
   }
   if (modoTransferencia && rua === String(selecionado.rua).toUpperCase() && pos === String(selecionado.posicao)) {
     showMsg('step2Msg', 'warn', 'Destino igual ao endereço atual. Escolha um endereço diferente.');
-    return;
+    return false;
   }
   hideMsg('step2Msg');
 
@@ -553,6 +540,7 @@ function irParaConfirmacao() {
   `;
   hideMsg('step3Msg');
   showStep(3);
+  return true;
 }
 
 async function confirmarEnvio() {
@@ -604,7 +592,7 @@ async function confirmarEnvio() {
       showStep(1);
       limparBusca();
       hideMsg('step3Msg');
-    }, 650);
+    }, 400);
   } catch (e) {
     showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + e.message);
     btn.disabled = false;
@@ -881,11 +869,14 @@ $('btnBuscarSku').addEventListener('click', () => buscarSku($('skuIn').value));
 $('btnLimparBusca').addEventListener('click', limparBusca);
 $('btnNovaConsulta').addEventListener('click', limparBusca);
 
+$('ruaIn').addEventListener('input', () => {
+  if ($('ruaIn').value.trim().length >= 1) setTimeout(() => $('posIn').focus(), 80);
+});
 $('ruaIn').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); $('posIn').focus(); }
 });
 $('posIn').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); irParaConfirmacao(); }
+  if (e.key === 'Enter') { e.preventDefault(); if (irParaConfirmacao()) confirmarEnvio(); }
 });
 
 $('btnToConfirm').addEventListener('click', irParaConfirmacao);
@@ -906,7 +897,6 @@ $('btnRefresh').addEventListener('click', async () => {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderRuaChips();
-probeDirectWrite();
 carregarEstoque().then(() => {
   renderRuaChips();
   renderPosList();
