@@ -209,6 +209,36 @@ body{
 .posBadge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;flex-shrink:0;white-space:nowrap}
 .posRow:not(.occ) .posBadge{background:var(--green-light);color:var(--green-dark)}
 .posRow.occ .posBadge{background:var(--danger-bg);color:var(--danger)}
+
+/* ── Operador ── */
+.operadorBtn{
+  display:inline-flex;align-items:center;gap:4px;margin-top:3px;
+  font-size:11px;font-weight:600;color:var(--green-dark);
+  background:var(--green-light);border:1px solid #a7f3d0;border-radius:99px;
+  padding:2px 8px;cursor:pointer;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+}
+.opOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;padding:16px}
+.opOverlay.show{display:flex}
+.opModal{background:#fff;border-radius:var(--radius-lg);width:min(340px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.opModalTitle{font-weight:700;font-size:15px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.opModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
+
+/* ── Histórico ── */
+.logDay{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.logEntry{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:10px 12px}
+.logTop{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.logTime{font-size:11px;color:var(--muted);font-weight:600}
+.logOp{font-size:11px;color:var(--subtle)}
+.logBadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0}
+.logBadge.end{background:var(--green-light);color:var(--green-dark)}
+.logBadge.trf{background:var(--info-bg);color:var(--info)}
+.logDesc{font-weight:600;font-size:12.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logMeta{font-size:11px;color:var(--muted)}
+.logLoc{font-weight:700;color:var(--text)}
+.logScroll{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto;padding-right:2px}
+.histActions{display:flex;gap:8px;margin-bottom:14px}
+.histActions .btn{margin-top:0;flex:1}
+.histEmpty{display:none;border-radius:var(--radius-md);padding:12px 14px;font-size:13px;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
 </style>
 </head>
 <body>
@@ -219,16 +249,18 @@ body{
       <div class="appIcon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
       </div>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="appName">Coletor de Endereçamento</div>
         <div class="appSub">Humana Alimentar</div>
+        <button class="operadorBtn" id="btnOperador">👤 Toque para identificar</button>
       </div>
       <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
     </div>
 
     <div class="tabBar">
-      <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">📦 Endereçar / Transferir</button>
-      <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">📍 Consultar endereço</button>
+      <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">📦 Endereçar</button>
+      <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">📍 Consultar</button>
+      <button class="tabBtn" id="tabHistorico" data-view="viewHistorico">📋 Histórico</button>
     </div>
 
     <div class="body">
@@ -310,6 +342,16 @@ body{
         <div id="posList" class="posList"></div>
       </div>
 
+      <!-- VIEW: HISTÓRICO ============================================= -->
+      <div class="view" id="viewHistorico">
+        <div class="histActions">
+          <button class="btn btn-primary" id="btnExportCSV">⬇ Exportar CSV</button>
+          <button class="btn btn-ghost" id="btnClearLog">🗑 Limpar</button>
+        </div>
+        <div id="histEmpty" class="histEmpty">Nenhuma ação registrada neste dispositivo ainda.</div>
+        <div id="logScroll" class="logScroll"></div>
+      </div>
+
     </div>
 
     <div class="footerBar">
@@ -320,6 +362,19 @@ body{
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- OVERLAY: identificação do operador -->
+<div class="opOverlay" id="opOverlay">
+  <div class="opModal">
+    <div class="opModalTitle">
+      <span>Identificação do operador</span>
+      <button id="opClose" aria-label="Fechar">✕</button>
+    </div>
+    <label class="label" for="opInput">Seu nome</label>
+    <input class="inputField" id="opInput" autocomplete="off" placeholder="Ex: João Silva" maxlength="40">
+    <button class="btn btn-primary" id="btnSalvarOp">Salvar</button>
   </div>
 </div>
 
@@ -384,6 +439,93 @@ let estoqueAtual = [];
 let selecionado = null;       // registro do ERP escolhido
 let modoTransferencia = false; // true = item já endereçado (PUT) | false = pendente novo (POST)
 let sessionCount = 0;
+
+// ── Operador ─────────────────────────────────────────────────────────────────
+const OP_KEY = 'hum_operador';
+function getOperador() { return localStorage.getItem(OP_KEY) || ''; }
+function setOperador(nome) {
+  if (nome.trim()) localStorage.setItem(OP_KEY, nome.trim());
+  else localStorage.removeItem(OP_KEY);
+}
+function renderOperadorBtn() {
+  const nome = getOperador();
+  $('btnOperador').textContent = nome ? `👤 ${nome}` : '👤 Toque para identificar';
+}
+function abrirOpOverlay() {
+  $('opInput').value = getOperador();
+  $('opOverlay').classList.add('show');
+  setTimeout(() => $('opInput').focus(), 60);
+}
+function fecharOpOverlay() { $('opOverlay').classList.remove('show'); }
+
+// ── Log local ────────────────────────────────────────────────────────────────
+const LOG_KEY = 'hum_log';
+const LOG_MAX = 500;
+function loadLog() {
+  try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; }
+}
+function appendLog(entry) {
+  const log = loadLog();
+  log.unshift({ ts: new Date().toISOString(), op: getOperador(), ...entry });
+  if (log.length > LOG_MAX) log.splice(LOG_MAX);
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+function clearLog() { localStorage.removeItem(LOG_KEY); }
+
+function renderHistorico() {
+  const log = loadLog();
+  const empty = $('histEmpty');
+  const scroll = $('logScroll');
+  if (!log.length) {
+    empty.style.display = 'block';
+    scroll.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  let lastDay = '';
+  scroll.innerHTML = log.map(e => {
+    const d = new Date(e.ts);
+    const day = d.toLocaleDateString('pt-BR');
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const dayHeader = day !== lastDay
+      ? `<div class="logDay">${day}</div>`
+      : '';
+    lastDay = day;
+    const isTrf = e.acao === 'Transferência';
+    const locHtml = isTrf
+      ? `<span class="logLoc">${e.de_rua}/${e.de_pos} → ${e.rua}/${e.pos}</span>`
+      : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
+    const opHtml = e.op ? ` · <span class="logOp">${e.op}</span>` : '';
+    return `${dayHeader}<div class="logEntry">
+      <div class="logTop">
+        <span class="logTime">${time}</span>
+        <span class="logBadge ${isTrf ? 'trf' : 'end'}">${e.acao}</span>${opHtml}
+      </div>
+      <div class="logDesc">${e.desc || '–'}</div>
+      <div class="logMeta">SKU ${e.sku || '–'} · Lote ${e.lote || '–'} · ${locHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function exportCSV() {
+  const log = loadLog();
+  if (!log.length) return;
+  const header = 'Data/Hora,Operador,Ação,SKU,Descrição,Lote,De,Para';
+  const rows = log.map(e => {
+    const dt = new Date(e.ts).toLocaleString('pt-BR');
+    const de = e.de_rua ? `${e.de_rua}/${e.de_pos}` : '';
+    const para = `${e.rua}/${e.pos}`;
+    return [dt, e.op, e.acao, e.sku, e.desc, e.lote, de, para]
+      .map(v => `"${String(v || '').replace(/"/g, '""')}"`)
+      .join(',');
+  });
+  const csv = '﻿' + [header, ...rows].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `hum_log_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 function showStep(n) {
   ['step1','step2','step3'].forEach((id, i) => $(id).classList.toggle('active', i === n - 1));
@@ -546,6 +688,8 @@ function irParaConfirmacao() {
 async function confirmarEnvio() {
   const rua = $('ruaIn').value.trim().toUpperCase();
   const pos = $('posIn').value.trim();
+  const prevRua = String(selecionado.rua || '');
+  const prevPos = String(selecionado.posicao || '');
   const btn = $('btnConfirmSend');
 
   btn.disabled = true;
@@ -579,6 +723,16 @@ async function confirmarEnvio() {
       if (result.id_item_enderecamento) selecionado.id_item_enderecamento = result.id_item_enderecamento;
       okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
     }
+
+    appendLog({
+      acao: modoTransferencia ? 'Transferência' : 'Endereçamento',
+      sku:  selecionado.item_codigo   || '',
+      desc: selecionado.item_descricao || '',
+      lote: selecionado.numero_lote   || '',
+      rua, pos,
+      de_rua: modoTransferencia ? prevRua : '',
+      de_pos: modoTransferencia ? prevPos : ''
+    });
 
     atualizarContagemHint();
     sessionCount++;
@@ -857,9 +1011,11 @@ function switchView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewId));
   document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
   if (viewId === 'viewConsultar') renderPosList();
+  if (viewId === 'viewHistorico') renderHistorico();
 }
 $('tabEnderecar').addEventListener('click', () => switchView('viewEnderecar'));
 $('tabConsultar').addEventListener('click', () => switchView('viewConsultar'));
+$('tabHistorico').addEventListener('click', () => switchView('viewHistorico'));
 
 // ── Listeners ────────────────────────────────────────────────────────────────
 $('skuIn').addEventListener('keydown', e => {
@@ -895,7 +1051,39 @@ $('btnRefresh').addEventListener('click', async () => {
   renderPosList();
 });
 
+// ── Operador: listeners ───────────────────────────────────────────────────────
+$('btnOperador').addEventListener('click', abrirOpOverlay);
+$('opClose').addEventListener('click', fecharOpOverlay);
+$('opOverlay').addEventListener('click', e => { if (e.target === $('opOverlay')) fecharOpOverlay(); });
+$('btnSalvarOp').addEventListener('click', () => {
+  setOperador($('opInput').value);
+  renderOperadorBtn();
+  fecharOpOverlay();
+});
+$('opInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); setOperador($('opInput').value); renderOperadorBtn(); fecharOpOverlay(); }
+  if (e.key === 'Escape') fecharOpOverlay();
+});
+
+// ── Histórico: listeners ──────────────────────────────────────────────────────
+$('btnExportCSV').addEventListener('click', exportCSV);
+
+let clearPending = false;
+$('btnClearLog').addEventListener('click', () => {
+  if (!clearPending) {
+    clearPending = true;
+    $('btnClearLog').textContent = '⚠ Confirmar?';
+    setTimeout(() => { clearPending = false; $('btnClearLog').textContent = '🗑 Limpar'; }, 3000);
+  } else {
+    clearLog();
+    clearPending = false;
+    $('btnClearLog').textContent = '🗑 Limpar';
+    renderHistorico();
+  }
+});
+
 // ── Init ─────────────────────────────────────────────────────────────────────
+renderOperadorBtn();
 renderRuaChips();
 carregarEstoque().then(() => {
   renderRuaChips();
