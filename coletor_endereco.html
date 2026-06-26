@@ -217,11 +217,17 @@ body{
   background:var(--green-light);border:1px solid #a7f3d0;border-radius:99px;
   padding:2px 8px;cursor:pointer;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
 }
-.opOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;padding:16px}
+.opOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;align-items:center;justify-content:center;padding:16px}
 .opOverlay.show{display:flex}
-.opModal{background:#fff;border-radius:var(--radius-lg);width:min(340px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-.opModalTitle{font-weight:700;font-size:15px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.opModal{background:#fff;border-radius:var(--radius-lg);width:min(340px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.opModalTitle{font-weight:700;font-size:15px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 .opModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
+.opWelcome{font-size:13px;color:var(--muted);margin-bottom:14px;display:none}
+.opOverlay.required .opWelcome{display:block}
+.opOverlay.required #opClose{display:none}
+.opOverlay.required .opModalTitle{margin-bottom:0}
+/* blur no fundo enquanto o overlay de operador está aberto sem nome salvo */
+body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
 
 /* ── Histórico ── */
 .logDay{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
@@ -372,6 +378,7 @@ body{
       <span>Identificação do operador</span>
       <button id="opClose" aria-label="Fechar">✕</button>
     </div>
+    <p class="opWelcome" id="opWelcome">Informe seu nome para liberar o sistema. Isso garante o rastreio de cada operação.</p>
     <label class="label" for="opInput">Seu nome</label>
     <input class="inputField" id="opInput" autocomplete="off" placeholder="Ex: João Silva" maxlength="40">
     <button class="btn btn-primary" id="btnSalvarOp">Salvar</button>
@@ -452,11 +459,19 @@ function renderOperadorBtn() {
   $('btnOperador').textContent = nome ? `👤 ${nome}` : '👤 Toque para identificar';
 }
 function abrirOpOverlay() {
+  const temNome = !!getOperador();
   $('opInput').value = getOperador();
+  $('opInput').style.borderColor = '';
+  $('opOverlay').classList.toggle('required', !temNome);
   $('opOverlay').classList.add('show');
+  if (!temNome) document.body.classList.add('op-locked');
   setTimeout(() => $('opInput').focus(), 60);
 }
-function fecharOpOverlay() { $('opOverlay').classList.remove('show'); }
+function fecharOpOverlay() {
+  if (!getOperador()) return; // bloqueia fechar sem nome salvo
+  $('opOverlay').classList.remove('show', 'required');
+  document.body.classList.remove('op-locked');
+}
 
 // ── Log local ────────────────────────────────────────────────────────────────
 const LOG_KEY = 'hum_log';
@@ -1055,13 +1070,22 @@ $('btnRefresh').addEventListener('click', async () => {
 $('btnOperador').addEventListener('click', abrirOpOverlay);
 $('opClose').addEventListener('click', fecharOpOverlay);
 $('opOverlay').addEventListener('click', e => { if (e.target === $('opOverlay')) fecharOpOverlay(); });
-$('btnSalvarOp').addEventListener('click', () => {
-  setOperador($('opInput').value);
+
+function salvarOperador() {
+  const nome = $('opInput').value.trim();
+  if (!nome) {
+    $('opInput').style.borderColor = 'var(--danger)';
+    $('opInput').focus();
+    return;
+  }
+  $('opInput').style.borderColor = '';
+  setOperador(nome);
   renderOperadorBtn();
   fecharOpOverlay();
-});
+}
+$('btnSalvarOp').addEventListener('click', salvarOperador);
 $('opInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); setOperador($('opInput').value); renderOperadorBtn(); fecharOpOverlay(); }
+  if (e.key === 'Enter') { e.preventDefault(); salvarOperador(); }
   if (e.key === 'Escape') fecharOpOverlay();
 });
 
@@ -1084,6 +1108,7 @@ $('btnClearLog').addEventListener('click', () => {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderOperadorBtn();
+if (!getOperador()) abrirOpOverlay(); // bloqueia até identificar na primeira abertura
 renderRuaChips();
 carregarEstoque().then(() => {
   renderRuaChips();
