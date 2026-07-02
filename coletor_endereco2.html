@@ -515,6 +515,38 @@ async function erpGetEstoque() {
   return data;
 }
 
+// Alguns navegadores/webviews antigos (comuns em coletores de código de barras)
+// não implementam AbortSignal.timeout — usamos um fallback manual pra não quebrar o envio.
+function timeoutSignal(ms) {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
+
+// Traduz erros técnicos (fetch, HTTP, JS) para uma mensagem que o operador consiga entender.
+function mensagemErroAmigavel(e) {
+  const raw = String(e?.message || e || '');
+  const rawLower = raw.toLowerCase();
+  if (e?.name === 'AbortError' || rawLower.includes('abort')) {
+    return 'O servidor demorou muito para responder. Verifique sua conexão e tente novamente.';
+  }
+  if (e?.name === 'TypeError' || rawLower.includes('failed to fetch') || rawLower.includes('networkerror') || rawLower.includes('load failed')) {
+    return 'Sem conexão com o servidor. Verifique o Wi-Fi/dados do celular e tente novamente.';
+  }
+  const httpMatch = raw.match(/HTTP (\d{3})/);
+  if (httpMatch) {
+    const code = httpMatch[1];
+    if (code === '401' || code === '403') return 'Sem permissão para realizar essa ação. Fale com o administrador.';
+    if (code === '404') return 'Registro não encontrado no ERP.';
+    if (code.startsWith('5')) return 'O servidor do ERP está com problemas no momento. Tente novamente em instantes.';
+    return `O servidor do ERP recusou a solicitação (erro ${code}). Tente novamente.`;
+  }
+  return raw || 'Erro inesperado. Tente novamente.';
+}
+
 async function erpWrite(method, payload) {
   const startedAt = performance.now();
   const opts = {
@@ -526,10 +558,10 @@ async function erpWrite(method, payload) {
   let resp;
   try {
     // Tenta direto primeiro — se CORS bloqueado, falha em < 100 ms (sem custo de timeout)
-    resp = await fetch(_erpUrl(), { ...opts, signal: AbortSignal.timeout(5000) });
+    resp = await fetch(_erpUrl(), { ...opts, signal: timeoutSignal(5000) });
   } catch (_) {
     resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
-      ...opts, signal: AbortSignal.timeout(10000)
+      ...opts, signal: timeoutSignal(10000)
     });
   }
   let data = null;
@@ -663,7 +695,7 @@ auth.onAuthStateChanged(async user => {
     });
   } catch(e) {
     await auth.signOut();
-    showLoginOverlay('Erro ao verificar acesso: ' + e.message);
+    showLoginOverlay('Erro ao verificar acesso: ' + mensagemErroAmigavel(e));
   }
 });
 
@@ -781,7 +813,7 @@ async function carregarEstoque() {
     atualizarListaRuas();
   } catch (e) {
     $('pendingCountHint').textContent = 'Falha ao carregar estoque';
-    showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + e.message);
+    showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + mensagemErroAmigavel(e));
   }
   btn.disabled = false;
 }
@@ -957,7 +989,7 @@ async function confirmarEnvio() {
       hideMsg('step3Msg');
     }, 400);
   } catch (e) {
-    showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + e.message);
+    showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + mensagemErroAmigavel(e));
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar Endereçamento';
   }
@@ -1426,7 +1458,7 @@ $('btnAltConfirmTrf').addEventListener('click', async () => {
       $('altSkuIn').focus();
     }, 1500);
   } catch(e) {
-    showMsg('altStep3Msg', 'err', 'Falha ao transferir: ' + e.message);
+    showMsg('altStep3Msg', 'err', 'Falha ao transferir: ' + mensagemErroAmigavel(e));
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar transferência';
   }

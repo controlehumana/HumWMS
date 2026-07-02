@@ -141,6 +141,10 @@ App standalone mobile-first para endereçar/transferir/consultar posições, **s
    - Step 2/3: se o item já tem `rua`/`posicao`, `modoTransferencia=true` e o envio final usa **PUT** (`erpUpdateEndereco`, transferência); se está pendente, usa **POST** (`erpCreateEndereco`, endereçamento novo). Mesmo modal serve para os dois casos, só troca o rótulo e o método de envio em `confirmarEnvio()`.
 2. **📍 Consultar endereço** — dashboard vertical: chips de rua (`renderRuaChips()`) + lista das 40 posições (`renderPosList()`), livre/ocupado à primeira vista, com filtro por SKU/descrição/posição. A lista de ruas (`RUAS`) começa em `RUAS_BASE = A-G` e é recalculada (`atualizarListaRuas()`) a cada carga incluindo qualquer rua extra presente nos dados reais (ex.: `P` usada para Bomba Enteral, e outras como `Q`/`Z`) — **não hardcodear só A-G**, o estoque real usa ruas fora da grade padrão.
 
+### Tratamento de erros
+
+`erpWrite()` usa `timeoutSignal(ms)` em vez de `AbortSignal.timeout()` direto — alguns webviews/navegadores antigos usados em coletores de código de barras não implementam esse método nativo, e isso quebrava o envio com "AbortSignal.timeout is not a function". `mensagemErroAmigavel(e)` traduz erros técnicos (fetch/rede, HTTP 401/403/404/5xx, timeout) para mensagens em português que o operador do armazém entende, usada em todos os `catch` que exibem erro na UI. Mesmo padrão replicado em `coletor_endereco2.html` (versão em desenvolvimento, ainda não documentada aqui, que compartilha a mesma base de código).
+
 ### Scanner de câmera
 
 Mesmo padrão de `index.html`: tenta `BarcodeDetector` nativo (Chrome Android) primeiro, com fallback para `html5-qrcode` carregado sob demanda via CDN. Busca aceita tanto `item_codigo` (SKU interno) quanto `item_ean13` (código real impresso/escaneado).
