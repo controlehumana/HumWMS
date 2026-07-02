@@ -1504,6 +1504,10 @@ header {
         <option value="80">80/pág</option>
         <option value="160">160/pág</option>
       </select>
+      <button class="btn" id="btnPrintLote" title="Imprime um cartaz por item dos endereços que batem com os filtros atuais (um por folha)" style="gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir cartazes
+      </button>
       <button class="btn" id="btnQuickSync" title="Sincronizar estoque via API" style="gap:6px;background:var(--accent);color:#fff;border-color:var(--accent);flex-shrink:0">
         <svg id="btnQuickSyncIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         Sincronizar
@@ -3389,6 +3393,8 @@ $('btnClearFilters').addEventListener('click', () => {
   S.page = 1; renderMap();
 });
 
+$('btnPrintLote')?.addEventListener('click', () => printCartazLote());
+
 $('btnQuickSync')?.addEventListener('click', async function() {
   if (typeof window._runAutoSync !== 'function') return;
   const btn = this;
@@ -4619,13 +4625,12 @@ function openCartazManual(sku='', desc='', lote='', val='', rua='', pos='') {
   setTimeout(() => document.getElementById(sku ? 'cmLote' : 'cmSku').focus(), 100);
 }
 
-// Gera e imprime cartaz com dados manuais (endereço opcional)
-function printCartazManual(sku, desc, lote, val, rua, pos) {
-  if (!sku && !desc) { alert('Informe ao menos o SKU ou a descrição do produto.'); return; }
-  const valFmt    = val || '—';
-  const loteFmt   = lote || '—';
-  const skuFmt    = sku || '—';
+// Monta o HTML de uma folha de cartaz (compartilhado por impressão única, manual e em lote)
+function _cartazBlock(sku, desc, lote, val, rua, pos) {
+  const skuFmt    = sku  || '—';
   const descFmt   = desc || '—';
+  const loteFmt   = lote || '—';
+  const valFmt    = val  || '—';
   const valDigits = valFmt.replace(/\D/g, '');
   const barcodeVal = skuFmt + valDigits;
   const hasAddr   = rua && pos;
@@ -4636,7 +4641,7 @@ function printCartazManual(sku, desc, lote, val, rua, pos) {
         <span class="loc-value">${rua} &middot; ${pos}</span>
       </div>` : '';
 
-  const block = `
+  return `
     <div class="cartaz-page">
       ${locHtml}
       <div class="cartaz-sku-row">
@@ -4662,9 +4667,12 @@ function printCartazManual(sku, desc, lote, val, rua, pos) {
       </div>
       <div class="cartaz-footer">Humana Alimentar &nbsp;·&nbsp; HumWMS &nbsp;·&nbsp; Impresso em ${new Date().toLocaleDateString('pt-BR')}</div>
     </div>`;
+}
 
-  // Reutiliza o mesmo HTML/CSS do printCartaz existente
-  const tmpCartaz = { items: [{ sku, desc, lote, val, rua, pos }] };
+// Gera e imprime cartaz com dados manuais (endereço opcional)
+function printCartazManual(sku, desc, lote, val, rua, pos) {
+  if (!sku && !desc) { alert('Informe ao menos o SKU ou a descrição do produto.'); return; }
+  const block = _cartazBlock(sku, desc, lote, val, rua, pos);
   _openCartazWindow([block]);
 }
 
@@ -4678,268 +4686,34 @@ function _openCartazWindow(blocks) {
 }
 
 function printCartaz(rua, pos) {
-  const key    = addrKey(rua, pos);
-  const items  = S.items.filter(i => addrKey(i.rua, i.pos) === key);
+  const key   = addrKey(rua, pos);
+  const items = S.items.filter(i => addrKey(i.rua, i.pos) === key);
   if (!items.length) return;
 
-  const cartazBlocks = items.map(it => {
-    const lote       = it.lote || '—';
-    const val        = it.val  ? formatDate(it.val) : '—';
-    const sku        = it.sku  || '—';
-    const desc       = it.desc || '—';
-    const valDigits  = val.replace(/\D/g, '');
-    const barcodeVal = sku + valDigits;
-    return `
-    <div class="cartaz-page">
+  const blocks = items.map(it =>
+    _cartazBlock(it.sku, it.desc, it.lote, it.val ? formatDate(it.val) : '', rua, pos)
+  );
+  _openCartazWindow(blocks);
+}
 
-      <!-- Endereço: canto superior direito -->
-      <div class="cartaz-loc">
-        <span class="loc-label">ENDEREÇO</span>
-        <span class="loc-value">${rua} &middot; ${pos}</span>
-      </div>
-
-      <!-- SKU destaque -->
-      <div class="cartaz-sku-row">
-        <span class="sku-label">SKU</span>
-        <span class="sku-value">${sku}</span>
-      </div>
-
-      <!-- Nome do produto -->
-      <div class="cartaz-desc">${desc}</div>
-
-      <!-- Divisor -->
-      <div class="cartaz-divider"></div>
-
-      <!-- Lote e Validade -->
-      <div class="cartaz-fields">
-        <div class="cartaz-field">
-          <div class="field-label">LOTE</div>
-          <div class="field-value">${lote}</div>
-        </div>
-        <div class="cartaz-sep"></div>
-        <div class="cartaz-field">
-          <div class="field-label">VALIDADE</div>
-          <div class="field-value">${val}</div>
-        </div>
-      </div>
-
-      <!-- Código de barras centralizado -->
-      <div class="cartaz-barcode-row">
-        <svg class="barcode-svg" data-value="${barcodeVal}"></svg>
-        <div class="barcode-id">${barcodeVal}</div>
-      </div>
-
-      <!-- Rodapé -->
-      <div class="cartaz-footer">Humana Alimentar &nbsp;·&nbsp; HumWMS &nbsp;·&nbsp; Impresso em ${new Date().toLocaleDateString('pt-BR')}</div>
-
-    </div>`;
-  }).join('');
-
-  const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Cartaz – ${rua} ${pos}</title>
-<style>
-  @page { size: A4 landscape; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; }
-
-  .cartaz-page {
-    width: 297mm;
-    height: 210mm;
-    padding: 14mm 18mm 10mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    page-break-after: always;
-    position: relative;
-    border: 2px solid #111;
-    border-radius: 12mm;
-    overflow: hidden;
-  }
-
-  /* Endereço: canto superior direito */
-  .cartaz-loc {
-    position: absolute;
-    top: 10mm;
-    right: 16mm;
-    text-align: right;
-  }
-  .loc-label {
-    display: block;
-    font-size: 9pt;
-    font-weight: 700;
-    color: #888;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-  .loc-value {
-    display: block;
-    font-size: 28pt;
-    font-weight: 900;
-    color: #111;
-    letter-spacing: 1px;
-  }
-
-  /* SKU */
-  .cartaz-sku-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-top: 6mm;
-  }
-
-  /* Descrição */
-  .cartaz-desc {
-    font-size: 46pt;
-    font-weight: 900;
-    color: #111;
-    line-height: 1.1;
-    max-width: 75%;
-    margin-top: 6mm;
-  }
-  .sku-label {
-    font-size: 11pt;
-    font-weight: 700;
-    color: #888;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-  .sku-value {
-    font-size: 44pt;
-    font-weight: 900;
-    color: #111;
-  }
-
-  /* Divisor */
-  .cartaz-divider {
-    border-top: 2px solid #ddd;
-    margin: 5mm 0;
-  }
-
-  /* Lote + Validade + Código */
-  .cartaz-fields {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    max-height: 55mm;
-  }
-  .cartaz-field {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .field-label {
-    font-size: 10pt;
-    font-weight: 700;
-    color: #888;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 2mm;
-  }
-  .field-value {
-    font-size: 44pt;
-    font-weight: 900;
-    color: #111;
-    letter-spacing: 1px;
-  }
-  .cartaz-sep {
-    width: 2px;
-    background: #ddd;
-    margin: 0 10mm;
-    flex-shrink: 0;
-  }
-
-  /* Linha do código de barras */
-  .cartaz-barcode-row {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 4mm;
-  }
-  .barcode-svg {
-    width: 100%;
-    max-height: 32mm;
-    display: block;
-  }
-  .barcode-id {
-    font-size: 8pt;
-    font-family: 'Courier New', monospace;
-    color: #555;
-    letter-spacing: 1px;
-    margin-top: 1.5mm;
-    text-align: center;
-  }
-
-  /* Rodapé */
-  .cartaz-footer {
-    font-size: 8pt;
-    color: #bbb;
-    text-align: center;
-    margin-top: 3mm;
-    letter-spacing: 1px;
-  }
-</style>
-</head>
-<body>
-${cartazBlocks}
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
-<script>
-window.onload = () => {
-  document.querySelectorAll('.barcode-svg').forEach(svg => {
-    const val = svg.dataset.value;
-    if (!val) return;
-    try {
-      JsBarcode(svg, val, {
-        format: 'CODE128',
-        width: 2.2,
-        height: 70,
-        displayValue: false,
-        margin: 0,
-        background: '#ffffff',
-        lineColor: '#111111'
-      });
-    } catch(e) { svg.style.display = 'none'; }
+// Imprime os cartazes de uma lista de endereços (com .items já carregados), um item por folha.
+function printCartazEnderecos(addrList) {
+  const blocks = [];
+  addrList.forEach(addr => {
+    (addr.items || []).forEach(it => {
+      blocks.push(_cartazBlock(it.sku, it.desc, it.lote, it.val ? formatDate(it.val) : '', addr.rua, addr.pos));
+    });
   });
-  window.print();
-};
-<\/script>
+  if (!blocks.length) { alert('Nenhum item encontrado para impressão com os filtros atuais.'); return; }
+  if (blocks.length > 60 && !confirm(`Isso vai gerar ${blocks.length} cartazes (uma folha cada). Deseja continuar?`)) return;
+  _openCartazWindow(blocks);
+}
 
-<!-- Modal: Atribuir Endereço -->
-<div class="modal-overlay" id="assignModal" style="display:none">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-header">
-      <div class="modal-title" style="display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Atribuir Endereço</div>
-      <button class="modal-close" id="assignModalClose"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>
-    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-      <div id="assignItemInfo" style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;line-height:1.6"></div>
-      <div style="display:flex;gap:10px;align-items:flex-end">
-        <div style="flex:1">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Rua</label>
-          <input class="filter-input" id="assignRua" placeholder="Ex: A" style="width:100%;padding:8px 12px">
-        </div>
-        <div style="flex:1">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Posição</label>
-          <input class="filter-input" id="assignPos" placeholder="Ex: 10" style="width:100%;padding:8px 12px">
-        </div>
-      </div>
-      <div id="assignError" style="display:none;color:#dc2626;font-size:12px"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn" id="assignCancelBtn">Cancelar</button>
-        <button class="btn btn-primary" id="assignConfirmBtn" style="gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Confirmar</button>
-      </div>
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
-
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
+// Impressão em lote: usa os filtros ativos do Mapa (Rua, Posição, Status, busca) para
+// selecionar os endereços ocupados e imprime um cartaz por item, cada um em uma folha.
+function printCartazLote() {
+  const filtered = getFilteredAddresses().filter(addr => (addr.items || []).length > 0);
+  printCartazEnderecos(filtered);
 }
 
 
