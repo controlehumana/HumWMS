@@ -1445,6 +1445,7 @@ header {
     <button class="tab active" data-tab="map"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Mapa</button>
     <button class="tab" data-tab="dashboard" id="tabDashboard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
     <button class="tab" data-tab="expiry"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Validades</button>
+    <button class="tab" data-tab="fragmentados" id="tabFragmentados"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Lotes Divididos</button>
     <button class="tab" data-tab="pending" id="tabPending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>Pendentes <span id="pendingBadge" style="display:none;background:#f97316;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Endereços</button>
     <button class="tab" data-tab="coletor" id="tabColetor" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
@@ -1627,6 +1628,54 @@ header {
           <div style="margin-bottom:16px;display:flex;justify-content:center"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum item neste prazo</div>
           <div style="font-size:13px">Todos os produtos estão com validade OK</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: LOTES DIVIDIDOS (fragmentados em múltiplas posições) ══════════ -->
+  <div class="page" id="pageFragmentados" style="align-items:center">
+    <div style="padding:20px 24px;max-width:1100px;width:100%;margin:0 auto">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Lotes com múltiplas posições</div>
+        <div style="flex:1"></div>
+        <button class="btn" id="btnExportFragExcel" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Exportar Excel
+        </button>
+        <button class="btn" id="btnExportFragPdf" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h9l5 5v15a2 2 0 01-2 2H6a2 2 0 01-2-2v-4"/><polyline points="15 2 15 7 20 7"/><path d="M2 15h4M2 18h4M2 12h2"/></svg>
+          Exportar PDF
+        </button>
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        SKU + lote + validade cadastrados em mais de um endereço ao mesmo tempo (estoque físico dividido em várias posições). O saldo mostrado é o total do lote — ver a nota em cada linha sobre onde ele fica de fato registrado.
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px" id="fragKpis"></div>
+
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse" id="fragTable">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">SKU</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Produto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Lote</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Validade</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Nº Posições</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Posições</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Saldo Total do Lote</th>
+            </tr>
+          </thead>
+          <tbody id="fragTableBody"></tbody>
+        </table>
+        <div id="fragEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+          <div style="margin-bottom:16px;display:flex;justify-content:center"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum lote dividido no momento</div>
+          <div style="font-size:13px">Todo SKU+lote endereçado está concentrado em uma única posição</div>
         </div>
       </div>
 
@@ -2781,6 +2830,7 @@ function showTab(tabId) {
   if (tabId === 'users')     renderUsers();
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
+  if (tabId === 'fragmentados') renderFragmentados();
   if (tabId === 'pending')   renderPending();
 }
 
@@ -2808,6 +2858,7 @@ const WMS_MODULES = [
   { id:'map',        label:'Mapa',                       icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
   { id:'dashboard',  label:'Dashboard',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
   { id:'expiry',     label:'Validades',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+  { id:'fragmentados',label:'Lotes Divididos',           icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>' },
   { id:'alterar_end',label:'Coletor — Alterar Endereço', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
   { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
   { id:'coletor',    label:'Coletor',          icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>' },
@@ -2926,7 +2977,7 @@ auth.onAuthStateChanged(async user => {
       // Legado: usa role antigo para compatibilidade
       if (S.role === 'coletor') {
         document.querySelector('[data-tab="map"]').style.display = 'none';
-        ['tabDashboard','tabExpiry','tabPending','tabInventario'].forEach(id => {
+        ['tabDashboard','tabExpiry','tabFragmentados','tabPending','tabInventario'].forEach(id => {
           const el=$(id); if(el) el.style.display='none';
         });
         $('tabColetor').style.display = '';
@@ -4625,6 +4676,130 @@ $('btnExportExpiry').addEventListener('click', () => {
 
   const dateStr = now.toISOString().slice(0,10);
   XLSX.writeFile(wb, `VALIDADES_${dateStr}.xlsx`);
+});
+
+// ══════════════════════════════════════════════════════
+//  LOTES DIVIDIDOS (mesmo SKU+lote+validade em mais de uma posição)
+// ══════════════════════════════════════════════════════
+
+// Agrupa S.items por sku+lote+validade e retorna só os grupos com mais de 1 endereço.
+// saldo_aberto (campo "est") já vem do ERP como o total do lote replicado em cada linha
+// (não somamos entre posições) — ver "Múltiplas posições por SKU+lote" no CLAUDE.md.
+function getFragmentedGroups() {
+  const groups = {};
+  (S.items || []).forEach(it => {
+    if (!it.sku || !it.lote) return;
+    const key = `${it.sku}|${it.lote}|${it.val || ''}`;
+    if (!groups[key]) groups[key] = { sku: it.sku, desc: it.desc, lote: it.lote, val: it.val, items: [] };
+    groups[key].items.push(it);
+  });
+  return Object.values(groups)
+    .filter(g => g.items.length > 1)
+    .sort((a, b) => b.items.length - a.items.length);
+}
+
+function renderFragmentados() {
+  const groups = getFragmentedGroups();
+  const tbody  = $('fragTableBody');
+  const empty  = $('fragEmpty');
+
+  const totalPosExtras = groups.reduce((acc, g) => acc + (g.items.length - 1), 0);
+  $('fragKpis').innerHTML = [
+    { label: 'Lotes divididos',      val: groups.length,    bg: 'var(--bg)', color: 'var(--text)' },
+    { label: 'Posições extras',      val: totalPosExtras,   bg: '#fef9c3',   color: '#854d0e' },
+  ].map(k => `
+    <div style="background:${k.bg};border-radius:10px;padding:12px 16px;border:1px solid rgba(0,0,0,.06)">
+      <div style="font-size:26px;font-weight:700;font-family:'DM Mono',monospace;color:${k.color}">${k.val}</div>
+      <div style="font-size:11px;color:${k.color};opacity:.8;margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${k.label}</div>
+    </div>`).join('');
+
+  if (groups.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = groups.map(g => {
+    const posicoes = g.items.map(it => `${it.rua}/${it.pos}`).join(', ');
+    const saldo    = g.items[0].est || '–';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">${g.sku||'–'}</td>
+      <td style="padding:10px 14px;font-size:13px;max-width:240px;line-height:1.3">${g.desc||'–'}</td>
+      <td style="padding:10px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted)">${g.lote||'–'}</td>
+      <td style="padding:10px 14px;font-size:13px;font-weight:500">${formatDate(g.val)}</td>
+      <td style="padding:10px 14px;font-size:13px;font-weight:600">${g.items.length}</td>
+      <td style="padding:10px 14px;font-size:12px;font-family:'DM Mono',monospace">${posicoes}</td>
+      <td style="padding:10px 14px;font-size:13px;font-family:'DM Mono',monospace">${saldo}</td>
+    </tr>`;
+  }).join('');
+}
+
+$('btnExportFragExcel').addEventListener('click', () => {
+  const groups = getFragmentedGroups();
+  if (groups.length === 0) { alert('Nenhum lote dividido em mais de uma posição no momento.'); return; }
+
+  const headers = ['SKU', 'Produto', 'Lote', 'Validade', 'Nº Posições', 'Posições', 'Saldo Total do Lote'];
+  const rows = groups.map(g => [
+    g.sku || '', g.desc || '', g.lote || '', formatDate(g.val),
+    g.items.length, g.items.map(it => `${it.rua}/${it.pos}`).join(', '), g.items[0].est || ''
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [{wch:10},{wch:40},{wch:14},{wch:14},{wch:12},{wch:40},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Lotes Divididos');
+
+  const now = new Date();
+  const meta = XLSX.utils.aoa_to_sheet([
+    ['Gerado em:', now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR')],
+    ['Por:', S.user.email],
+    ['Total de lotes divididos:', groups.length]
+  ]);
+  XLSX.utils.book_append_sheet(wb, meta, 'Info');
+
+  XLSX.writeFile(wb, `LOTES_DIVIDIDOS_${now.toISOString().slice(0,10)}.xlsx`);
+});
+
+$('btnExportFragPdf').addEventListener('click', () => {
+  const groups = getFragmentedGroups();
+  if (groups.length === 0) { alert('Nenhum lote dividido em mais de uma posição no momento.'); return; }
+
+  const now = new Date();
+  const rows = groups.map(g => `
+    <tr>
+      <td>${g.sku || '–'}</td>
+      <td>${g.desc || '–'}</td>
+      <td>${g.lote || '–'}</td>
+      <td>${formatDate(g.val)}</td>
+      <td>${g.items.length}</td>
+      <td>${g.items.map(it => `${it.rua}/${it.pos}`).join(', ')}</td>
+      <td>${g.items[0].est || '–'}</td>
+    </tr>`).join('');
+
+  const css = `@page{size:A4 portrait;margin:14mm}*{box-sizing:border-box;font-family:Arial,sans-serif}
+    body{color:#111}
+    h1{font-size:16pt;margin-bottom:2mm}
+    .meta{font-size:9pt;color:#666;margin-bottom:6mm}
+    table{width:100%;border-collapse:collapse;font-size:9pt}
+    th,td{border:1px solid #ccc;padding:2mm 2.5mm;text-align:left;vertical-align:top}
+    th{background:#f3f4f6;text-transform:uppercase;font-size:8pt;letter-spacing:.3px}
+    tr:nth-child(even){background:#fafafa}`;
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Lotes Divididos</title><style>${css}</style></head>
+    <body>
+      <h1>Relatório — Lotes com múltiplas posições</h1>
+      <div class="meta">Gerado em ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')} · ${groups.length} lote(s) dividido(s)</div>
+      <table>
+        <thead><tr><th>SKU</th><th>Produto</th><th>Lote</th><th>Validade</th><th>Nº Pos.</th><th>Posições</th><th>Saldo Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>
+    </body></html>`;
+
+  const win = window.open('', '_blank', 'width=1000,height=800');
+  win.document.write(html);
+  win.document.close();
 });
 
 // renderExpiry é chamada via showTab (já integrado acima)
