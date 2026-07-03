@@ -2545,28 +2545,25 @@ header {
 <div class="modal-overlay" id="editAddrModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="editAddrTitle">Editar endereço</div>
+      <div class="modal-title" id="editAddrTitle">Cadastrar item</div>
       <button class="modal-close" data-close="editAddrModal">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-row" style="margin-bottom:16px">
-        <div>
-          <div class="form-label">Rua</div>
-          <input class="form-input" id="editRua" readonly style="background:var(--bg);color:var(--muted)">
-        </div>
-        <div>
-          <div class="form-label">Posição</div>
-          <input class="form-input" id="editPos" readonly style="background:var(--bg);color:var(--muted)">
-        </div>
-      </div>
-
       <div class="form-label" style="margin-bottom:10px">Itens neste endereço</div>
       <div class="item-list" id="editItemList"></div>
-      <button class="add-item-btn" id="addItemBtn">+ Adicionar item</button>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="form-label" style="margin-bottom:10px">Cadastrar item pendente neste endereço</div>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="cadastroBuscaSku" placeholder="SKU ou descrição do item pendente">
+          <button class="btn" id="cadastroBuscaBtn" style="flex-shrink:0">Buscar</button>
+        </div>
+        <div id="cadastroMatchList" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+        <div id="cadastroMsg" style="display:none;font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px"></div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn" data-close="editAddrModal">Cancelar</button>
-      <button class="btn btn-primary" id="saveAddrBtn">Salvar alterações</button>
+      <button class="btn" data-close="editAddrModal">Fechar</button>
     </div>
   </div>
 </div>
@@ -3165,13 +3162,27 @@ function renderCard(addr) {
         if (days < 0)       { valClass = 'val-exp';  valLabel = ` (vencido)`; }
         else if (days <= 30){ valClass = 'val-warn'; valLabel = ` (${days}d)`; }
       }
+      // Mesmo SKU+lote+validade em mais de uma posição: o "saldo_aberto" do ERP é o total do
+      // lote, replicado igual em cada posição (não é dividido por posição). Pra não parecer que
+      // cada posição tem esse saldo de forma independente, só exibimos o número na posição que
+      // realmente tem o valor gravado (campo bruto "estoque" do ERP > 0) — nas demais, escondemos
+      // e apontamos onde está o saldo.
+      const siblings = S.items.filter(x => x.sku === it.sku && x.lote === it.lote && x.val === it.val);
+      let estLabel = it.est || '–';
+      if (siblings.length > 1) {
+        const primary = siblings.find(x => parseFloat(x.estBruto) > 0) || siblings[0];
+        const isPrimary = primary.idEnd ? primary.idEnd === it.idEnd : primary === it;
+        estLabel = isPrimary
+          ? (it.est || '–')
+          : `— <span style="color:var(--muted);font-weight:400" title="Saldo do lote (${it.est||'–'}) fica registrado em ${primary.rua} · Pos. ${primary.pos}">(ver em ${primary.rua}/${primary.pos})</span>`;
+      }
       return `<div class="card-item">
         <div class="item-desc">${it.desc || '–'}</div>
         <div class="item-sku">SKU ${it.sku || '–'}</div>
         <div class="item-meta">
           <span>🏷 ${it.lote || '–'}</span>
           <span class="${valClass}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${formatDate(it.val)}${valLabel}</span>
-          <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>${it.est || '–'}</span>
+          <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>${estLabel}</span>
         </div>
       </div>`;
     }).join('');
@@ -3182,7 +3193,7 @@ function renderCard(addr) {
     : `<span class="badge badge-occ">Ocupado</span>${addr.items.length > 1 ? `<span class="badge badge-count">${addr.items.length} itens</span>` : ''}`;
 
   const editBtn = canEdit
-    ? `<button class="btn" data-edit="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar</button>`
+    ? `<button class="btn" data-edit="${addr.rua}|${addr.pos}" style="font-size:11px;padding:5px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Cadastrar</button>`
     : '';
 
   const printBtn = !isFree
@@ -3365,7 +3376,7 @@ async function _doTransfer() {
       const newId = `${addrKey(destRua, destPos)}_split_${Date.now()}`;
       await db.collection('wms_items').doc(newId).set({
         sku: _transferItem.sku, desc: _transferItem.desc, lote: _transferItem.lote, val: _transferItem.val,
-        est: '', idEnd, emp: _transferItem.emp, itemId: _transferItem.itemId, unidadeId: _transferItem.unidadeId,
+        est: _transferItem.est || '', estBruto: '0', idEnd, emp: _transferItem.emp, itemId: _transferItem.itemId, unidadeId: _transferItem.unidadeId,
         rua: destRua, pos: String(destPos),
         updatedAt: ts, updatedBy: user,
         manuallyEdited: true
@@ -3472,64 +3483,30 @@ $('btnQuickSync')?.addEventListener('click', async function() {
 // ══════════════════════════════════════════════════════
 function openEditModal(rua, pos) {
   S.editTarget = { rua, pos };
-  $('editAddrTitle').textContent = `Endereço ${rua} · Pos. ${pos}`;
-  $('editRua').value = rua;
-  $('editPos').value = pos;
+  $('editAddrTitle').textContent = `Cadastrar item — ${rua} · Pos. ${pos}`;
+  $('cadastroBuscaSku').value = '';
+  $('cadastroMatchList').innerHTML = '';
+  $('cadastroMsg').style.display = 'none';
 
   const currentItems = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos));
-  renderEditItemList(currentItems.length > 0 ? currentItems : [emptyItem()]);
+  renderEditItemList(currentItems);
   openModal('editAddrModal');
-}
-
-function emptyItem() {
-  return { sku: '', desc: '', lote: '', val: '', est: '', idEnd: '' };
 }
 
 function renderEditItemList(items) {
   const list = $('editItemList');
-  list.innerHTML = items.map((it, i) => `
-    <div class="item-row" data-idx="${i}">
+  if (items.length === 0) {
+    list.innerHTML = `<div class="form-hint">Endereço livre — sem itens cadastrados.</div>`;
+    return;
+  }
+  list.innerHTML = items.map(it => `
+    <div class="item-row">
       <div class="item-row-header">
-        <span class="item-row-title">Item ${i + 1}</span>
-        <div style="display:flex;gap:6px">
-          ${it.idEnd ? `<button class="remove-item-btn" data-erp-delete="${it._id||''}" data-idend="${it.idEnd}" title="Excluir permanentemente do ERP" style="color:#dc2626">🗑</button>` : ''}
-          <button class="remove-item-btn" data-remove="${i}" title="Remover da lista">×</button>
-        </div>
+        <span class="item-row-title">${it.desc || '–'}</span>
+        ${it.idEnd ? `<button class="remove-item-btn" data-erp-delete="${it._id||''}" data-idend="${it.idEnd}" title="Excluir permanentemente do ERP" style="color:#dc2626">🗑</button>` : ''}
       </div>
-      <div class="form-row">
-        <div><label class="form-label">SKU</label>
-          <input class="form-input" data-field="sku" value="${it.sku||''}" placeholder="Ex: 2287"></div>
-        <div><label class="form-label">Estoque</label>
-          <input class="form-input" data-field="est" value="${it.est||''}" placeholder="Qtd"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Descrição</label>
-        <input class="form-input" data-field="desc" value="${it.desc||''}" placeholder="Nome do produto">
-      </div>
-      <div class="form-row">
-        <div><label class="form-label">Lote</label>
-          <input class="form-input" data-field="lote" value="${it.lote||''}" placeholder="Ex: 1234/24"></div>
-        <div><label class="form-label">Validade</label>
-          <input class="form-input" data-field="val" type="text" value="${it.val||''}" placeholder="DD/MM/AAAA"></div>
-      </div>
-      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
-        <label class="form-label" style="color:var(--accent2)">↪ Transferir para outro endereço (opcional)</label>
-        <div style="display:flex;gap:6px">
-          <input class="form-input" data-field="newRua" value="" placeholder="Rua (ex: B)" style="width:80px">
-          <input class="form-input" data-field="newPos" value="" placeholder="Pos (ex: 5)" style="flex:1">
-        </div>
-        <div class="form-hint">Preencha apenas se quiser mover este item para outro endereço</div>
-      </div>
+      <div class="form-hint">SKU ${it.sku||'–'} · Lote ${it.lote||'–'} · Val. ${it.val||'–'} · Est. ${it.est||'–'}</div>
     </div>`).join('');
-
-  list.querySelectorAll('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const rows = getEditItems();
-      rows.splice(parseInt(btn.dataset.remove), 1);
-      if (rows.length === 0) rows.push(emptyItem());
-      renderEditItemList(rows);
-    });
-  });
 
   list.querySelectorAll('[data-erp-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -3552,75 +3529,96 @@ function renderEditItemList(items) {
   });
 }
 
-function getEditItems() {
-  return Array.from($('editItemList').querySelectorAll('.item-row')).map(row => ({
-    sku:    row.querySelector('[data-field="sku"]').value.trim(),
-    desc:   row.querySelector('[data-field="desc"]').value.trim(),
-    lote:   row.querySelector('[data-field="lote"]').value.trim(),
-    val:    row.querySelector('[data-field="val"]').value.trim(),
-    est:    row.querySelector('[data-field="est"]').value.trim(),
-    idEnd:  '',
-    newRua: (row.querySelector('[data-field="newRua"]')?.value||'').trim().toUpperCase(),
-    newPos: (row.querySelector('[data-field="newPos"]')?.value||'').trim()
-  }));
+function _showCadastroMsg(type, text) {
+  const styles = {
+    ok:   'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0',
+    warn: 'background:#fffbeb;color:#92400e;border:1px solid #fde68a',
+    err:  'background:#fef2f2;color:#dc2626;border:1px solid #fecaca',
+    info: 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe'
+  };
+  const el = $('cadastroMsg');
+  el.style.cssText = styles[type] || styles.info;
+  el.textContent   = text;
+  el.style.display = 'block';
 }
 
-$('addItemBtn').addEventListener('click', () => {
-  const items = getEditItems();
-  items.push(emptyItem());
-  renderEditItemList(items);
+// Busca item pendente (sem endereço) por SKU/EAN/descrição, pra cadastrar direto neste endereço —
+// mesma lógica de "vincular" da aba Pendências, só que disparada a partir do card do Mapa.
+$('cadastroBuscaBtn').addEventListener('click', () => {
+  const termo = $('cadastroBuscaSku').value.trim().toLowerCase();
+  $('cadastroMsg').style.display = 'none';
+  if (!termo) { _showCadastroMsg('warn', 'Digite o SKU ou parte da descrição do item.'); return; }
+
+  const matches = (S.unaddressed || []).filter(it =>
+    String(it.sku||'').toLowerCase().includes(termo) ||
+    String(it.desc||'').toLowerCase().includes(termo)
+  );
+
+  if (matches.length === 0) {
+    $('cadastroMatchList').innerHTML = '';
+    _showCadastroMsg('warn', 'Nenhum item pendente encontrado com esse SKU/descrição.');
+    return;
+  }
+
+  $('cadastroMatchList').innerHTML = matches.map((it, i) => `
+    <div class="item-row" data-idx="${i}" style="cursor:pointer">
+      <div class="item-row-header"><span class="item-row-title">${it.desc || '–'}</span></div>
+      <div class="form-hint">SKU ${it.sku||'–'} · Lote ${it.lote||'–'} · Val. ${it.val||'–'} · Est. ${it.est||'–'}</div>
+    </div>`).join('');
+
+  $('cadastroMatchList').querySelectorAll('[data-idx]').forEach(row => {
+    row.addEventListener('click', () => _cadastrarPendente(matches[parseInt(row.dataset.idx)]));
+  });
 });
 
-$('saveAddrBtn').addEventListener('click', async () => {
+async function _cadastrarPendente(it) {
   const { rua, pos } = S.editTarget;
-  const editedItems = getEditItems();
+  if (!confirm(`Cadastrar "${it.desc || it.sku}" (Lote ${it.lote||'–'}) no endereço ${rua} · Pos. ${pos}?`)) return;
 
-  // Valida transferências: endereço destino deve existir
-  for (const it of editedItems) {
-    if (it.newRua && it.newPos) {
-      const destExists = S.addresses.some(a => a.rua === it.newRua && String(a.pos) === String(it.newPos));
-      if (!destExists) {
-        alert(`Endereço destino "${it.newRua} · Pos. ${it.newPos}" não existe no cadastro. Cadastre-o primeiro em "Endereços".`);
-        return;
-      }
-    }
-  }
-
-  loading(true, 'Salvando...');
+  _showCadastroMsg('info', 'Enviando ao ERP…');
   try {
-    // Remove todos os docs antigos deste endereço
-    const oldDocs = S.items.filter(it => it.rua === rua && String(it.pos) === String(pos));
-    const batch = db.batch();
-    oldDocs.forEach(it => batch.delete(db.collection('wms_items').doc(it._id)));
-
-    const ts = new Date().toISOString();
-    const user = S.user.email;
-
-    editedItems.forEach((it, i) => {
-      const hasData = it.sku || it.desc || it.lote;
-      if (!hasData) return; // linha vazia = remover (não salva)
-
-      // Destino: transferência ou endereço original
-      const destRua = it.newRua || rua;
-      const destPos = it.newPos || pos;
-      const { newRua, newPos, ...itemData } = it;
-
-      const docId = `${addrKey(destRua, destPos)}_${i}_${Date.now()}`;
-      batch.set(db.collection('wms_items').doc(docId), {
-        ...itemData, rua: destRua, pos: destPos,
-        updatedAt: ts, updatedBy: user,
-        manuallyEdited: true   // marca como editado manualmente
+    let idEnd = it.idEnd || '';
+    if (it.itemId && it.unidadeId) {
+      const result = await _erpCreateEndereco({
+        item_id:       it.itemId,
+        unidade_id:    it.unidadeId,
+        estoque:       it.est || undefined,
+        rua,
+        posicao:       pos,
+        lote:          it.lote || undefined,
+        data_validade: _brDateToIso(it.val) || undefined
       });
-    });
+      idEnd = result.id_item_enderecamento ? String(result.id_item_enderecamento) : '';
+    } else {
+      console.warn('[WMS] Item sem item_id/unidade_id — endereço não foi persistido no ERP, apenas localmente. Pode reverter na próxima sincronização.');
+    }
 
-    await batch.commit();
-    closeModal('editAddrModal');
+    const ts   = new Date().toISOString();
+    const user = S.user.email;
+    const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
+    await db.collection('wms_items').doc(newId).set({
+      sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
+      est: it.est, estBruto: it.estBruto || '', idEnd, emp: it.emp, itemId: it.itemId || '', unidadeId: it.unidadeId || '',
+      rua, pos,
+      updatedAt: ts, updatedBy: user,
+      manuallyEdited: true
+    });
+    if (it._id) {
+      const snap = await db.collection('wms_unaddressed').get();
+      const doc  = snap.docs.find(d => d.id === it._id || d.data()._id === it._id);
+      if (doc) await doc.ref.delete();
+    }
+
+    _showCadastroMsg('ok', 'Item cadastrado com sucesso!');
     await loadAll();
-  } catch(e) {
-    alert('Erro ao salvar: ' + e.message);
+    const currentItems = S.items.filter(x => x.rua === rua && String(x.pos) === String(pos));
+    renderEditItemList(currentItems);
+    $('cadastroMatchList').innerHTML = '';
+    $('cadastroBuscaSku').value = '';
+  } catch (e) {
+    _showCadastroMsg('err', 'Falha ao comunicar com o ERP: ' + e.message);
   }
-  loading(false);
-});
+}
 
 // ══════════════════════════════════════════════════════
 //  IMPORT ERP
@@ -3762,7 +3760,8 @@ function parseApiData(data) {
       desc,
       lote:  String(r.numero_lote        || '').trim(),
       val,
-      est:   r.saldo_aberto != null ? String(r.saldo_aberto).trim() : '',
+      est:      r.saldo_aberto != null ? String(r.saldo_aberto).trim() : '',
+      estBruto: r.estoque != null ? String(r.estoque).trim() : '', // valor gravado NESSA posição — "est" acima é o saldo total do lote, replicado pelo ERP em toda posição
       idEnd: String(r.id_item_enderecamento || '').trim(),
       emp:   String(r.empresa_apelido    || '').trim(),
       itemId:    String(r.item_id    || '').trim(), // necessário para POST (criar endereçamento)
@@ -5002,7 +5001,7 @@ function initPendingListeners() {
       const newId = `${addrKey(rua, pos)}_assigned_${Date.now()}`;
       await db.collection('wms_items').doc(newId).set({
         sku: it.sku, desc: it.desc, lote: it.lote, val: it.val,
-        est: it.est, idEnd, emp: it.emp, itemId: it.itemId || '', unidadeId: it.unidadeId || '',
+        est: it.est, estBruto: it.estBruto || '', idEnd, emp: it.emp, itemId: it.itemId || '', unidadeId: it.unidadeId || '',
         rua, pos,
         updatedAt: ts, updatedBy: user,
         manuallyEdited: true
