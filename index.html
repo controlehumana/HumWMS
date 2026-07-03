@@ -304,10 +304,10 @@ header {
 .card-free-msg { padding: 20px 14px; color: var(--subtle); font-size: 12px; text-align: center; }
 
 .card-actions {
-  padding: 6px 10px; display: flex; gap: 6px;
+  padding: 6px 10px; display: flex; gap: 6px; flex-wrap: wrap;
   border-top: 1px solid var(--border); background: var(--surface2);
 }
-.card-actions .btn { font-size: 11px; padding: 5px 10px; box-shadow: none; }
+.card-actions .btn { font-size: 11px; padding: 5px 10px; box-shadow: none; flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 
 /* ── Pagination ── */
 .pagination {
