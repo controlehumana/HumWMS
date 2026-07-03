@@ -2700,6 +2700,10 @@ header {
           <div id="transferSelectedItem" style="font-size:13px;font-weight:600;color:var(--text)"></div>
           <div id="transferSelectedMeta" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
         </div>
+        <div id="transferAcaoToggle" style="display:flex;gap:8px;margin-bottom:16px">
+          <button type="button" class="btn" id="transferAcaoBtnMover" style="flex:1">↔ Transferir</button>
+          <button type="button" class="btn" id="transferAcaoBtnAdicionar" style="flex:1">+ Adicionar novo endereço</button>
+        </div>
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Rua destino</label>
@@ -3239,10 +3243,24 @@ function _brDateToIso(val) {
 // ── Módulo Transferência de Local ────────────────────────────────────────────
 let _transferSource = null; // { rua, pos }
 let _transferItem   = null; // item escolhido
+let _transferAcao   = 'transferir'; // 'transferir' (PUT, move) | 'adicionar' (POST, novo endereço p/ mesmo SKU+lote+validade)
+
+function _setTransferAcao(acao) {
+  _transferAcao = acao;
+  $('transferAcaoBtnMover').className     = 'btn' + (acao === 'transferir' ? ' btn-primary' : '');
+  $('transferAcaoBtnAdicionar').className = 'btn' + (acao === 'adicionar'  ? ' btn-primary' : '');
+  $('transferNextBtn').textContent = acao === 'adicionar' ? 'Confirmar Novo Endereço' : 'Confirmar Transferência';
+  $('transferApiMsg').style.display = 'none';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  $('transferAcaoBtnMover')?.addEventListener('click', () => _setTransferAcao('transferir'));
+  $('transferAcaoBtnAdicionar')?.addEventListener('click', () => _setTransferAcao('adicionar'));
+});
 
 function openTransferModal(rua, pos) {
   _transferSource = { rua, pos };
   _transferItem   = null;
+  _setTransferAcao('transferir');
 
   $('transferModalTitle').textContent = `Transferir de ${rua} · Pos. ${pos}`;
   $('transferStep1').style.display = '';
@@ -3300,10 +3318,24 @@ async function _doTransfer() {
   const btn     = $('transferNextBtn');
 
   if (destRua === rua && String(destPos) === String(pos)) {
-    _showTransferMsg('warn', 'Destino igual à origem. Escolha um endereço diferente.');
+    _showTransferMsg('warn', _transferAcao === 'adicionar' ? 'Destino igual ao endereço já existente. Escolha um endereço diferente.' : 'Destino igual à origem. Escolha um endereço diferente.');
     return;
   }
-  if (!_transferItem.idEnd) {
+
+  if (_transferAcao === 'adicionar') {
+    if (!_transferItem.itemId || !_transferItem.unidadeId) {
+      _showTransferMsg('err', 'Este item não possui item_id/unidade_id do ERP — não é possível criar um novo endereço via API. Sincronize com o ERP antes.');
+      return;
+    }
+    const jaOcupado = S.items.some(it =>
+      it !== _transferItem && it.sku === _transferItem.sku && it.lote === _transferItem.lote && it.val === _transferItem.val &&
+      it.rua === destRua && String(it.pos) === String(destPos)
+    );
+    if (jaOcupado) {
+      _showTransferMsg('warn', 'Este lote já tem um endereço nessa posição. Escolha outra.');
+      return;
+    }
+  } else if (!_transferItem.idEnd) {
     _showTransferMsg('err', 'Este item não possui ID do ERP (id_item_enderecamento) — não é possível transferir via API. Sincronize com o ERP antes de transferir.');
     return;
   }
@@ -3311,16 +3343,43 @@ async function _doTransfer() {
   btn.disabled        = true;
   btn.textContent     = 'Enviando…';
   $('transferCancelBtn').textContent = 'Aguarde…';
-  _showTransferMsg('info', 'Enviando transferência ao ERP…');
+  _showTransferMsg('info', _transferAcao === 'adicionar' ? 'Criando novo endereço no ERP…' : 'Enviando transferência ao ERP…');
 
   try {
-    await _erpUpdateEndereco({
-      id_item_enderecamento: _transferItem.idEnd,
-      rua:                   destRua,
-      posicao:                String(destPos)
-    });
+    if (_transferAcao === 'adicionar') {
+      // Novo endereço pro MESMO SKU+lote+validade (estoque físico dividido em mais de uma posição).
+      // Não envia "estoque": o saldo do ERP não é somado por posição (confirmado em produção,
+      // ver itens com múltiplas posições e mesmo saldo_aberto repetido em todas as linhas) —
+      // só o endereço original mantém o valor conhecido, este novo fica sem saldo aqui.
+      const result = await _erpCreateEndereco({
+        item_id:       _transferItem.itemId,
+        unidade_id:    _transferItem.unidadeId,
+        rua:           destRua,
+        posicao:       String(destPos),
+        lote:          _transferItem.lote || undefined,
+        data_validade: _brDateToIso(_transferItem.val) || undefined
+      });
+      const idEnd = result.id_item_enderecamento ? String(result.id_item_enderecamento) : '';
+      const ts   = new Date().toISOString();
+      const user = S.user.email;
+      const newId = `${addrKey(destRua, destPos)}_split_${Date.now()}`;
+      await db.collection('wms_items').doc(newId).set({
+        sku: _transferItem.sku, desc: _transferItem.desc, lote: _transferItem.lote, val: _transferItem.val,
+        est: '', idEnd, emp: _transferItem.emp, itemId: _transferItem.itemId, unidadeId: _transferItem.unidadeId,
+        rua: destRua, pos: String(destPos),
+        updatedAt: ts, updatedBy: user,
+        manuallyEdited: true
+      });
+      _showTransferMsg('ok', `Novo endereço criado com sucesso! Endereço original (${rua}·${pos}) mantido. O mapa será atualizado na próxima sincronização com o ERP.`);
+    } else {
+      await _erpUpdateEndereco({
+        id_item_enderecamento: _transferItem.idEnd,
+        rua:                   destRua,
+        posicao:                String(destPos)
+      });
+      _showTransferMsg('ok', `Transferência registrada com sucesso! O mapa será atualizado na próxima sincronização com o ERP.`);
+    }
 
-    _showTransferMsg('ok', `Transferência registrada com sucesso! O mapa será atualizado na próxima sincronização com o ERP.`);
     btn.textContent = '✓ Concluído';
     $('transferCancelBtn').textContent = 'Fechar';
     $('transferCancelBtn').onclick = () => closeModal('transferModal');

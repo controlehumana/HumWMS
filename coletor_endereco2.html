@@ -126,6 +126,13 @@ body{
 .itemBox .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
 .itemBox .meta span{display:flex;align-items:center;gap:4px}
 
+.acaoToggle{display:flex;gap:8px;margin-bottom:16px}
+.acaoBtn{
+  flex:1;padding:10px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--line);
+  background:#fff;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:center;
+}
+.acaoBtn.active{background:var(--green);color:#fff;border-color:var(--green-dark)}
+
 .matchList{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .matchCard{
   background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);
@@ -351,6 +358,11 @@ body{
         <!-- STEP 2: escolher destino -->
         <div class="step" id="step2">
           <div class="itemBox" id="itemBoxDestino"></div>
+
+          <div class="acaoToggle" id="acaoToggle" style="display:none">
+            <button type="button" class="acaoBtn" id="btnAcaoTransferir">↔ Transferir</button>
+            <button type="button" class="acaoBtn" id="btnAcaoAdicionar">+ Adicionar novo endereço</button>
+          </div>
 
           <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
           <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="1" style="text-transform:uppercase">
@@ -586,7 +598,8 @@ function brDate(iso) {
 const $ = id => document.getElementById(id);
 let estoqueAtual = [];
 let selecionado = null;       // registro do ERP escolhido
-let modoTransferencia = false; // true = item já endereçado (PUT) | false = pendente novo (POST)
+let modoTransferencia = false; // true = item já endereçado (mostra o seletor de ação)
+let acaoDestino = 'enderecar'; // 'enderecar' (POST, saldo cheio) | 'transferir' (PUT) | 'adicionar' (POST, mesmo lote/validade, sem saldo)
 let sessionCount = 0;
 
 // ── Autenticação Firebase ─────────────────────────────────────────────────────
@@ -868,6 +881,7 @@ function limparBusca() {
 function selecionarItem(item) {
   selecionado = item;
   modoTransferencia = !!(item.rua && item.posicao);
+  acaoDestino = modoTransferencia ? 'transferir' : 'enderecar';
 
   const statusLine = modoTransferencia
     ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
@@ -883,8 +897,9 @@ function selecionarItem(item) {
     </div>
     ${statusLine}`;
 
-  $('ruaLabel').textContent = modoTransferencia ? 'Nova rua de destino' : 'Rua de destino';
-  $('posLabel').textContent = modoTransferencia ? 'Nova posição de destino' : 'Posição de destino';
+  $('acaoToggle').style.display = modoTransferencia ? 'flex' : 'none';
+  atualizarAcaoBtns();
+  atualizarLabelsAcao();
 
   $('ruaIn').value = '';
   $('posIn').value = '';
@@ -893,6 +908,37 @@ function selecionarItem(item) {
   $('ruaIn').focus();
 }
 
+function atualizarAcaoBtns() {
+  $('btnAcaoTransferir').classList.toggle('active', acaoDestino === 'transferir');
+  $('btnAcaoAdicionar').classList.toggle('active', acaoDestino === 'adicionar');
+}
+
+function atualizarLabelsAcao() {
+  if (acaoDestino === 'transferir') {
+    $('ruaLabel').textContent = 'Nova rua de destino';
+    $('posLabel').textContent = 'Nova posição de destino';
+  } else if (acaoDestino === 'adicionar') {
+    $('ruaLabel').textContent = 'Rua do novo endereço';
+    $('posLabel').textContent = 'Posição do novo endereço';
+  } else {
+    $('ruaLabel').textContent = 'Rua de destino';
+    $('posLabel').textContent = 'Posição de destino';
+  }
+}
+
+$('btnAcaoTransferir').addEventListener('click', () => {
+  acaoDestino = 'transferir';
+  atualizarAcaoBtns();
+  atualizarLabelsAcao();
+  hideMsg('step2Msg');
+});
+$('btnAcaoAdicionar').addEventListener('click', () => {
+  acaoDestino = 'adicionar';
+  atualizarAcaoBtns();
+  atualizarLabelsAcao();
+  hideMsg('step2Msg');
+});
+
 function irParaConfirmacao() {
   const rua = $('ruaIn').value.trim().toUpperCase();
   const pos = $('posIn').value.trim();
@@ -900,15 +946,29 @@ function irParaConfirmacao() {
     showMsg('step2Msg', 'warn', 'Informe a rua e a posição de destino.');
     return false;
   }
-  if (modoTransferencia && rua === String(selecionado.rua).toUpperCase() && pos === String(selecionado.posicao)) {
+  if (acaoDestino !== 'enderecar' && rua === String(selecionado.rua).toUpperCase() && pos === String(selecionado.posicao)) {
     showMsg('step2Msg', 'warn', 'Destino igual ao endereço atual. Escolha um endereço diferente.');
     return false;
   }
+  if (acaoDestino === 'adicionar') {
+    const jaOcupado = estoqueAtual.some(r =>
+      r !== selecionado &&
+      String(r.item_codigo || '').trim() === String(selecionado.item_codigo || '').trim() &&
+      String(r.numero_lote || '').trim() === String(selecionado.numero_lote || '').trim() &&
+      String(r.dt_validade || '').trim() === String(selecionado.dt_validade || '').trim() &&
+      String(r.rua || '').toUpperCase() === rua &&
+      String(r.posicao || '').trim() === pos
+    );
+    if (jaOcupado) {
+      showMsg('step2Msg', 'warn', 'Este lote já tem um endereço nessa posição. Escolha outra.');
+      return false;
+    }
+  }
   hideMsg('step2Msg');
 
-  const acaoLabel = modoTransferencia ? 'Transferência' : 'Novo endereço';
-  const origemRow = modoTransferencia
-    ? `<div class="summaryRow"><span class="k">De</span><span class="v">${selecionado.rua} · Pos. ${selecionado.posicao}</span></div>`
+  const acaoLabel = acaoDestino === 'transferir' ? 'Transferência' : (acaoDestino === 'adicionar' ? 'Novo endereço (mesmo lote)' : 'Novo endereço');
+  const origemRow = acaoDestino !== 'enderecar'
+    ? `<div class="summaryRow"><span class="k">${acaoDestino === 'transferir' ? 'De' : 'Endereço já existente'}</span><span class="v">${selecionado.rua} · Pos. ${selecionado.posicao}</span></div>`
     : '';
 
   $('itemBoxConfirm').innerHTML = `
@@ -940,7 +1000,7 @@ async function confirmarEnvio() {
   try {
     let okMsg;
     let result;
-    if (modoTransferencia) {
+    if (acaoDestino === 'transferir') {
       result = await erpUpdateEndereco({
         id_item_enderecamento: selecionado.id_item_enderecamento,
         rua,
@@ -949,6 +1009,27 @@ async function confirmarEnvio() {
       selecionado.rua = rua;
       selecionado.posicao = pos;
       okMsg = `Transferido com sucesso para Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
+    } else if (acaoDestino === 'adicionar') {
+      // Novo endereço pro MESMO SKU+lote+validade (estoque físico dividido em mais de uma posição).
+      // Não envia "estoque": o saldo do ERP não é somado por posição (confirmado em produção,
+      // ver Bomba Enteral com múltiplas posições e mesmo saldo_aberto repetido em todas as linhas),
+      // então só a posição original mantém o valor conhecido — as demais ficam sem saldo aqui.
+      result = await erpCreateEndereco({
+        item_id:       selecionado.item_id,
+        unidade_id:    selecionado.empresa_id,
+        rua,
+        posicao:       pos,
+        lote:          selecionado.numero_lote || undefined,
+        data_validade: selecionado.dt_validade || undefined
+      });
+      estoqueAtual.push({
+        ...selecionado,
+        rua, posicao: pos,
+        estoque: '',
+        id_item_enderecamento: result.id_item_enderecamento || undefined
+      });
+      atualizarListaRuas();
+      okMsg = `Novo endereço adicionado! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s). Endereço original (${prevRua}·${prevPos}) mantido.`;
     } else {
       result = await erpCreateEndereco({
         item_id:       selecionado.item_id,
@@ -966,13 +1047,13 @@ async function confirmarEnvio() {
     }
 
     appendLog({
-      acao: modoTransferencia ? 'Transferência' : 'Endereçamento',
+      acao: acaoDestino === 'transferir' ? 'Transferência' : (acaoDestino === 'adicionar' ? 'Endereçamento adicional' : 'Endereçamento'),
       sku:  selecionado.item_codigo   || '',
       desc: selecionado.item_descricao || '',
       lote: selecionado.numero_lote   || '',
       rua, pos,
-      de_rua: modoTransferencia ? prevRua : '',
-      de_pos: modoTransferencia ? prevPos : ''
+      de_rua: acaoDestino === 'transferir' ? prevRua : '',
+      de_pos: acaoDestino === 'transferir' ? prevPos : ''
     });
 
     atualizarContagemHint();
