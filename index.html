@@ -3675,6 +3675,7 @@ async function _cadastrarPendente(it) {
 //  IMPORT ERP
 // ══════════════════════════════════════════════════════
 let importParsed = null;
+let importSource = 'excel'; // 'excel' | 'api' — define o fonte usado em _commitImportData ao confirmar
 
 function importShowStep(step) {
   ['File','Preview','Progress','Done','Error'].forEach(s => {
@@ -3703,6 +3704,7 @@ function processImportFile(file) {
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true, dateNF: 'DD/MM/YYYY' });
       importParsed = parseExcel(wb);
+      importSource = 'excel';
       const s = importParsed.stats;
       $('importSummary').innerHTML = [
         { label: 'Total de itens', val: s.total },
@@ -3921,7 +3923,7 @@ $('importConfirmBtn').addEventListener('click', async () => {
   if (!importParsed) return;
   importShowStep('Progress');
   try {
-    const r = await _commitImportData(importParsed, { fonte: 'excel' });
+    const r = await _commitImportData(importParsed, { fonte: importSource === 'api' ? 'api' : 'excel' });
     const nowFmt = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     $('importDoneMsg').textContent = `${r.items} itens importados em ${r.addresses} endereços · ${nowFmt}`;
     importShowStep('Done');
@@ -3963,6 +3965,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
       const data = await resp.json();
       importParsed = parseApiData(data);
+      importSource = 'api';
       const s = importParsed.stats;
       $('importSummary').innerHTML = [
         { label: 'Total de itens', val: s.total    },
