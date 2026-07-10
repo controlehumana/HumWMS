@@ -112,6 +112,9 @@ body{
 .btn-primary:active{background:var(--green-dark)}
 .btn-primary:disabled{opacity:.5;cursor:default}
 .btn-ghost{background:#fff;color:var(--text);border-color:var(--line);margin-top:10px}
+.btn-danger{background:var(--danger);color:#fff;margin-top:10px}
+.btn-danger:active{background:#b91c1c}
+.btn-danger:disabled{opacity:.5;cursor:default}
 
 .itemBox{
   background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-md);
@@ -245,6 +248,7 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
 .logBadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0}
 .logBadge.end{background:var(--green-light);color:var(--green-dark)}
 .logBadge.trf{background:var(--info-bg);color:var(--info)}
+.logBadge.del{background:var(--danger-bg);color:var(--danger)}
 .logDesc{font-weight:600;font-size:12.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .logMeta{font-size:11px;color:var(--muted)}
 .logLoc{font-weight:700;color:var(--text)}
@@ -335,11 +339,13 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
           <div id="step2Msg" class="msg"></div>
 
           <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
+          <button class="btn btn-danger" id="btnLiberarPos" style="display:none">🗑 Liberar posição (sem produto)</button>
           <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
         </div>
 
         <!-- STEP 3: confirmar e enviar -->
         <div class="step" id="step3">
+          <div class="msg warn" id="liberarWarn" style="display:none">⚠ Operação irreversível: o item será desvinculado dessa posição no ERP.</div>
           <div class="itemBox" id="itemBoxConfirm"></div>
           <div id="step3Msg" class="msg"></div>
           <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
@@ -477,6 +483,7 @@ async function erpWrite(method, payload) {
 }
 const erpCreateEndereco = payload => erpWrite('POST', payload);
 const erpUpdateEndereco = payload => erpWrite('PUT', payload);
+const erpDeleteEndereco = idEnd   => erpWrite('DELETE', { id_item_enderecamento: idEnd });
 
 function brDate(iso) {
   if (!iso) return '–';
@@ -558,14 +565,17 @@ function renderHistorico() {
       : '';
     lastDay = day;
     const isTrf = e.acao === 'Transferência';
+    const isDel = e.acao === 'Liberação';
     const locHtml = isTrf
       ? `<span class="logLoc">${e.de_rua}/${e.de_pos} → ${e.rua}/${e.pos}</span>`
-      : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
+      : isDel
+        ? `<span class="logLoc">🗑 ${e.rua}/${e.pos} liberado</span>`
+        : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
     const opHtml = e.op ? ` · <span class="logOp">${e.op}</span>` : '';
     return `${dayHeader}<div class="logEntry">
       <div class="logTop">
         <span class="logTime">${time}</span>
-        <span class="logBadge ${isTrf ? 'trf' : 'end'}">${e.acao}</span>${opHtml}
+        <span class="logBadge ${isTrf ? 'trf' : (isDel ? 'del' : 'end')}">${e.acao}</span>${opHtml}
       </div>
       <div class="logDesc">${e.desc || '–'}</div>
       <div class="logMeta">SKU ${e.sku || '–'} · Lote ${e.lote || '–'} · ${locHtml}</div>
@@ -710,6 +720,7 @@ function selecionarItem(item) {
     ${statusLine}`;
 
   $('acaoToggle').style.display = modoTransferencia ? 'flex' : 'none';
+  $('btnLiberarPos').style.display = modoTransferencia ? '' : 'none';
   atualizarAcaoBtns();
   atualizarLabelsAcao();
 
@@ -718,6 +729,14 @@ function selecionarItem(item) {
   hideMsg('step2Msg');
   showStep(2);
   $('ruaIn').focus();
+}
+
+function resetConfirmBtn() {
+  const b = $('btnConfirmSend');
+  b.textContent = '✓ Confirmar Endereçamento';
+  b.classList.remove('btn-danger');
+  b.classList.add('btn-primary');
+  $('liberarWarn').style.display = 'none';
 }
 
 function atualizarAcaoBtns() {
@@ -751,7 +770,29 @@ $('btnAcaoAdicionar').addEventListener('click', () => {
   hideMsg('step2Msg');
 });
 
+$('btnLiberarPos').addEventListener('click', () => {
+  if (!selecionado) return;
+  acaoDestino = 'remover';
+  hideMsg('step2Msg');
+  $('itemBoxConfirm').innerHTML = `
+    <div class="desc">${selecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">Ação</span><span class="v">Liberar posição</span></div>
+    <div class="summaryRow"><span class="k">SKU</span><span class="v">${selecionado.item_codigo || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Lote</span><span class="v">${selecionado.numero_lote || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Validade</span><span class="v">${brDate(selecionado.dt_validade)}</span></div>
+    <div class="summaryRow"><span class="k">Endereço a liberar</span><span class="v">${selecionado.rua} · Pos. ${selecionado.posicao}</span></div>
+  `;
+  $('liberarWarn').style.display = 'block';
+  hideMsg('step3Msg');
+  const btn = $('btnConfirmSend');
+  btn.textContent = '🗑 Confirmar liberação';
+  btn.classList.remove('btn-primary');
+  btn.classList.add('btn-danger');
+  showStep(3);
+});
+
 function irParaConfirmacao() {
+  resetConfirmBtn();
   const rua = $('ruaIn').value.trim().toUpperCase();
   const pos = $('posIn').value.trim();
   if (!rua || !pos) {
@@ -842,6 +883,11 @@ async function confirmarEnvio() {
       });
       atualizarListaRuas();
       okMsg = `Novo endereço adicionado! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s). Endereço original (${prevRua}·${prevPos}) mantido.`;
+    } else if (acaoDestino === 'remover') {
+      result = await erpDeleteEndereco(selecionado.id_item_enderecamento);
+      const idx = estoqueAtual.indexOf(selecionado);
+      if (idx >= 0) estoqueAtual.splice(idx, 1);
+      okMsg = `Posição ${prevRua}/${prevPos} liberada com sucesso (${(result._elapsedMs / 1000).toFixed(1)}s).`;
     } else {
       result = await erpCreateEndereco({
         item_id:       selecionado.item_id,
@@ -859,11 +905,12 @@ async function confirmarEnvio() {
     }
 
     appendLog({
-      acao: acaoDestino === 'transferir' ? 'Transferência' : (acaoDestino === 'adicionar' ? 'Endereçamento adicional' : 'Endereçamento'),
+      acao: acaoDestino === 'transferir' ? 'Transferência' : (acaoDestino === 'adicionar' ? 'Endereçamento adicional' : (acaoDestino === 'remover' ? 'Liberação' : 'Endereçamento')),
       sku:  selecionado.item_codigo   || '',
       desc: selecionado.item_descricao || '',
       lote: selecionado.numero_lote   || '',
-      rua, pos,
+      rua:  acaoDestino === 'remover' ? prevRua : rua,
+      pos:  acaoDestino === 'remover' ? prevPos : pos,
       de_rua: acaoDestino === 'transferir' ? prevRua : '',
       de_pos: acaoDestino === 'transferir' ? prevPos : ''
     });
@@ -874,17 +921,18 @@ async function confirmarEnvio() {
 
     showMsg('step3Msg', 'ok', okMsg);
     btn.disabled = false;
-    btn.innerHTML = '✓ Confirmar Endereçamento';
+    btn.innerHTML = acaoDestino === 'remover' ? '🗑 Confirmar liberação' : '✓ Confirmar Endereçamento';
 
     setTimeout(() => {
       showStep(1);
       limparBusca();
+      resetConfirmBtn();
       hideMsg('step3Msg');
     }, 400);
   } catch (e) {
     showMsg('step3Msg', 'err', 'Falha ao enviar ao ERP: ' + mensagemErroAmigavel(e));
     btn.disabled = false;
-    btn.innerHTML = '✓ Confirmar Endereçamento';
+    btn.innerHTML = acaoDestino === 'remover' ? '🗑 Confirmar liberação' : '✓ Confirmar Endereçamento';
   }
 }
 
@@ -1196,7 +1244,7 @@ $('btnBack1').addEventListener('click', () => {
   showStep(1);
   limparBusca();
 });
-$('btnBack2').addEventListener('click', () => showStep(2));
+$('btnBack2').addEventListener('click', () => { resetConfirmBtn(); showStep(2); });
 
 $('btnRefresh').addEventListener('click', async () => {
   await carregarEstoque();

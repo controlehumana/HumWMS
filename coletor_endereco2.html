@@ -270,6 +270,7 @@ body{
 .logBadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0}
 .logBadge.end{background:var(--green-light);color:var(--green-dark)}
 .logBadge.trf{background:var(--info-bg);color:var(--info)}
+.logBadge.del{background:var(--danger-bg);color:var(--danger)}
 .logDesc{font-weight:600;font-size:12.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .logMeta{font-size:11px;color:var(--muted)}
 .logLoc{font-weight:700;color:var(--text)}
@@ -443,11 +444,13 @@ body{
           <div id="altStep2Msg" class="msg"></div>
 
           <button class="btn btn-primary" id="btnAltConfirmarDestino" style="margin-top:14px">Confirmar destino →</button>
+          <button class="btn btn-danger" id="btnAltLiberarPos" style="margin-top:10px">🗑 Liberar posição (sem produto)</button>
           <button class="btn btn-ghost" id="btnAltVoltarBusca" style="margin-top:8px">← Buscar outro</button>
         </div>
 
-        <!-- STEP 3: confirmar transferência -->
+        <!-- STEP 3: confirmar transferência ou liberação -->
         <div class="step" id="altStep3">
+          <div class="msg warn" id="altLiberarWarn" style="display:none">⚠ Operação irreversível. O item será desvinculado do endereço no ERP.</div>
           <div class="itemBox" id="altItemBoxConfirm"></div>
           <div id="altStep3Msg" class="msg"></div>
           <button class="btn btn-primary" id="btnAltConfirmTrf" style="margin-top:14px">✓ Confirmar transferência</button>
@@ -587,6 +590,7 @@ async function erpWrite(method, payload) {
 }
 const erpCreateEndereco = payload => erpWrite('POST', payload);
 const erpUpdateEndereco = payload => erpWrite('PUT', payload);
+const erpDeleteEndereco = idEnd   => erpWrite('DELETE', { id_item_enderecamento: idEnd });
 
 function brDate(iso) {
   if (!iso) return '–';
@@ -746,14 +750,17 @@ function renderHistorico() {
       : '';
     lastDay = day;
     const isTrf = e.acao === 'Transferência';
+    const isDel = e.acao === 'Liberação';
     const locHtml = isTrf
       ? `<span class="logLoc">${e.de_rua}/${e.de_pos} → ${e.rua}/${e.pos}</span>`
-      : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
+      : isDel
+        ? `<span class="logLoc">🗑 ${e.rua}/${e.pos} liberado</span>`
+        : `<span class="logLoc">→ ${e.rua}/${e.pos}</span>`;
     const opHtml = e.op ? ` · <span class="logOp">${e.op}</span>` : '';
     return `${dayHeader}<div class="logEntry">
       <div class="logTop">
         <span class="logTime">${time}</span>
-        <span class="logBadge ${isTrf ? 'trf' : 'end'}">${e.acao}</span>${opHtml}
+        <span class="logBadge ${isTrf ? 'trf' : (isDel ? 'del' : 'end')}">${e.acao}</span>${opHtml}
       </div>
       <div class="logDesc">${e.desc || '–'}</div>
       <div class="logMeta">SKU ${e.sku || '–'} · Lote ${e.lote || '–'} · ${locHtml}</div>
@@ -1412,9 +1419,18 @@ $('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') { e.pr
 
 // ── Módulo Alterar: funções ───────────────────────────────────────────────────
 let altSelecionado = null;
+let altAcao = 'transferir'; // 'transferir' (PUT) | 'remover' (DELETE, libera a posição)
 
 function showAltStep(n) {
   ['altStep1','altStep2','altStep3'].forEach((id, i) => $(id).classList.toggle('active', i === n - 1));
+}
+
+function resetAltConfirmBtn() {
+  const b = $('btnAltConfirmTrf');
+  b.textContent = '✓ Confirmar transferência';
+  b.classList.remove('btn-danger');
+  b.classList.add('btn-primary');
+  $('altLiberarWarn').style.display = 'none';
 }
 
 function altBuscarSku(sku) {
@@ -1475,6 +1491,8 @@ $('altPosIn').addEventListener('keydown', e => {
 });
 
 function irParaAltConfirmacao() {
+  altAcao = 'transferir';
+  resetAltConfirmBtn();
   const rua = $('altRuaIn').value.trim().toUpperCase();
   const pos = $('altPosIn').value.trim();
   if (!rua || !pos) {
@@ -1499,6 +1517,25 @@ function irParaAltConfirmacao() {
 
 $('btnAltConfirmarDestino').addEventListener('click', irParaAltConfirmacao);
 
+$('btnAltLiberarPos').addEventListener('click', () => {
+  if (!altSelecionado) return;
+  altAcao = 'remover';
+  hideMsg('altStep2Msg');
+  $('altItemBoxConfirm').innerHTML = `
+    <div class="desc">${altSelecionado.item_descricao || '–'}</div>
+    <div class="summaryRow"><span class="k">Ação</span><span class="v">Liberar posição</span></div>
+    <div class="summaryRow"><span class="k">SKU</span><span class="v">${altSelecionado.item_codigo || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Lote</span><span class="v">${altSelecionado.numero_lote || '–'}</span></div>
+    <div class="summaryRow"><span class="k">Endereço a liberar</span><span class="v">${altSelecionado.rua} · Pos. ${altSelecionado.posicao}</span></div>`;
+  $('altLiberarWarn').style.display = 'block';
+  hideMsg('altStep3Msg');
+  const btn = $('btnAltConfirmTrf');
+  btn.textContent = '🗑 Confirmar liberação';
+  btn.classList.remove('btn-primary');
+  btn.classList.add('btn-danger');
+  showAltStep(3);
+});
+
 $('btnAltVoltarBusca').addEventListener('click', () => {
   altSelecionado = null;
   $('altSkuIn').value = '';
@@ -1510,15 +1547,59 @@ $('btnAltVoltarBusca').addEventListener('click', () => {
   $('altSkuIn').focus();
 });
 
-$('btnAltCancelarTrf').addEventListener('click', () => showAltStep(2));
+$('btnAltCancelarTrf').addEventListener('click', () => { resetAltConfirmBtn(); showAltStep(2); });
 
 $('btnAltConfirmTrf').addEventListener('click', async () => {
   if (!altSelecionado) return;
+  const btn = $('btnAltConfirmTrf');
+
+  if (altAcao === 'remover') {
+    const prevRua = String(altSelecionado.rua || '');
+    const prevPos = String(altSelecionado.posicao || '');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Liberando…';
+    hideMsg('altStep3Msg');
+    try {
+      const result = await erpDeleteEndereco(altSelecionado.id_item_enderecamento);
+      appendLog({
+        acao: 'Liberação',
+        sku:  altSelecionado.item_codigo || '',
+        desc: altSelecionado.item_descricao || '',
+        lote: altSelecionado.numero_lote || '',
+        rua: prevRua, pos: prevPos,
+        de_rua: '', de_pos: ''
+      });
+      const idx = estoqueAtual.indexOf(altSelecionado);
+      if (idx >= 0) estoqueAtual.splice(idx, 1);
+      atualizarContagemHint();
+      sessionCount++;
+      $('sessionCount').textContent = sessionCount;
+      showMsg('altStep3Msg', 'ok', `Posição ${prevRua}/${prevPos} liberada com sucesso (${(result._elapsedMs/1000).toFixed(1)}s).`);
+      btn.disabled = false;
+      btn.innerHTML = '🗑 Confirmar liberação';
+      setTimeout(() => {
+        altSelecionado = null;
+        resetAltConfirmBtn();
+        $('altSkuIn').value = '';
+        $('altMatchList').innerHTML = '';
+        $('altRuaIn').value = '';
+        $('altPosIn').value = '';
+        hideMsg('altStep1Msg');
+        showAltStep(1);
+        $('altSkuIn').focus();
+      }, 1500);
+    } catch(e) {
+      showMsg('altStep3Msg', 'err', 'Falha ao liberar posição: ' + mensagemErroAmigavel(e));
+      btn.disabled = false;
+      btn.innerHTML = '🗑 Confirmar liberação';
+    }
+    return;
+  }
+
   const rua = $('altRuaIn').value.trim().toUpperCase();
   const pos = $('altPosIn').value.trim();
   const prevRua = String(altSelecionado.rua || '');
   const prevPos = String(altSelecionado.posicao || '');
-  const btn = $('btnAltConfirmTrf');
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Transferindo…';
