@@ -208,6 +208,8 @@ body{
   border:1.5px solid var(--line2);background:var(--surface);
 }
 .posRow.occ{border-color:#fecaca;background:#fff8f8}
+.posRow.occ.actionable{cursor:pointer}
+.posRow.occ.actionable:active{background:#ffedee}
 .posRow.hide{display:none}
 .posNum{
   width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
@@ -1164,7 +1166,7 @@ function renderPosList() {
       }
       return `SKU ${it.item_codigo || '–'} · Lote ${it.numero_lote || '–'} · Saldo ${saldoTxt}`;
     }).join(' / ');
-    return `<div class="posRow occ">
+    return `<div class="posRow occ${canAlterarEnd ? ' actionable' : ''}"${canAlterarEnd ? ` data-pos="${pos}" title="Toque para liberar esta posição"` : ''}>
       <div class="posNum">${pos}</div>
       <div class="posInfo">
         <div class="desc">${descs}</div>
@@ -1173,6 +1175,12 @@ function renderPosList() {
       <span class="posBadge">${itens.length > 1 ? itens.length + ' itens' : 'Ocupado'}</span>
     </div>`;
   }).join('');
+
+  if (canAlterarEnd) {
+    $('posList').querySelectorAll('.posRow.occ[data-pos]').forEach(row => {
+      row.addEventListener('click', () => liberarPorEnderecoAlt(ruaAtiva, row.dataset.pos));
+    });
+  }
 }
 
 $('dashFiltro').addEventListener('input', renderPosList);
@@ -1517,7 +1525,7 @@ function irParaAltConfirmacao() {
 
 $('btnAltConfirmarDestino').addEventListener('click', irParaAltConfirmacao);
 
-$('btnAltLiberarPos').addEventListener('click', () => {
+function prepararLiberacaoAlt() {
   if (!altSelecionado) return;
   altAcao = 'remover';
   hideMsg('altStep2Msg');
@@ -1534,7 +1542,39 @@ $('btnAltLiberarPos').addEventListener('click', () => {
   btn.classList.remove('btn-primary');
   btn.classList.add('btn-danger');
   showAltStep(3);
-});
+}
+$('btnAltLiberarPos').addEventListener('click', prepararLiberacaoAlt);
+
+// Liberar posição a partir da aba Consultar (só quando o usuário tem permissão alterar_end) —
+// o operador sabe o endereço (ex.: "A/28 esvaziou") mas não lembra qual SKU estava lá.
+function liberarPorEnderecoAlt(rua, pos) {
+  const itens = estoqueAtual.filter(r =>
+    String(r.rua || '').toUpperCase() === rua && String(r.posicao || '').trim() === String(pos) && r.id_item_enderecamento
+  );
+  if (itens.length === 0) return;
+  switchView('viewAlterar');
+  if (itens.length === 1) {
+    altSelecionarItem(itens[0]);
+    prepararLiberacaoAlt();
+    return;
+  }
+  // mais de um item na mesma posição (lote dividido) — pede pra escolher qual liberar
+  showAltStep(1);
+  $('altSkuIn').value = '';
+  hideMsg('altStep1Msg');
+  showMsg('altStep1Msg', 'info', `${itens.length} itens na posição ${rua}/${pos} — toque no item que deseja liberar.`);
+  $('altMatchList').innerHTML = itens.map((m, i) => `
+    <div class="matchCard" data-idx="${i}">
+      <div class="desc">${m.item_descricao || '–'}</div>
+      <div class="meta">SKU ${m.item_codigo || '–'} · Lote ${m.numero_lote || '–'} · Saldo ${m.saldo_aberto || '–'}</div>
+    </div>`).join('');
+  $('altMatchList').querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => {
+      altSelecionarItem(itens[parseInt(card.dataset.idx)]);
+      prepararLiberacaoAlt();
+    });
+  });
+}
 
 $('btnAltVoltarBusca').addEventListener('click', () => {
   altSelecionado = null;

@@ -205,7 +205,8 @@ body{
   display:flex;align-items:center;gap:10px;border-radius:var(--radius-md);padding:9px 11px;
   border:1.5px solid var(--line2);background:var(--surface);
 }
-.posRow.occ{border-color:#fecaca;background:#fff8f8}
+.posRow.occ{border-color:#fecaca;background:#fff8f8;cursor:pointer}
+.posRow.occ:active{background:#ffedee}
 .posRow.hide{display:none}
 .posNum{
   width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
@@ -770,7 +771,7 @@ $('btnAcaoAdicionar').addEventListener('click', () => {
   hideMsg('step2Msg');
 });
 
-$('btnLiberarPos').addEventListener('click', () => {
+function prepararLiberacao() {
   if (!selecionado) return;
   acaoDestino = 'remover';
   hideMsg('step2Msg');
@@ -789,7 +790,39 @@ $('btnLiberarPos').addEventListener('click', () => {
   btn.classList.remove('btn-primary');
   btn.classList.add('btn-danger');
   showStep(3);
-});
+}
+$('btnLiberarPos').addEventListener('click', prepararLiberacao);
+
+// Liberar posição a partir da aba Consultar — quando o operador sabe o endereço
+// (ex.: "A/28 esvaziou") mas não lembra qual SKU estava lá.
+function liberarPorEndereco(rua, pos) {
+  const itens = estoqueAtual.filter(r =>
+    String(r.rua || '').toUpperCase() === rua && String(r.posicao || '').trim() === String(pos)
+  );
+  if (itens.length === 0) return;
+  switchView('viewEnderecar');
+  if (itens.length === 1) {
+    selecionarItem(itens[0]);
+    prepararLiberacao();
+    return;
+  }
+  // mais de um item na mesma posição (lote dividido) — pede pra escolher qual liberar
+  showStep(1);
+  limparBusca();
+  showMsg('step1Msg', 'info', `${itens.length} itens na posição ${rua}/${pos} — toque no item que deseja liberar.`);
+  $('matchList').innerHTML = itens.map((m, i) => `
+    <div class="matchCard" data-idx="${i}">
+      <div class="desc">${m.item_descricao || '–'}</div>
+      <div class="meta">SKU ${m.item_codigo || '–'} · Lote ${m.numero_lote || '–'} · Saldo ${m.saldo_aberto || '–'}</div>
+    </div>`).join('');
+  $('matchList').querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => {
+      selecionarItem(itens[parseInt(card.dataset.idx)]);
+      prepararLiberacao();
+    });
+  });
+  $('btnNovaConsulta').style.display = '';
+}
 
 function irParaConfirmacao() {
   resetConfirmBtn();
@@ -1017,7 +1050,7 @@ function renderPosList() {
       }
       return `SKU ${it.item_codigo || '–'} · Lote ${it.numero_lote || '–'} · Saldo ${saldoTxt}`;
     }).join(' / ');
-    return `<div class="posRow occ">
+    return `<div class="posRow occ" data-pos="${pos}" title="Toque para liberar esta posição">
       <div class="posNum">${pos}</div>
       <div class="posInfo">
         <div class="desc">${descs}</div>
@@ -1026,6 +1059,10 @@ function renderPosList() {
       <span class="posBadge">${itens.length > 1 ? itens.length + ' itens' : 'Ocupado'}</span>
     </div>`;
   }).join('');
+
+  $('posList').querySelectorAll('.posRow.occ[data-pos]').forEach(row => {
+    row.addEventListener('click', () => liberarPorEndereco(ruaAtiva, row.dataset.pos));
+  });
 }
 
 $('dashFiltro').addEventListener('input', renderPosList);
