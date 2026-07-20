@@ -75,23 +75,39 @@ body{
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
 .appIcon svg{width:20px;height:20px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.appName{font-weight:700;font-size:15px;color:var(--text)}
+.appName{font-weight:700;font-size:15px;color:var(--text);letter-spacing:-0.01em}
 .appSub{font-size:12px;color:var(--muted)}
 .sessionCount{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
-.sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1}
+.sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
 
 .tabBar{display:flex;border-bottom:1px solid var(--line);background:#fff}
 .tabBtn{
   flex:1;padding:12px 8px;background:none;border:none;cursor:pointer;
   font-size:13px;font-weight:600;color:var(--muted);border-bottom:2.5px solid transparent;
+  transition:color .15s ease,border-color .15s ease;
 }
 .tabBtn.active{color:var(--green-dark);border-bottom-color:var(--green)}
 
 .body{padding:20px}
 .step{display:none}
-.step.active{display:block}
+.step.active{display:block;animation:materialIn .28s cubic-bezier(.2,.8,.2,1)}
 .view{display:none}
-.view.active{display:block}
+.view.active{display:block;animation:materialIn .28s cubic-bezier(.2,.8,.2,1)}
+
+@keyframes materialIn{
+  from{opacity:0;transform:translateY(6px) scale(.99)}
+  to{opacity:1;transform:none}
+}
+
+/* ── Resposta tátil: feedback instantâneo no toque, não na soltura ── */
+button,.ruaChip,.matchCard,.posRow.occ{transition:transform .1s cubic-bezier(.2,.8,.2,1)}
+button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:active{transform:scale(.96)}
+
+@media (prefers-reduced-motion: reduce){
+  .step.active,.view.active,.scanModal{animation:none!important}
+  button,.ruaChip,.matchCard,.posRow.occ{transition:none!important}
+  button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:active{transform:none!important}
+}
 
 .label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:block}
 .inputField{
@@ -162,7 +178,7 @@ body{
 .summaryRow{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
 .summaryRow:last-child{border-bottom:none}
 .summaryRow .k{color:var(--muted)}
-.summaryRow .v{font-weight:600;text-align:right}
+.summaryRow .v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 
 .spinner{
   display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.5);
@@ -181,9 +197,13 @@ body{
 .btn-scan svg{width:20px;height:20px}
 
 /* ── Scanner de câmera ── */
-.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;align-items:center;justify-content:center;padding:16px}
+.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center;padding:16px}
 .scanOverlay.show{display:flex}
-.scanModal{background:#111;border-radius:var(--radius-lg);width:min(440px,100%);overflow:hidden}
+.scanModal{background:#111;border-radius:var(--radius-lg);width:min(440px,100%);overflow:hidden;animation:materialIn .3s cubic-bezier(.2,.8,.2,1)}
+
+@media (prefers-reduced-transparency: reduce){
+  .scanOverlay{background:rgba(0,0,0,.92);backdrop-filter:none}
+}
 .scanHeader{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#eee;font-size:13px;font-weight:600}
 .scanHeader .iconBtn{background:none;border:none;color:#ccc;cursor:pointer;padding:4px}
 .scanHeader .iconBtn svg{width:18px;height:18px;fill:none;stroke:#ccc;stroke-width:2}
@@ -211,6 +231,7 @@ body{
 .posNum{
   width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
   display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex-shrink:0;
+  font-variant-numeric:tabular-nums;
 }
 .posRow.occ .posNum{border-color:var(--danger);color:var(--danger)}
 .posInfo{flex:1;min-width:0}
