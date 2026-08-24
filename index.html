@@ -3323,7 +3323,7 @@ function renderCard(addr) {
 // crud-stock/index.php: CRUD completo (GET/POST/PUT/DELETE), confirmado ativo em produção desde 2026-06-23.
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
-const ERP_PROXY       = 'https://corsproxy.io/?';
+const ERP_PROXY       = 'https://humwms-proxy.vercel.app/api/erp?url='; // proxy próprio (Vercel); o corsproxy.io desligou as URLs anônimas em 08/2026
 
 function _erpUrl(extraQs = '') {
   return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
@@ -4014,7 +4014,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     btn.disabled = true;
     apiMsg('info', 'Consultando API...');
     try {
-      const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`; // cache-bust no corsproxy.io
+      const targetUrl = `${_erpUrl()}&data_limite=${today}&_=${Date.now()}`; // cache-bust (o proxy já manda no-store, mas mantém o GET fora de cache de navegador)
       const resp = await fetch(ERP_PROXY + encodeURIComponent(targetUrl));
       if (!resp.ok) throw new Error(`Erro HTTP ${resp.status}`);
       const data = await resp.json();
@@ -4333,7 +4333,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
   async function _fetchApiData(){
     const today = new Date().toISOString().slice(0,10);
-    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}&_=${Date.now()}`)); // cache-bust no corsproxy.io
+    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}&_=${Date.now()}`)); // cache-bust (o proxy já manda no-store, mas mantém o GET fora de cache de navegador)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   }

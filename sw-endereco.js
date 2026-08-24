@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coletor-endereco-v2';
+const CACHE_NAME = 'coletor-endereco-v3';
 const ASSETS = [
   './coletor_endereco.html',
   './manifest-endereco.json',
@@ -22,6 +22,8 @@ self.addEventListener('activate', (e) => {
 // Demais assets continuam em stale-while-revalidate.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // Chamadas à API do ERP (via proxy) nunca entram no cache: saldo e posição têm que vir frescos.
+  if (new URL(e.request.url).hostname === 'humwms-proxy.vercel.app') return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request)

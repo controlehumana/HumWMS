@@ -14,8 +14,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Endereçamento">
 
-<link rel="preconnect" href="https://corsproxy.io" crossorigin>
-<link rel="dns-prefetch" href="//corsproxy.io">
+<link rel="preconnect" href="https://humwms-proxy.vercel.app" crossorigin>
+<link rel="dns-prefetch" href="//humwms-proxy.vercel.app">
 <link rel="preconnect" href="https://gestao.humanaalimentar.com.br" crossorigin>
 
 <style>
@@ -429,7 +429,7 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
 // ── Config da API do ERP (mesmos valores usados no WMS principal) ──────────
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
-const ERP_PROXY       = 'https://corsproxy.io/?';
+const ERP_PROXY       = 'https://humwms-proxy.vercel.app/api/erp?url='; // proxy próprio (Vercel); o corsproxy.io desligou as URLs anônimas em 08/2026
 
 function _erpUrl(extraQs = '') {
   return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
