@@ -1788,6 +1788,60 @@ header {
       <input type="file" id="pickingFileInput" accept=".xlsx,.xls" style="display:none">
       <div id="pickingStatus" style="display:none;margin-top:10px;padding:12px 16px;border-radius:8px;font-size:13px"></div>
 
+      <!-- ── Limpeza de endereçamento (reset por rua) ── -->
+      <hr style="margin:28px 0;border:none;border-top:1px solid var(--border)">
+      <div class="section-header" style="margin-bottom:8px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Limpeza de endereçamento</div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Apaga o vínculo de posição física (<strong>DELETE</strong> em <code>t_item_enderecamento</code>) dos itens de uma rua inteira, para que a equipe reendereça tudo do zero pelo coletor.
+        O <strong>saldo do estoque não é afetado</strong>: os itens voltam a aparecer como pendentes de endereçamento. Operação irreversível, exige backup e confirmação.
+      </p>
+
+      <div style="border:1px solid #fecaca;border-radius:10px;padding:16px;background:#fef2f2">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+          <div>
+            <label class="form-label">Escopo da limpeza</label>
+            <select class="form-select" id="limpEscopo" style="height:38px"><option value="">Selecione a rua…</option></select>
+          </div>
+          <button class="btn" id="btnLimpAnalisar" style="gap:6px;white-space:nowrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analisar
+          </button>
+        </div>
+        <div id="limpMsg" style="display:none;margin-top:12px;padding:8px 12px;border-radius:6px;font-size:12px"></div>
+
+        <div id="limpPreview" style="display:none;margin-top:16px;border-top:1px solid #fecaca;padding-top:16px">
+          <div class="import-summary" id="limpStats" style="margin-bottom:12px"></div>
+          <div id="limpTabela" style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);margin-bottom:14px"></div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn" id="btnLimpBackup" style="gap:6px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              1. Baixar backup (Excel + JSON)
+            </button>
+            <span id="limpBackupOk" style="display:none;align-self:center;font-size:12px;color:#065f46;font-weight:600">✓ backup salvo</span>
+          </div>
+
+          <label class="form-label">2. Digite <strong id="limpPalavra">—</strong> para liberar o botão</label>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center">
+            <input class="form-input" id="limpConfirmInput" placeholder="confirmação" autocomplete="off">
+            <button class="btn" id="btnLimpExec" disabled style="background:#b91c1c;border-color:#b91c1c;color:#fff;gap:6px;opacity:.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+              3. Apagar endereçamento
+            </button>
+          </div>
+        </div>
+
+        <div id="limpProgress" style="display:none;margin-top:16px;text-align:center">
+          <div id="limpProgressMsg" style="font-size:13px;color:var(--muted);margin-bottom:8px">Apagando…</div>
+          <div class="progress-bar"><div class="progress-fill" id="limpProgressFill" style="width:0%"></div></div>
+        </div>
+
+        <div id="limpResult" style="display:none;margin-top:16px"></div>
+      </div>
+
+
     </div>
   </div>
 
@@ -3979,6 +4033,263 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     } finally {
       btn.disabled = false;
     }
+  });
+})();
+
+// ── Limpeza de endereçamento (reset por rua ou geral) ────────────────────────
+// Apaga registros de t_item_enderecamento via DELETE na API do ERP, para que a
+// equipe reendereço tudo do zero pelo coletor. Só afeta o vínculo item↔posição
+// (e o campo `estoque` daquela linha); o saldo contábil do ERP (`saldo_aberto`)
+// é calculado à parte e NÃO é tocado por esta operação.
+(function(){
+  const sel = document.getElementById('limpEscopo');
+  if (!sel) return;
+
+  const elMsg      = document.getElementById('limpMsg');
+  const elPreview  = document.getElementById('limpPreview');
+  const elStats    = document.getElementById('limpStats');
+  const elTabela   = document.getElementById('limpTabela');
+  const elPalavra  = document.getElementById('limpPalavra');
+  const inpConfirm = document.getElementById('limpConfirmInput');
+  const btnAnalisar= document.getElementById('btnLimpAnalisar');
+  const btnBackup  = document.getElementById('btnLimpBackup');
+  const btnBackupOk= document.getElementById('limpBackupOk');
+  const btnExec    = document.getElementById('btnLimpExec');
+  const elProgress = document.getElementById('limpProgress');
+  const elProgMsg  = document.getElementById('limpProgressMsg');
+  const elProgFill = document.getElementById('limpProgressFill');
+  const elResult   = document.getElementById('limpResult');
+
+  let _linhas = [];        // linhas do ERP dentro do escopo (todas com id_item_enderecamento)
+  let _escopo = '';        // letra da rua ou '__ALL__'
+  let _backupOk = false;
+
+  const _sleep = ms => new Promise(r => setTimeout(r, ms));
+  const _palavra = esc => esc === '__ALL__' ? 'LIMPAR TUDO' : 'LIMPAR ' + esc;
+
+  function limpMsg(type, text){
+    if (!elMsg) return;
+    if (!text) { elMsg.style.display = 'none'; return; }
+    elMsg.style.display = '';
+    elMsg.style.background = type==='ok' ? '#ecfdf5' : type==='err' ? '#fee2e2' : '#fffbeb';
+    elMsg.style.color      = type==='ok' ? '#065f46' : type==='err' ? '#991b1b' : '#92400e';
+    elMsg.textContent = text;
+  }
+
+  function _resetEstado(){
+    _linhas = []; _backupOk = false;
+    elPreview.style.display = 'none';
+    elResult.style.display  = 'none';
+    elProgress.style.display= 'none';
+    btnBackupOk.style.display = 'none';
+    inpConfirm.value = '';
+    _syncBtnExec();
+  }
+
+  function _syncBtnExec(){
+    const ok = _linhas.length > 0 && _backupOk &&
+               inpConfirm.value.trim().toUpperCase() === _palavra(_escopo);
+    btnExec.disabled = !ok;
+    btnExec.style.opacity = ok ? '1' : '.5';
+  }
+
+  function _preencherEscopo(ruasExtras){
+    const atual = sel.value;
+    const ruas = [...new Set([].concat(WMS_RUAS, ruasExtras || [], (S.items||[]).map(i=>i.rua))
+                    .filter(r => r && String(r).trim()).map(r => String(r).trim().toUpperCase()))].sort();
+    sel.innerHTML = '<option value="">Selecione a rua…</option>'
+      + ruas.map(r => `<option value="${r}">Rua ${r}</option>`).join('')
+      + '<option value="__ALL__">TODAS as ruas · limpeza geral</option>';
+    if (atual) sel.value = atual;
+  }
+  _preencherEscopo();
+
+  async function _fetchErp(){
+    const today = new Date().toISOString().slice(0,10);
+    const resp = await fetch(ERP_PROXY + encodeURIComponent(`${_erpUrl()}&data_limite=${today}&_=${Date.now()}`));
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    return Array.isArray(data) ? data : (data.dados || data.data || data.itens || []);
+  }
+
+  // Só entra na limpeza quem tem id_item_enderecamento (linha de fato existente na tabela).
+  function _noEscopo(linha, escopo){
+    if (!linha.id_item_enderecamento) return false;
+    if (escopo === '__ALL__') return true;
+    return String(linha.rua || '').trim().toUpperCase() === escopo;
+  }
+
+  sel.addEventListener('change', () => { _escopo = sel.value; limpMsg(null,''); _resetEstado(); });
+  inpConfirm.addEventListener('input', _syncBtnExec);
+
+  btnAnalisar.addEventListener('click', async () => {
+    _escopo = sel.value;
+    if (!_escopo) { limpMsg('err', 'Escolha uma rua ou "TODAS as ruas" antes de analisar.'); return; }
+    _resetEstado();
+    btnAnalisar.disabled = true;
+    limpMsg('info', 'Consultando a API do ERP…');
+    try {
+      const todas = await _fetchErp();
+      _preencherEscopo(todas.map(l => l.rua));
+      sel.value = _escopo;
+      _linhas = todas.filter(l => _noEscopo(l, _escopo));
+
+      if (_linhas.length === 0) {
+        limpMsg('ok', _escopo === '__ALL__'
+          ? 'Não há nenhum endereçamento registrado no ERP. Nada a limpar.'
+          : `A rua ${_escopo} não tem nenhum item endereçado no ERP. Nada a limpar.`);
+        return;
+      }
+
+      const posicoes = new Set(_linhas.map(l => `${l.rua}_${l.posicao}`));
+      const skus     = new Set(_linhas.map(l => l.item_codigo));
+      elStats.innerHTML = [
+        { label:'Registros a apagar', val:_linhas.length },
+        { label:'Posições liberadas',  val:posicoes.size },
+        { label:'SKUs afetados',       val:skus.size }
+      ].map(x => `<div class="import-stat"><div class="import-stat-val">${x.val}</div><div class="import-stat-lbl">${x.label}</div></div>`).join('');
+
+      const linhasOrd = _linhas.slice().sort((a,b) =>
+        String(a.rua).localeCompare(String(b.rua)) || (parseInt(a.posicao,10)||0) - (parseInt(b.posicao,10)||0));
+      elTabela.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="position:sticky;top:0;background:var(--surface2)">
+          <th style="text-align:left;padding:6px 8px">End.</th>
+          <th style="text-align:left;padding:6px 8px">SKU</th>
+          <th style="text-align:left;padding:6px 8px">Produto</th>
+          <th style="text-align:left;padding:6px 8px">Lote</th>
+          <th style="text-align:right;padding:6px 8px">Saldo</th>
+        </tr></thead><tbody>${linhasOrd.map(l => `<tr style="border-top:1px solid var(--border)">
+          <td style="padding:5px 8px;white-space:nowrap"><strong>${l.rua||'—'}/${l.posicao||'—'}</strong></td>
+          <td style="padding:5px 8px">${l.item_codigo||''}</td>
+          <td style="padding:5px 8px">${(l.item_descricao||'').slice(0,42)}</td>
+          <td style="padding:5px 8px">${l.numero_lote||''}</td>
+          <td style="padding:5px 8px;text-align:right">${l.saldo_aberto||''}</td>
+        </tr>`).join('')}</tbody></table>`;
+
+      elPalavra.textContent = _palavra(_escopo);
+      inpConfirm.placeholder = _palavra(_escopo);
+      elPreview.style.display = '';
+      limpMsg('info', _escopo === '__ALL__'
+        ? `${_linhas.length} registros de endereçamento serão apagados em TODAS as ruas. O armazém fica sem mapa até a equipe reendereçar.`
+        : `${_linhas.length} registros da rua ${_escopo} serão apagados. As demais ruas continuam intactas.`);
+    } catch(e){
+      limpMsg('err', 'Erro ao consultar o ERP: ' + (e.message || e));
+    } finally {
+      btnAnalisar.disabled = false;
+    }
+  });
+
+  btnBackup.addEventListener('click', () => {
+    if (!_linhas.length) return;
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const nome  = `BACKUP_ENDERECAMENTO_${_escopo === '__ALL__' ? 'GERAL' : 'RUA-'+_escopo}_${stamp}`;
+
+    // Excel legível para conferência
+    const headers = ['id_item_enderecamento','item_id','empresa_id','SKU','Produto','Lote','Validade','Rua','Posição','Nível','Estoque (bruto)','Saldo do lote'];
+    const rows = _linhas.map(l => [
+      l.id_item_enderecamento, l.item_id, l.empresa_id, l.item_codigo, l.item_descricao,
+      l.numero_lote, l.dt_validade, l.rua, l.posicao, l.nivel, l.estoque, l.saldo_aberto
+    ]);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{wch:22},{wch:9},{wch:11},{wch:10},{wch:40},{wch:14},{wch:12},{wch:6},{wch:9},{wch:7},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Enderecamento');
+    const now = new Date();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Backup gerado em:', now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR')],
+      ['Por:', (S.user && S.user.email) || '—'],
+      ['Escopo:', _escopo === '__ALL__' ? 'TODAS as ruas' : 'Rua ' + _escopo],
+      ['Registros:', _linhas.length]
+    ]), 'Info');
+    XLSX.writeFile(wb, nome + '.xlsx');
+
+    // JSON cru (permite recriar os registros via POST, se precisar voltar atrás)
+    const blob = new Blob([JSON.stringify(_linhas, null, 1)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome + '.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+
+    _backupOk = true;
+    btnBackupOk.style.display = '';
+    _syncBtnExec();
+  });
+
+  btnExec.addEventListener('click', async () => {
+    if (btnExec.disabled || !_linhas.length) return;
+    const alvo = _linhas.slice();
+    const escopoExec = _escopo;
+    btnExec.disabled = true; btnExec.style.opacity = '.5';
+    btnAnalisar.disabled = true; sel.disabled = true;
+    elPreview.style.display = 'none';
+    elProgress.style.display = '';
+    limpMsg(null, '');
+
+    const falhas = [];
+    let ok = 0;
+    for (let i = 0; i < alvo.length; i++){
+      const l = alvo[i];
+      elProgMsg.textContent = `Apagando ${i+1} de ${alvo.length} · ${l.rua}/${l.posicao} · ${l.item_codigo || ''}`;
+      elProgFill.style.width = Math.round(((i+1) / alvo.length) * 100) + '%';
+      try {
+        await _erpDeleteEndereco(l.id_item_enderecamento);
+        ok++;
+      } catch(e){
+        falhas.push({ id:l.id_item_enderecamento, end:`${l.rua}/${l.posicao}`, sku:l.item_codigo, erro:e.message || String(e) });
+      }
+      await _sleep(120); // não afogar o ERP
+    }
+
+    // A API responde sucesso:true mesmo sem apagar nada — conferência real é por GET.
+    elProgMsg.textContent = 'Conferindo no ERP…';
+    let restantes = null;
+    try {
+      const todas = await _fetchErp();
+      restantes = todas.filter(l => _noEscopo(l, escopoExec)).length;
+    } catch(e){ /* conferência é best-effort */ }
+
+    // Registro de auditoria no Firestore
+    try {
+      if (typeof db !== 'undefined') {
+        await db.collection('wms_limpeza_log').add({
+          ts: new Date().toISOString(),
+          por: (S.user && S.user.email) || '—',
+          escopo: escopoExec === '__ALL__' ? 'TODAS' : escopoExec,
+          totalAlvo: alvo.length, apagados: ok, falhas: falhas.length, restantes,
+          registros: alvo.map(l => ({
+            idEnd:l.id_item_enderecamento, itemId:l.item_id, unidadeId:l.empresa_id,
+            sku:l.item_codigo, lote:l.numero_lote, val:l.dt_validade,
+            rua:l.rua, pos:l.posicao, estoque:l.estoque
+          }))
+        });
+      }
+    } catch(e){ console.warn('[WMS limpeza] log falhou:', e.message); }
+
+    // Realinha o Firestore com o ERP (recria wms_items/wms_unaddressed, preserva wms_addresses)
+    elProgMsg.textContent = 'Sincronizando o mapa com o ERP…';
+    try { if (window._runAutoSync) await window._runAutoSync(); } catch(e){ console.warn('[WMS limpeza] sync falhou:', e.message); }
+
+    elProgress.style.display = 'none';
+    const tudoOk = falhas.length === 0 && (restantes === 0 || restantes === null);
+    const html = `
+      <div class="alert ${tudoOk ? 'alert-success' : 'alert-warn'}" style="align-items:flex-start">
+        <div>
+          <strong>${ok} de ${alvo.length} registros apagados</strong>
+          ${escopoExec === '__ALL__' ? ' (limpeza geral)' : ' na rua ' + escopoExec}.<br>
+          ${restantes === null
+            ? 'Não foi possível conferir no ERP agora. Clique em "Sincronizar agora" e confira o mapa.'
+            : `Conferência no ERP: <strong>${restantes}</strong> registro(s) ainda no escopo.`}
+          ${falhas.length ? `<br>Falharam ${falhas.length}: ${falhas.slice(0,8).map(f=>f.end+' ('+f.sku+')').join(', ')}${falhas.length>8?'…':''}` : ''}
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Os itens voltaram para a aba <strong>Pendentes</strong>. O saldo do estoque no ERP não foi alterado. Agora a equipe reendereça pelo coletor.</div>`;
+    if (falhas.length) console.warn('[WMS limpeza] falhas:', falhas);
+
+    sel.disabled = false; btnAnalisar.disabled = false;
+    _resetEstado();
+    elResult.innerHTML = html;
+    elResult.style.display = '';
   });
 })();
 
