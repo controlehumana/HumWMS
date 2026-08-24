@@ -1831,6 +1831,7 @@ header {
               3. Apagar endereçamento
             </button>
           </div>
+          <div id="limpDica" style="margin-top:8px;font-size:12px;font-weight:600"></div>
         </div>
 
         <div id="limpProgress" style="display:none;margin-top:16px;text-align:center">
@@ -4059,6 +4060,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
   const elProgMsg  = document.getElementById('limpProgressMsg');
   const elProgFill = document.getElementById('limpProgressFill');
   const elResult   = document.getElementById('limpResult');
+  const elDica     = document.getElementById('limpDica');
 
   let _linhas = [];        // linhas do ERP dentro do escopo (todas com id_item_enderecamento)
   let _escopo = '';        // letra da rua ou '__ALL__'
@@ -4087,10 +4089,17 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
   }
 
   function _syncBtnExec(){
-    const ok = _linhas.length > 0 && _backupOk &&
-               inpConfirm.value.trim().toUpperCase() === _palavra(_escopo);
+    const palavraOk = inpConfirm.value.trim().toUpperCase() === _palavra(_escopo);
+    const ok = _linhas.length > 0 && _backupOk && palavraOk;
     btnExec.disabled = !ok;
     btnExec.style.opacity = ok ? '1' : '.5';
+    // O botão travado precisa dizer o porquê: sem isso ele parece quebrado.
+    if (!elDica) return;
+    if (!_linhas.length)      { elDica.textContent = ''; return; }
+    if (!_backupOk)           { elDica.style.color = '#b45309'; elDica.textContent = 'Falta o passo 1: baixar o backup antes de liberar a execução.'; return; }
+    if (!palavraOk)           { elDica.style.color = '#b45309'; elDica.textContent = 'Digite exatamente ' + _palavra(_escopo) + ' (maiúscula ou minúscula tanto faz).'; return; }
+    elDica.style.color = '#065f46';
+    elDica.textContent = 'Tudo pronto: o botão vermelho está liberado.';
   }
 
   function _preencherEscopo(ruasExtras){
@@ -4169,6 +4178,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       elPalavra.textContent = _palavra(_escopo);
       inpConfirm.placeholder = _palavra(_escopo);
       elPreview.style.display = '';
+      _syncBtnExec(); // já mostra o que falta (backup) assim que o preview abre
       limpMsg('info', _escopo === '__ALL__'
         ? `${_linhas.length} registros de endereçamento serão apagados em TODAS as ruas. O armazém fica sem mapa até a equipe reendereçar.`
         : `${_linhas.length} registros da rua ${_escopo} serão apagados. As demais ruas continuam intactas.`);
@@ -4181,6 +4191,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
   btnBackup.addEventListener('click', () => {
     if (!_linhas.length) return;
+    try {
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
     const nome  = `BACKUP_ENDERECAMENTO_${_escopo === '__ALL__' ? 'GERAL' : 'RUA-'+_escopo}_${stamp}`;
 
@@ -4214,6 +4225,9 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     _backupOk = true;
     btnBackupOk.style.display = '';
     _syncBtnExec();
+    } catch(e) {
+      limpMsg('err', 'Não consegui gerar o backup: ' + (e.message || e) + '. Sem backup a execução continua bloqueada.');
+    }
   });
 
   btnExec.addEventListener('click', async () => {
