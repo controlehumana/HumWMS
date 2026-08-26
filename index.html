@@ -4796,7 +4796,10 @@ function openUserModal(email, data) {
 $('btnAddUser').addEventListener('click', () => openUserModal(null, null));
 
 $('saveUserBtn').addEventListener('click', async () => {
-  const email    = $('userEmail').value.trim();
+  // Minúsculas sempre: o doc de wms_users é indexado pelo e-mail e o Firebase Auth
+  // devolve o e-mail canônico em minúsculas — cadastrar com maiúscula faz o login
+  // não achar o usuário e cair em 'Usuário sem acesso'.
+  const email    = $('userEmail').value.trim().toLowerCase();
   const name     = $('userName2').value.trim();
   const role     = $('userRole').value;
   const isNew    = !S.editUserId;
