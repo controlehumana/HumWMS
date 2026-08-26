@@ -16,16 +16,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `API-Stock-v1.md` / `.pdf` — documentação oficial (fornecida pelo ERP) da API `crud-stock`
 - `api_crud_stock_spec.md` — spec complementar da mesma API (fornecida pelo dev do ERP em 2026-06-23), com detalhes de comportamento (ex.: POST retorna `id_item_enderecamento`, log em `api_log`)
 
-### As 4 cópias do coletor de endereçamento — cuidado ao editar
+### O coletor de endereçamento — só duas cópias desde 26/08/2026
 
-Existem **4 arquivos** para o app de endereçamento (2 locais + 2 no repo git), e uma mudança de negócio (fluxo de endereçamento/transferência/split/liberação) precisa ser replicada manualmente nas 4:
+Existe **um** app de endereçamento: `coletor_endereco.html`, em duas cópias que devem ser mantidas idênticas (`WMS/coletor_endereco.html` local e a do repo git, publicada em `controlehumana.github.io/HumWMS/coletor_endereco.html`). É o que a operação usa no dia a dia.
 
-1. **`coletor_endereco.html`** no repo git (produção, publicado em `controlehumana.github.io/HumWMS/coletor_endereco.html`) — é o que a operação usa de fato no dia a dia; features de negócio (endereçar/transferir/adicionar/liberar) vivem aqui. **Desde 26/08/2026 tem Firebase Auth** (login com e-mail corporativo), depois que o caso do endereço B 14 mostrou que o antigo modal de nome digitado não permitia auditar nada. A cópia local `WMS/coletor_endereco.html` foi substituída pela versão de produção + login e agora as duas são a mesma coisa; a cópia local antiga (versão com Firebase que nunca foi publicada) está guardada em `backups/coletor_endereco_LOCAL_pre_login_2026-08-26.html`, e o estado exato que rodava em produção antes do login está em `backups/coletor_endereco_PROD_pre_login_2026-08-26.html`.
+**Tem Firebase Auth desde 26/08/2026** (login com e-mail corporativo cadastrado em Usuários), depois que o caso do endereço B 14 mostrou que o modal de nome digitado não permitia auditar nada. Entrar exige estar em `wms_users` com `active !== false`, sem módulo específico. **Liberar posição é aberta a qualquer operador logado** (decisão do usuário: o log em `wms_mov_log` resolve a rastreabilidade sem tirar agilidade do chão de fábrica), tanto pelo botão no fluxo principal quanto tocando numa posição ocupada na aba Consultar.
 
-   **Diferença de permissão que sobrevive à mudança:** aqui **liberar posição continua aberto a qualquer operador logado** (decisão do usuário em 26/08 — o log resolve a rastreabilidade sem tirar agilidade do chão de fábrica), enquanto no `coletor_endereco2.html` liberar é ação restrita a `alterar_end`. Entrar exige apenas estar em `wms_users` com `active !== false`, sem módulo específico.
-2. **`WMS/coletor_endereco2.html`** (local) e **`coletor_endereco2.html`** no repo git (teste/homologação) — versão **com Firebase Auth** e módulo restrito ✏️ Alterar (permissão `alterar_end`). Reconciliadas em 2026-07-10 (estavam ~293 linhas divergentes); hoje local e git são idênticas.
+**O `coletor_endereco2.html` foi removido no commit `20abc71`.** Era a cópia de teste onde o login foi homologado; com o login na produção, a produção virou superconjunto dela (a única coisa exclusiva era a aba ✏️ Alterar, um fluxo restrito a `alterar_end` que fazia transferir e liberar, ou seja, menos do que o fluxo principal já faz). Manter a quarta cópia só produzia divergência silenciosa (chegou a ~293 linhas em julho de 2026) e, depois da auditoria, movimento fora do log. Se precisar homologar algo antes de soltar para a operação, publicar uma cópia temporária a partir da produção.
 
-Na prática: qualquer feature nova de fluxo (endereçar/transferir/adicionar/liberar) existe em paralelo nos 4 arquivos, com a única diferença estrutural sendo a presença ou não de Firebase Auth + módulo Alterar restrito. Ao editar uma, replicar nas outras 3 (ajustando o que depende de permissão/Firebase).
+**Backups do estado anterior:** `backups/coletor_endereco_PROD_pre_login_2026-08-26.html` (exatamente o que rodava em produção antes do login) e `backups/coletor_endereco_LOCAL_pre_login_2026-08-26.html` (a cópia local antiga com Firebase que nunca foi publicada). Para rollback, é copiar o primeiro por cima e publicar.
+
+**`coletor_v3.html`** é outro app (separação/picking, com PIN de supervisor e localStorage) e não tem relação com esse fluxo.
 
 ## Como executar
 
@@ -307,7 +308,7 @@ O diretório `WMS/` local **não é um repositório git**. Repositório: `https:
 
 **Autenticação do push (descoberto em 2026-08-24):** o `gh` desta máquina está logado como `supportsolucoes`, que **não tem permissão de escrita** neste repositório — o push devolve `403 Permission denied`. Quem tem acesso é a conta `controlehumana`, cuja credencial está guardada no Git Credential Manager do Windows. Por isso clonar com o usuário embutido na URL: `git clone https://controlehumana@github.com/controlehumana/HumWMS.git`. Não configurar `credential.helper "!gh auth git-credential"` neste clone, que força a conta errada. Se o push ficar pendurado sem saída nem erro, é o Credential Manager esperando um prompt gráfico na tela do usuário: encerrar `git-credential-manager.exe` e refazer o push com a URL acima.
 
-**Cuidado com o coletor de endereçamento**: ver seção "As 4 cópias do coletor de endereçamento" no topo — antes de publicar, confirmar com o usuário em quais dos 4 arquivos a mudança deve entrar (nem toda feature vale pra todos, ex.: recursos gated por `alterar_end` só fazem sentido nas cópias com Firebase).
+**Cuidado com o coletor de endereçamento**: ver seção "O coletor de endereçamento" no topo. Desde 26/08/2026 é uma cópia só (local + git da mesma versão), então publicar é copiar e commitar; o que exigia replicar a mesma mudança em 4 arquivos deixou de existir com a remoção do `coletor_endereco2.html`.
 
 **GitHub Pages falha às vezes de forma transitória:** o job "pages build and deployment" no Actions pode terminar com `conclusion: failure` mesmo com o build (Jekyll) OK — a etapa "Deploy to GitHub Pages" retorna erro genérico `Deployment failed, try again later`, não relacionado ao conteúdo publicado. Verificar com `gh api repos/controlehumana/HumWMS/actions/runs?per_page=3`; se a run mais recente falhou, o fix é um novo commit (pode ser vazio: `git commit --allow-empty`) pra forçar novo build+deploy. Não há permissão de admin no repo pra usar `gh run rerun` diretamente.
 
