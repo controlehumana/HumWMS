@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HumWMS — Auditoria da limpeza de endereçamento</title>
+<style>
+  :root{--bg:#0f1115;--card:#191c23;--bd:#2a2f3a;--tx:#e8eaee;--mut:#9aa2b1;--ac:#4c8dff;--ok:#37b26b;--wr:#e2b53c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;padding:24px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+  label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+  input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:#12151b;color:var(--tx);font-size:15px;margin-bottom:10px}
+  button{padding:10px 16px;border-radius:8px;border:0;background:var(--ac);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  button.sec{background:#2a2f3a}
+  .row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+  .row>div{flex:1;min-width:120px}
+  .msg{font-size:13px;margin-top:8px}
+  .err{color:#ff6b6b}.ok{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px}
+  .hit{background:#1d2a1f}
+  code{background:#12151b;padding:1px 5px;border-radius:4px;font-size:12px}
+  .hide{display:none}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Auditoria da limpeza de endereçamento</h1>
+  <div class="sub">Lê a coleção <code>wms_limpeza_log</code> do Firestore — quem rodou a limpeza, quando, com qual escopo e quais posições foram apagadas.</div>
+
+  <div class="card" id="loginCard">
+    <label>E-mail (usuário admin do WMS)</label>
+    <input id="email" type="email" autocomplete="username">
+    <label>Senha</label>
+    <input id="senha" type="password" autocomplete="current-password">
+    <button id="btnLogin">Entrar</button>
+    <div class="msg err" id="loginMsg"></div>
+  </div>
+
+  <div class="card hide" id="appCard">
+    <div class="row">
+      <div>
+        <label>Filtrar por posição (opcional)</label>
+        <input id="filtro" placeholder="ex.: B 14">
+      </div>
+      <div style="flex:0 0 auto"><button id="btnBuscar">Buscar</button></div>
+      <div style="flex:0 0 auto"><button class="sec" id="btnSair">Sair</button></div>
+    </div>
+    <div class="msg" id="appMsg"></div>
+  </div>
+
+  <div id="saida"></div>
+</div>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDuWq9BH0NmmOJZHDlusDffZzTvRGNRsc4",
+  authDomain:        "mapaestoque-1c121.firebaseapp.com",
+  projectId:         "mapaestoque-1c121",
+  storageBucket:     "mapaestoque-1c121.firebasestorage.app",
+  messagingSenderId: "1008752949095",
+  appId:             "1:1008752949095:web:223fa026e6e11cd94c21c2"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth(), db = firebase.firestore();
+const $ = id => document.getElementById(id);
+
+function amigavel(e){
+  const c = (e && e.code) || '';
+  if (c.includes('wrong-password') || c.includes('invalid-credential')) return 'E-mail ou senha incorretos.';
+  if (c.includes('user-not-found')) return 'Usuário não encontrado.';
+  if (c.includes('too-many-requests')) return 'Muitas tentativas. Aguarde um pouco.';
+  if (c.includes('permission-denied')) return 'Sem permissão de leitura nesta coleção (regras do Firestore).';
+  if (c.includes('network')) return 'Sem conexão com o Firebase.';
+  return (e && e.message) || String(e);
+}
+
+$('btnLogin').onclick = async () => {
+  $('loginMsg').textContent = 'Entrando…';
+  try {
+    await auth.signInWithEmailAndPassword($('email').value.trim(), $('senha').value);
+    $('loginMsg').textContent = '';
+  } catch(e){ $('loginMsg').textContent = amigavel(e); }
+};
+$('btnSair').onclick = () => auth.signOut();
+
+auth.onAuthStateChanged(u => {
+  $('loginCard').classList.toggle('hide', !!u);
+  $('appCard').classList.toggle('hide', !u);
+  $('saida').innerHTML = '';
+  if (u) { $('appMsg').textContent = 'Conectado como ' + u.email; carregar(); }
+});
+
+$('btnBuscar').onclick = carregar;
+
+function normPos(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+async function carregar(){
+  $('saida').innerHTML = '<div class="card">Carregando…</div>';
+  let docs;
+  try {
+    const snap = await db.collection('wms_limpeza_log').get();
+    docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e){ $('saida').innerHTML = '<div class="card msg err">' + amigavel(e) + '</div>'; return; }
+  docs.sort((a,b) => String(b.ts||'').localeCompare(String(a.ts||'')));
+
+  const alvo = normPos($('filtro').value);
+  if (!docs.length){ $('saida').innerHTML = '<div class="card">Nenhum registro de limpeza encontrado.</div>'; return; }
+
+  let html = '';
+  for (const d of docs){
+    const regs = Array.isArray(d.registros) ? d.registros : [];
+    const casados = alvo ? regs.filter(r => normPos((r.rua||'') + (r.pos||'')) === alvo) : [];
+    if (alvo && !casados.length) continue;
+    const quando = d.ts ? new Date(d.ts).toLocaleString('pt-BR') : '—';
+    html += '<div class="card">'
+      + '<div><b>' + quando + '</b> — por <b>' + (d.por || '—') + '</b></div>'
+      + '<div class="sub">escopo: <code>' + (d.escopo || '—') + '</code> · alvo: ' + (d.totalAlvo ?? '—')
+      + ' · apagados: ' + (d.apagados ?? '—') + ' · falhas: ' + (d.falhas ?? '—')
+      + ' · restantes na conferência: ' + (d.restantes ?? '—') + '</div>';
+    const lista = alvo ? casados : regs.slice(0, 400);
+    if (lista.length){
+      html += '<table><tr><th>Posição</th><th>SKU</th><th>Lote</th><th>Validade</th><th>Estoque</th><th>id_end</th></tr>';
+      for (const r of lista){
+        const hit = alvo && normPos((r.rua||'')+(r.pos||'')) === alvo;
+        html += '<tr class="' + (hit ? 'hit' : '') + '"><td>' + (r.rua||'—') + ' ' + (r.pos||'—') + '</td><td>'
+          + (r.sku||'—') + '</td><td>' + (r.lote||'—') + '</td><td>' + (r.val||'—') + '</td><td>'
+          + (r.estoque ?? '—') + '</td><td>' + (r.idEnd||'—') + '</td></tr>';
+      }
+      html += '</table>';
+      if (!alvo && regs.length > lista.length) html += '<div class="sub">… e mais ' + (regs.length - lista.length) + ' linhas.</div>';
+    }
+    html += '</div>';
+  }
+  $('saida').innerHTML = html || '<div class="card">Nenhuma limpeza afetou a posição <b>' + alvo + '</b>.</div>';
+}
+</script>
+</body>
+</html>

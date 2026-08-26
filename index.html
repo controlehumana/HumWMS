@@ -1447,6 +1447,7 @@ header {
     <button class="tab" data-tab="expiry"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Validades</button>
     <button class="tab" data-tab="fragmentados" id="tabFragmentados"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Lotes Divididos</button>
     <button class="tab" data-tab="pending" id="tabPending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>Pendentes <span id="pendingBadge" style="display:none;background:#f97316;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
+    <button class="tab" data-tab="auditoria" id="tabAuditoria" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><polyline points="12 6 12 12 16 14"/></svg>Auditoria</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Endereços</button>
     <button class="tab" data-tab="coletor" id="tabColetor" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Coletor</button>
     <button class="tab" data-tab="import" id="tabImport" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importação</button>
@@ -1676,6 +1677,93 @@ header {
           <div style="margin-bottom:16px;display:flex;justify-content:center"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum lote dividido no momento</div>
           <div style="font-size:13px">Todo SKU+lote endereçado está concentrado em uma única posição</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: AUDITORIA ══════════ -->
+  <div class="page" id="pageAuditoria" style="align-items:center">
+    <div style="padding:20px 24px;max-width:1250px;width:100%;margin:0 auto">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Quem mexeu no endereçamento</div>
+        <div style="flex:1"></div>
+        <button class="btn" id="btnAudCSV" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Exportar CSV
+        </button>
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Cada endereçamento, transferência e liberação feita no coletor ou aqui no WMS, com o e-mail de quem fez. Registrado a partir de 26/08/2026 — antes disso só existe o log da limpeza geral.
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">De</label>
+          <input type="date" class="form-input" id="audDe">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Até</label>
+          <input type="date" class="form-input" id="audAte">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Rua</label>
+          <select class="form-select" id="audRua"></select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Posição</label>
+          <input type="number" class="form-input" id="audPos" min="1" max="40" placeholder="todas">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Ação</label>
+          <select class="form-select" id="audAcao">
+            <option value="">Todas</option>
+            <option>Endereçamento</option>
+            <option>Endereçamento adicional</option>
+            <option>Transferência</option>
+            <option>Liberação</option>
+            <option>Limpeza geral</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Operador</label>
+          <input type="text" class="form-input" id="audOp" placeholder="nome ou e-mail">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">SKU</label>
+          <input type="text" class="form-input" id="audSku" placeholder="código">
+        </div>
+        <div class="form-group" style="margin:0">
+          <button class="btn btn-primary" id="btnAudBuscar" style="width:100%">Buscar</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px" id="audKpis"></div>
+
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:900px">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Quando</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Quem</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Ação</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">SKU</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Produto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Lote</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">De</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Para</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">ID ERP</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Origem</th>
+            </tr>
+          </thead>
+          <tbody id="audTableBody"></tbody>
+        </table>
+        <div id="audEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum movimento no período</div>
+          <div style="font-size:13px">Ajuste as datas ou limpe os outros filtros</div>
         </div>
       </div>
 
@@ -2887,6 +2975,159 @@ function showTab(tabId) {
   if (tabId === 'expiry')    renderExpiry();
   if (tabId === 'fragmentados') renderFragmentados();
   if (tabId === 'pending')   renderPending();
+  if (tabId === 'auditoria') renderAuditoria();
+}
+
+// ══════════════════════════════════════════════════════
+//  AUDITORIA — quem mexeu no endereçamento (wms_mov_log)
+// ══════════════════════════════════════════════════════
+let _audDados = [];
+let _audIniciado = false;
+
+// O ts é gravado em UTC (toISOString) e o filtro é por dia de Brasília, então o
+// intervalo é montado a partir da meia-noite local, não da string de data crua.
+function _audLimite(valor, fimDoDia) {
+  const [a, m, d] = String(valor || "").split("-").map(Number);
+  if (!a || !m || !d) return null;
+  const dt = fimDoDia ? new Date(a, m - 1, d, 23, 59, 59, 999) : new Date(a, m - 1, d, 0, 0, 0, 0);
+  return dt.toISOString();
+}
+
+function renderAuditoria() {
+  if (!_audIniciado) {
+    _audIniciado = true;
+    $("audRua").innerHTML = wmsRuasOpts(true).replace("<option value=\"\">Rua</option>", "<option value=\"\">Todas</option>");
+    const hoje = new Date();
+    const seteDias = new Date(hoje.getTime() - 6 * 864e5);
+    const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+    $("audDe").value  = iso(seteDias);
+    $("audAte").value = iso(hoje);
+    $("btnAudBuscar").addEventListener("click", buscarAuditoria);
+    $("btnAudCSV").addEventListener("click", exportarAuditoriaCSV);
+    ["audPos","audOp","audSku"].forEach(id => {
+      $(id).addEventListener("keydown", e => { if (e.key === "Enter") buscarAuditoria(); });
+    });
+  }
+  buscarAuditoria();
+}
+
+async function buscarAuditoria() {
+  const de  = _audLimite($("audDe").value, false);
+  const ate = _audLimite($("audAte").value, true);
+  if (!de || !ate) { alert("Informe o período (de / até)."); return; }
+
+  loading(true, "Buscando movimentações...");
+  try {
+    const snap = await db.collection("wms_mov_log")
+      .where("ts", ">=", de).where("ts", "<=", ate)
+      .orderBy("ts", "desc").limit(3000).get();
+    _audDados = snap.docs.map(d => d.data());
+  } catch(e) {
+    loading(false);
+    alert("Não foi possível ler o log: " + e.message);
+    return;
+  }
+  loading(false);
+  _audAplicarFiltros();
+}
+
+function _audAplicarFiltros() {
+  const rua  = $("audRua").value.trim().toUpperCase();
+  const pos  = $("audPos").value.trim();
+  const acao = $("audAcao").value;
+  const op   = $("audOp").value.trim().toLowerCase();
+  const sku  = $("audSku").value.trim().toLowerCase();
+
+  // Rua e posição casam tanto na origem quanto no destino: procurando por B 14,
+  // interessa tanto o que entrou lá quanto o que saiu de lá.
+  const linhas = _audDados.filter(r => {
+    if (rua  && String(r.rua||"").toUpperCase() !== rua && String(r.de_rua||"").toUpperCase() !== rua) return false;
+    if (pos  && String(r.pos||"") !== pos && String(r.de_pos||"") !== pos) return false;
+    if (acao && r.acao !== acao) return false;
+    if (op   && !((r.operador||"") + " " + (r.email||"")).toLowerCase().includes(op)) return false;
+    if (sku  && !String(r.sku||"").toLowerCase().includes(sku)) return false;
+    return true;
+  });
+
+  _audRender(linhas);
+}
+
+function _audBadge(acao) {
+  const cores = {
+    "Endereçamento":           "background:#f0fdf4;color:#166534",
+    "Endereçamento adicional": "background:#f0fdf4;color:#166534",
+    "Transferência":           "background:#eff6ff;color:#1d4ed8",
+    "Liberação":               "background:#fef2f2;color:#b91c1c",
+    "Limpeza geral":           "background:#fff7ed;color:#c2410c"
+  };
+  const st = cores[acao] || "background:#f3f4f6;color:#374151";
+  return `<span style="${st};font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap">${acao||"—"}</span>`;
+}
+
+function _audRender(linhas) {
+  const tb = $("audTableBody");
+  $("audEmpty").style.display = linhas.length ? "none" : "block";
+
+  const porAcao = {};
+  const pessoas = new Set();
+  linhas.forEach(r => { porAcao[r.acao||"—"] = (porAcao[r.acao||"—"]||0) + 1; if (r.email) pessoas.add(r.email); });
+  $("audKpis").innerHTML = [
+    `<div class="kpi"><div class="kpi-val">${linhas.length}</div><div class="kpi-lbl">Movimentos</div></div>`,
+    `<div class="kpi"><div class="kpi-val">${pessoas.size}</div><div class="kpi-lbl">Pessoas</div></div>`
+  ].concat(Object.keys(porAcao).sort().map(a =>
+    `<div class="kpi"><div class="kpi-val">${porAcao[a]}</div><div class="kpi-lbl">${a}</div></div>`
+  )).join("");
+
+  const td = "padding:9px 14px;font-size:12.5px;border-bottom:1px solid var(--border);vertical-align:top";
+  tb.innerHTML = linhas.map(r => {
+    const quando = r.ts ? new Date(r.ts).toLocaleString("pt-BR") : "—";
+    const de   = r.de_rua ? `${r.de_rua} · ${r.de_pos||""}` : "—";
+    const para = r.rua ? `${r.rua} · ${r.pos||""}` : "—";
+    return `<tr>
+      <td style="${td};white-space:nowrap">${quando}</td>
+      <td style="${td}"><div style="font-weight:600">${r.operador||"—"}</div><div style="font-size:11px;color:var(--muted)">${r.email||""}</div></td>
+      <td style="${td}">${_audBadge(r.acao)}</td>
+      <td style="${td}">${r.sku||"—"}</td>
+      <td style="${td};max-width:260px">${r.desc||"—"}</td>
+      <td style="${td}">${r.lote||"—"}</td>
+      <td style="${td};white-space:nowrap">${de}</td>
+      <td style="${td};white-space:nowrap;font-weight:600">${para}</td>
+      <td style="${td}">${r.idEnd||"—"}</td>
+      <td style="${td}">${r.origem === "coletor" ? "Coletor" : "WMS"}</td>
+    </tr>`;
+  }).join("");
+}
+
+function exportarAuditoriaCSV() {
+  const linhas = [...$("audTableBody").querySelectorAll("tr")];
+  if (!linhas.length) { alert("Nada para exportar."); return; }
+  const cab = ["Quando","Operador","E-mail","Ação","SKU","Produto","Lote","Validade","De","Para","ID ERP","Origem"];
+  const rua  = $("audRua").value.trim().toUpperCase();
+  const pos  = $("audPos").value.trim();
+  const acao = $("audAcao").value;
+  const op   = $("audOp").value.trim().toLowerCase();
+  const sku  = $("audSku").value.trim().toLowerCase();
+  const dados = _audDados.filter(r => {
+    if (rua  && String(r.rua||"").toUpperCase() !== rua && String(r.de_rua||"").toUpperCase() !== rua) return false;
+    if (pos  && String(r.pos||"") !== pos && String(r.de_pos||"") !== pos) return false;
+    if (acao && r.acao !== acao) return false;
+    if (op   && !((r.operador||"") + " " + (r.email||"")).toLowerCase().includes(op)) return false;
+    if (sku  && !String(r.sku||"").toLowerCase().includes(sku)) return false;
+    return true;
+  });
+  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [cab.map(esc).join(";")].concat(dados.map(r => [
+    r.ts ? new Date(r.ts).toLocaleString("pt-BR") : "", r.operador||"", r.email||"", r.acao||"",
+    r.sku||"", r.desc||"", r.lote||"", r.val||"",
+    r.de_rua ? `${r.de_rua} ${r.de_pos||""}` : "", r.rua ? `${r.rua} ${r.pos||""}` : "",
+    r.idEnd||"", r.origem === "coletor" ? "Coletor" : "WMS"
+  ].map(esc).join(";"))).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `auditoria_enderecamento_${$("audDe").value}_a_${$("audAte").value}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function openModal(id) { $(id).classList.add('open'); }
@@ -2915,6 +3156,7 @@ const WMS_MODULES = [
   { id:'expiry',     label:'Validades',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
   { id:'fragmentados',label:'Lotes Divididos',           icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>' },
   { id:'alterar_end',label:'Coletor — Alterar Endereço', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
+  { id:'auditoria',  label:'Auditoria',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
   { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
   { id:'coletor',    label:'Coletor',          icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>' },
   { id:'gestao',     label:'Ordens de Sep.',    icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>' },
@@ -3333,7 +3575,7 @@ function _erpUrl(extraQs = '') {
 // POST/PUT/DELETE em crud-stock sempre retornam { sucesso, mensagem }.
 // ATENÇÃO: a API retorna sucesso:true mesmo quando o id_item_enderecamento não existe
 // (não valida rowCount) — não confiar 100% no "sucesso" para saber se algo de fato mudou.
-async function _erpWrite(method, body) {
+async function _erpWrite(method, body, ctx) {
   const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -3345,12 +3587,57 @@ async function _erpWrite(method, body) {
   if (!resp.ok || (data && data.sucesso === false)) {
     throw new Error((data && data.mensagem) || `HTTP ${resp.status}`);
   }
+  _registrarMov(method, body, ctx, data);
   return data || {};
 }
 
-function _erpCreateEndereco(payload) { return _erpWrite('POST',   payload); }
-function _erpUpdateEndereco(payload) { return _erpWrite('PUT',    payload); }
-function _erpDeleteEndereco(idEnd)   { return _erpWrite('DELETE', { id_item_enderecamento: idEnd }); }
+// Auditoria central: toda escrita no ERP feita por aqui vira um registro em
+// wms_mov_log, com quem fez. Mesma coleção que o coletor alimenta, para o
+// histórico de uma posição ficar completo num lugar só.
+// Nunca derruba a operação: falha de log é só um aviso no console.
+function _registrarMov(method, body, ctx, resposta) {
+  try {
+    if (typeof db === 'undefined' || !S.user) return;
+    const c = ctx || {};
+    const acaoPadrao = { POST: 'Endereçamento', PUT: 'Transferência', DELETE: 'Liberação' };
+    const email = S.user.email || '';
+    const doc = {
+      ts:       new Date().toISOString(),
+      acao:     c.acao || acaoPadrao[method] || method,
+      op:       S.user.displayName || email.split('@')[0] || '',
+      operador: S.user.displayName || email.split('@')[0] || '',
+      email,
+      origem:   'wms',
+      metodo:   method,
+      sku:      c.sku  || '',
+      desc:     c.desc || '',
+      lote:     c.lote || '',
+      val:      c.val  || '',
+      rua:      c.rua  || body.rua     || '',
+      pos:      String(c.pos ?? body.posicao ?? ''),
+      de_rua:   c.de_rua || '',
+      de_pos:   c.de_pos ? String(c.de_pos) : '',
+      idEnd:    String(c.idEnd || body.id_item_enderecamento || (resposta && resposta.id_item_enderecamento) || ''),
+      payload:  _semUndefined(body)
+    };
+    db.collection('wms_mov_log').add(doc)
+      .catch(e => console.warn('[WMS] log central falhou:', e.message));
+  } catch(e) {
+    console.warn('[WMS] log central falhou:', e.message);
+  }
+}
+
+// O Firestore recusa campos undefined, e os payloads do ERP usam "|| undefined"
+// para omitir lote/validade — então limpa antes de gravar.
+function _semUndefined(o) {
+  const out = {};
+  Object.keys(o || {}).forEach(k => { if (o[k] !== undefined) out[k] = o[k]; });
+  return out;
+}
+
+function _erpCreateEndereco(payload, ctx) { return _erpWrite('POST',   payload, ctx); }
+function _erpUpdateEndereco(payload, ctx) { return _erpWrite('PUT',    payload, ctx); }
+function _erpDeleteEndereco(idEnd, ctx)   { return _erpWrite('DELETE', { id_item_enderecamento: idEnd }, ctx); }
 
 function _brDateToIso(val) {
   const parts = String(val || '').split('/');
@@ -3475,6 +3762,11 @@ async function _doTransfer() {
         posicao:       String(destPos),
         lote:          _transferItem.lote || undefined,
         data_validade: _brDateToIso(_transferItem.val) || undefined
+      }, {
+        acao: 'Endereçamento adicional',
+        sku:  _transferItem.sku,  desc: _transferItem.desc,
+        lote: _transferItem.lote, val:  _transferItem.val,
+        rua:  destRua, pos: destPos, de_rua: rua, de_pos: pos
       });
       const idEnd = result.id_item_enderecamento ? String(result.id_item_enderecamento) : '';
       const ts   = new Date().toISOString();
@@ -3493,6 +3785,12 @@ async function _doTransfer() {
         id_item_enderecamento: _transferItem.idEnd,
         rua:                   destRua,
         posicao:                String(destPos)
+      }, {
+        acao: 'Transferência',
+        sku:  _transferItem.sku,  desc: _transferItem.desc,
+        lote: _transferItem.lote, val:  _transferItem.val,
+        rua:  destRua, pos: destPos, de_rua: rua, de_pos: pos,
+        idEnd: _transferItem.idEnd
       });
       _showTransferMsg('ok', `Transferência registrada com sucesso! O mapa será atualizado na próxima sincronização com o ERP.`);
     }
@@ -3623,7 +3921,7 @@ function renderEditItemList(items) {
 
       loading(true, 'Excluindo no ERP...');
       try {
-        await _erpDeleteEndereco(idEnd);
+        await _erpDeleteEndereco(idEnd, { acao: 'Liberação', idEnd });
         if (docId) await db.collection('wms_items').doc(docId).delete();
         closeModal('editAddrModal');
         await loadAll();
@@ -3693,6 +3991,9 @@ async function _cadastrarPendente(it) {
         posicao:       pos,
         lote:          it.lote || undefined,
         data_validade: _brDateToIso(it.val) || undefined
+      }, {
+        acao: 'Endereçamento', sku: it.sku, desc: it.desc,
+        lote: it.lote, val: it.val, rua, pos
       });
       idEnd = result.id_item_enderecamento ? String(result.id_item_enderecamento) : '';
     } else {
@@ -4247,7 +4548,12 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       elProgMsg.textContent = `Apagando ${i+1} de ${alvo.length} · ${l.rua}/${l.posicao} · ${l.item_codigo || ''}`;
       elProgFill.style.width = Math.round(((i+1) / alvo.length) * 100) + '%';
       try {
-        await _erpDeleteEndereco(l.id_item_enderecamento);
+        await _erpDeleteEndereco(l.id_item_enderecamento, {
+          acao: 'Limpeza geral',
+          sku:  l.item_codigo, desc: l.item_descricao,
+          lote: l.numero_lote, val: l.dt_validade,
+          rua:  l.rua, pos: l.posicao, idEnd: l.id_item_enderecamento
+        });
         ok++;
       } catch(e){
         falhas.push({ id:l.id_item_enderecamento, end:`${l.rua}/${l.posicao}`, sku:l.item_codigo, erro:e.message || String(e) });
@@ -5492,6 +5798,9 @@ function initPendingListeners() {
           posicao:       pos,
           lote:          it.lote || undefined,
           data_validade: _brDateToIso(it.val) || undefined
+        }, {
+          acao: 'Endereçamento', sku: it.sku, desc: it.desc,
+          lote: it.lote, val: it.val, rua, pos
         });
         // POST retorna o id_item_enderecamento gerado (confirmado em produção).
         idEnd = result.id_item_enderecamento ? String(result.id_item_enderecamento) : '';

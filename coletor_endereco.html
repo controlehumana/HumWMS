@@ -242,24 +242,51 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .posRow:not(.occ) .posBadge{background:var(--green-light);color:var(--green-dark)}
 .posRow.occ .posBadge{background:var(--danger-bg);color:var(--danger)}
 
-/* ── Operador ── */
-.operadorBtn{
+/* ── Usuário logado ── */
+.userBtn{
   display:inline-flex;align-items:center;gap:4px;margin-top:3px;
   font-size:11px;font-weight:600;color:var(--green-dark);
   background:var(--green-light);border:1px solid #a7f3d0;border-radius:99px;
   padding:2px 8px;cursor:pointer;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
 }
-.opOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;align-items:center;justify-content:center;padding:16px}
-.opOverlay.show{display:flex}
-.opModal{background:#fff;border-radius:var(--radius-lg);width:min(340px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25)}
-.opModalTitle{font-weight:700;font-size:15px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.opModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
-.opWelcome{font-size:13px;color:var(--muted);margin-bottom:14px;display:none}
-.opOverlay.required .opWelcome{display:block}
-.opOverlay.required #opClose{display:none}
-.opOverlay.required .opModalTitle{margin-bottom:0}
-/* blur no fundo enquanto o overlay de operador está aberto sem nome salvo */
-body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
+.logoutBtn{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:none;border:1.5px solid #fecaca;border-radius:var(--radius-sm);
+  cursor:pointer;color:var(--danger);font-size:10px;font-weight:700;
+  padding:6px 8px;flex-shrink:0;
+}
+.logoutBtn svg{width:17px;height:17px;stroke:var(--danger);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logoutBtn:active{background:var(--danger-bg)}
+
+/* ── Login overlay ── */
+.loginOverlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;
+  z-index:9999;background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#059669 100%);
+  display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;
+}
+.loginOverlay.hidden{display:none!important}
+.loginCard{
+  background:#fff;border-radius:20px;padding:36px 28px;width:min(360px,100%);
+  text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.32);
+  animation:materialIn .35s cubic-bezier(.2,.8,.2,1);
+}
+.loginLogo{font-size:36px;margin-bottom:8px}
+.loginTitle{font-weight:700;font-size:17px;color:var(--text);margin-bottom:4px;letter-spacing:-0.01em}
+.loginSub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.loginErrMsg{border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-top:10px;
+  background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca;display:none}
+
+/* ── Overlay da sessão (info + sair) ── */
+.uiOverlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:16px}
+.uiOverlay.show{display:flex}
+.uiModal{background:#fff;border-radius:var(--radius-lg);width:min(320px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25);text-align:center;animation:materialIn .3s cubic-bezier(.2,.8,.2,1)}
+.uiModalTitle{font-weight:700;font-size:15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.uiModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
+.uiUserName{font-weight:700;font-size:16px;margin-bottom:4px}
+.uiUserEmail{font-size:12px;color:var(--muted);margin-bottom:16px;word-break:break-all}
+@media (prefers-reduced-transparency: reduce){
+  .uiOverlay{background:rgba(0,0,0,.85);backdrop-filter:none}
+}
 
 /* ── Histórico ── */
 .logDay{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
@@ -279,6 +306,9 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
 .histActions .btn{margin-top:0;flex:1}
 .histEmpty{display:none;border-radius:var(--radius-md);padding:12px 14px;font-size:13px;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -291,9 +321,13 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
       <div style="flex:1;min-width:0">
         <div class="appName">Coletor de Endereçamento</div>
         <div class="appSub">Humana Alimentar</div>
-        <button class="operadorBtn" id="btnOperador">👤 Toque para identificar</button>
+        <button class="userBtn" id="btnUser">👤 …</button>
       </div>
       <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
+      <button class="logoutBtn" id="btnLogoutHeader" title="Sair da conta">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
     </div>
 
     <div class="tabBar">
@@ -411,21 +445,45 @@ body.op-locked .wrap{filter:blur(3px);pointer-events:none;user-select:none}
   </div>
 </div>
 
-<!-- OVERLAY: identificação do operador -->
-<div class="opOverlay" id="opOverlay">
-  <div class="opModal">
-    <div class="opModalTitle">
-      <span>Identificação do operador</span>
-      <button id="opClose" aria-label="Fechar">✕</button>
+<!-- OVERLAY: login (e-mail corporativo + senha, cadastro em Usuários no WMS) -->
+<div class="loginOverlay" id="loginOverlay">
+  <div class="loginCard">
+    <div class="loginLogo">📦</div>
+    <div class="loginTitle">Coletor de Endereçamento</div>
+    <div class="loginSub">Humana Alimentar</div>
+    <input class="inputField" id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="seu@humanaalimentar.com.br" style="margin-bottom:10px">
+    <input class="inputField" id="loginSenha" type="password" autocomplete="current-password" placeholder="Senha">
+    <div id="loginErro" class="loginErrMsg"></div>
+    <button class="btn btn-primary" id="btnLoginEntrar" type="button">Entrar</button>
+  </div>
+</div>
+
+<!-- OVERLAY: sessão atual -->
+<div class="uiOverlay" id="uiOverlay">
+  <div class="uiModal">
+    <div class="uiModalTitle">
+      <span>Sessão atual</span>
+      <button id="uiClose" aria-label="Fechar">✕</button>
     </div>
-    <p class="opWelcome" id="opWelcome">Confirme sua identidade para liberar o sistema. O nome é registrado em cada operação.</p>
-    <label class="label" for="opInput">Seu nome</label>
-    <input class="inputField" id="opInput" autocomplete="off" placeholder="Ex: João Silva" maxlength="40">
-    <button class="btn btn-primary" id="btnSalvarOp">Confirmar e entrar</button>
+    <div class="uiUserName" id="uiUserName">–</div>
+    <div class="uiUserEmail" id="uiUserEmail">–</div>
+    <button class="btn btn-danger" id="btnLogout" style="margin-top:0">Sair da conta</button>
   </div>
 </div>
 
 <script>
+// ── Firebase (mesmo projeto do WMS principal) ──────────
+firebase.initializeApp({
+  apiKey:            "AIzaSyDuWq9BH0NmmOJZHDlusDffZzTvRGNRsc4",
+  authDomain:        "mapaestoque-1c121.firebaseapp.com",
+  projectId:         "mapaestoque-1c121",
+  storageBucket:     "mapaestoque-1c121.firebasestorage.app",
+  messagingSenderId: "1008752949095",
+  appId:             "1:1008752949095:web:223fa026e6e11cd94c21c2"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
 // ── Config da API do ERP (mesmos valores usados no WMS principal) ──────────
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
 const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
@@ -521,37 +579,115 @@ let modoTransferencia = false; // true = item já endereçado (mostra o seletor 
 let acaoDestino = 'enderecar'; // 'enderecar' (POST, saldo cheio) | 'transferir' (PUT) | 'adicionar' (POST, mesmo lote/validade, sem saldo)
 let sessionCount = 0;
 
-// ── Operador ─────────────────────────────────────────────────────────────────
-// operadorAtivo: só em memória — zerado a cada abertura do app (exige nova confirmação)
-// localStorage guarda apenas a sugestão para pré-preencher o campo
-const OP_KEY = 'hum_operador';
+// ── Autenticação ──────────
+// Substituiu o modal de nome digitado (autodeclarado, não servia como identificação):
+// agora entra com o e-mail corporativo cadastrado em Usuários, no WMS, e essa
+// identidade acompanha cada movimento gravado em wms_mov_log.
+let wmsUser = null;
 let operadorAtivo = '';
+let operadorEmail = '';
+
 function getOperador() { return operadorAtivo; }
-function setOperador(nome) {
-  operadorAtivo = nome.trim();
-  if (operadorAtivo) localStorage.setItem(OP_KEY, operadorAtivo);
+
+function renderUserBtn() {
+  $('btnUser').textContent = '👤 ' + (operadorAtivo || '…');
 }
-function renderOperadorBtn() {
-  $('btnOperador').textContent = operadorAtivo ? `👤 ${operadorAtivo}` : '👤 Toque para identificar';
+
+function showLoginOverlay(errMsg) {
+  $('loginOverlay').classList.remove('hidden');
+  const el = $('loginErro');
+  if (errMsg) { el.textContent = errMsg; el.style.display = 'block'; }
+  else { el.style.display = 'none'; }
+  const btn = $('btnLoginEntrar');
+  btn.disabled = false;
+  btn.innerHTML = 'Entrar';
+  setTimeout(() => $('loginEmail').focus(), 80);
 }
-function abrirOpOverlay() {
-  const confirmando = !operadorAtivo; // true = sessão nova, obrigatório confirmar
-  // pré-preenche com o último nome usado (só sugestão, ainda precisa confirmar)
-  $('opInput').value = localStorage.getItem(OP_KEY) || '';
-  $('opInput').style.borderColor = '';
-  $('opOverlay').classList.toggle('required', confirmando);
-  $('opOverlay').classList.add('show');
-  if (confirmando) document.body.classList.add('op-locked');
-  setTimeout(() => {
-    if ($('opInput').value) $('opInput').select(); // seleciona tudo p/ trocar rápido
-    else $('opInput').focus();
-  }, 60);
+
+function hideLoginOverlay() {
+  $('loginOverlay').classList.add('hidden');
 }
-function fecharOpOverlay() {
-  if (!operadorAtivo) return; // bloqueia fechar sem confirmação
-  $('opOverlay').classList.remove('show', 'required');
-  document.body.classList.remove('op-locked');
+
+function abrirUserInfoOverlay() {
+  $('uiUserName').textContent  = (wmsUser && wmsUser.name) || operadorAtivo || '–';
+  $('uiUserEmail').textContent = operadorEmail || '–';
+  $('uiOverlay').classList.add('show');
 }
+
+function fecharUserInfoOverlay() {
+  $('uiOverlay').classList.remove('show');
+}
+
+async function doLogin() {
+  const email = $('loginEmail').value.trim();
+  const senha = $('loginSenha').value;
+  const btn   = $('btnLoginEntrar');
+  const errEl = $('loginErro');
+  errEl.style.display = 'none';
+
+  if (!email || !senha) {
+    errEl.textContent = 'Preencha e-mail e senha.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, senha);
+    // onAuthStateChanged cuida do restante
+  } catch(e) {
+    const msgMap = {
+      'auth/user-not-found':    'Usuário não encontrado.',
+      'auth/wrong-password':    'Senha incorreta.',
+      'auth/invalid-email':     'E-mail inválido.',
+      'auth/invalid-credential':'E-mail ou senha incorretos.',
+      'auth/too-many-requests': 'Muitas tentativas. Tente mais tarde.',
+      'auth/network-request-failed': 'Sem conexão. Verifique a rede do coletor.'
+    };
+    errEl.textContent = msgMap[e.code] || 'Erro ao entrar: ' + mensagemErroAmigavel(e);
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Entrar';
+  }
+}
+
+async function doLogout() {
+  fecharUserInfoOverlay();
+  await auth.signOut();
+  wmsUser = null;
+  operadorAtivo = '';
+  operadorEmail = '';
+  $('loginSenha').value = '';
+  showLoginOverlay();
+}
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { showLoginOverlay(); return; }
+  try {
+    const snap = await db.collection('wms_users').doc(user.email).get();
+    if (!snap.exists || snap.data().active === false) {
+      await auth.signOut();
+      showLoginOverlay('Usuário sem acesso ao WMS. Procure o administrador.');
+      return;
+    }
+    wmsUser       = snap.data();
+    operadorEmail = user.email;
+    operadorAtivo = wmsUser.name || user.displayName || user.email.split('@')[0];
+    renderUserBtn();
+    hideLoginOverlay();
+    $('loginSenha').value = '';
+    setTimeout(() => $('skuIn').focus(), 100);
+    carregarEstoque().then(() => {
+      renderRuaChips();
+      renderPosList();
+    });
+  } catch(e) {
+    await auth.signOut();
+    showLoginOverlay('Erro ao verificar o acesso: ' + mensagemErroAmigavel(e));
+  }
+});
 
 // ── Log local ────────────────────────────────────────────────────────────────
 const LOG_KEY = 'hum_log';
@@ -560,10 +696,29 @@ function loadLog() {
   try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; }
 }
 function appendLog(entry) {
+  const registro = { ts: new Date().toISOString(), op: getOperador(), ...entry };
   const log = loadLog();
-  log.unshift({ ts: new Date().toISOString(), op: getOperador(), ...entry });
+  log.unshift(registro);
   if (log.length > LOG_MAX) log.splice(LOG_MAX);
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
+  registrarMovFirestore(registro);
+}
+
+// Auditoria central: o histórico local morre no aparelho, então cada movimento
+// também vai para wms_mov_log no Firestore, com quem fez. Nunca bloqueia nem
+// derruba o fluxo do operador: se falhar, fica só o registro local.
+function registrarMovFirestore(registro) {
+  try {
+    if (typeof db === 'undefined' || !auth.currentUser) return;
+    db.collection('wms_mov_log').add({
+      ...registro,
+      operador: registro.op || '',
+      email:    operadorEmail || auth.currentUser.email || '',
+      origem:   'coletor'
+    }).catch(e => console.warn('[WMS] log central falhou:', e.message));
+  } catch(e) {
+    console.warn('[WMS] log central falhou:', e.message);
+  }
 }
 function clearLog() { localStorage.removeItem(LOG_KEY); }
 
@@ -958,11 +1113,20 @@ async function confirmarEnvio() {
       okMsg = `Endereçado com sucesso! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s).`;
     }
 
+    // id do vínculo no ERP: no "adicionar" é o registro recém-criado; nos demais
+    // é o do próprio item (no "remover", o que acabou de ser apagado)
+    const idEndLog = acaoDestino === 'adicionar'
+      ? (result.id_item_enderecamento || '')
+      : (selecionado.id_item_enderecamento || '');
+
     appendLog({
       acao: acaoDestino === 'transferir' ? 'Transferência' : (acaoDestino === 'adicionar' ? 'Endereçamento adicional' : (acaoDestino === 'remover' ? 'Liberação' : 'Endereçamento')),
       sku:  selecionado.item_codigo   || '',
       desc: selecionado.item_descricao || '',
       lote: selecionado.numero_lote   || '',
+      val:  selecionado.dt_validade   || '',
+      idEnd: idEndLog,
+      unidade: selecionado.empresa_apelido || selecionado.empresa_id || '',
       rua:  acaoDestino === 'remover' ? prevRua : rua,
       pos:  acaoDestino === 'remover' ? prevPos : pos,
       de_rua: acaoDestino === 'transferir' ? prevRua : '',
@@ -1310,28 +1474,19 @@ $('btnRefresh').addEventListener('click', async () => {
   renderPosList();
 });
 
-// ── Operador: listeners ───────────────────────────────────────────────────────
-$('btnOperador').addEventListener('click', abrirOpOverlay);
-$('opClose').addEventListener('click', fecharOpOverlay);
-$('opOverlay').addEventListener('click', e => { if (e.target === $('opOverlay')) fecharOpOverlay(); });
-
-function salvarOperador() {
-  const nome = $('opInput').value.trim();
-  if (!nome) {
-    $('opInput').style.borderColor = 'var(--danger)';
-    $('opInput').focus();
-    return;
-  }
-  $('opInput').style.borderColor = '';
-  setOperador(nome);
-  renderOperadorBtn();
-  fecharOpOverlay();
-}
-$('btnSalvarOp').addEventListener('click', salvarOperador);
-$('opInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); salvarOperador(); }
-  if (e.key === 'Escape') fecharOpOverlay();
+// ── Login e sessão: listeners ──────────
+$('btnLoginEntrar').addEventListener('click', doLogin);
+$('loginEmail').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('loginSenha').focus(); }
 });
+$('loginSenha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+});
+$('btnUser').addEventListener('click', abrirUserInfoOverlay);
+$('uiClose').addEventListener('click', fecharUserInfoOverlay);
+$('uiOverlay').addEventListener('click', e => { if (e.target === $('uiOverlay')) fecharUserInfoOverlay(); });
+$('btnLogout').addEventListener('click', doLogout);
+$('btnLogoutHeader').addEventListener('click', doLogout);
 
 // ── Histórico: listeners ──────────────────────────────────────────────────────
 $('btnExportCSV').addEventListener('click', exportCSV);
@@ -1351,14 +1506,9 @@ $('btnClearLog').addEventListener('click', () => {
 });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-renderOperadorBtn();
-if (!getOperador()) abrirOpOverlay(); // bloqueia até identificar na primeira abertura
 renderRuaChips();
-carregarEstoque().then(() => {
-  renderRuaChips();
-  renderPosList();
-});
-$('skuIn').focus();
+// A carga do estoque e o foco no SKU acontecem no onAuthStateChanged, depois que
+// a identidade do operador é confirmada: antes disso o login cobre a tela.
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw-endereco.js').catch(() => {});
