@@ -1,0 +1,8 @@
+{
+  "name": "humwms-proxy",
+  "private": true,
+  "description": "Funções de apoio do HumWMS na Vercel: proxy CORS do ERP e redefinição de senha por administrador.",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

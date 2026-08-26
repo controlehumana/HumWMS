@@ -2840,8 +2840,17 @@ header {
           <button class="btn btn-primary" id="btnGravarSenhaPropria" style="padding:7px 14px;font-size:13px">Gravar nova senha</button>
           <div id="senhaPropriaMsg" style="display:none;font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);margin-top:10px"></div>
         </div>
-        <div id="senhaOutroBox" style="display:none;font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px">
-          A senha de outra pessoa não pode ser gravada daqui: o Firebase só permite isso com chave de servidor, e o WMS roda inteiro no navegador. Use o e-mail de redefinição abaixo, ou peça para a pessoa usar "Esqueci minha senha" na tela do coletor.
+        <div id="senhaOutroBox" style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Redefinir a senha desta pessoa</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">A senha atual é descartada e passa a valer a que você digitar. A pessoa é obrigada a trocar por uma só dela no próximo acesso ao coletor.</div>
+          <div class="form-group">
+            <div style="display:flex;gap:8px">
+              <input class="form-input" id="senhaAdminNova" type="text" placeholder="Nova senha (mín. 6)" autocomplete="off" style="flex:1">
+              <button class="btn" id="btnGerarSenhaAdmin" type="button" style="white-space:nowrap">Gerar</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btnRedefinirSenhaAdmin" style="padding:7px 14px;font-size:13px">Gravar senha deste usuário</button>
+          <div id="senhaAdminMsg" style="display:none;font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);margin-top:10px"></div>
         </div>
         <div class="form-group" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
           <button class="btn" id="btnResetPassword" style="padding:6px 14px;font-size:13px;color:var(--muted)">📧 Enviar e-mail de redefinição de senha</button>
@@ -4838,6 +4847,10 @@ function openUserModal(email, data) {
     $('novaSenhaAdmin1').value = '';
     $('novaSenhaAdmin2').value = '';
     $('senhaPropriaMsg').style.display = 'none';
+    $('senhaAdminNova').value = '';
+    $('senhaAdminMsg').style.display = 'none';
+    // Redefinir a senha de terceiro é privilégio de administrador.
+    $('senhaOutroBox').style.display = (!ehVoce && S.role === 'admin') ? '' : 'none';
   }
 
   // Normaliza role legado para 'custom' no novo sistema
@@ -5063,6 +5076,62 @@ $('btnGravarSenhaPropria')?.addEventListener('click', async () => {
   } catch(e) {
     console.warn('[WMS senha]', e);
     _spMsg('err', _erroSenhaAmigavel(e));
+  }
+  btn.disabled = false;
+});
+
+// A troca de senha de terceiro acontece no servidor (Vercel), porque exige a
+// credencial de administrador do Firebase, que não pode viver nesta página.
+const WMS_SENHA_API = 'https://humwms-proxy.vercel.app/api/senha';
+
+function _saMsg(tipo, texto) {
+  const el = $('senhaAdminMsg');
+  const cores = {
+    ok:   'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0',
+    err:  'background:#fef2f2;color:#dc2626;border:1px solid #fecaca',
+    info: 'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe'
+  };
+  el.style.cssText = 'font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);margin-top:10px;' + cores[tipo];
+  el.textContent = texto;
+  el.style.display = 'block';
+}
+
+$('btnGerarSenhaAdmin')?.addEventListener('click', () => {
+  const letras = 'abcdefghjkmnpqrstuvwxyz';
+  const nums   = '23456789';
+  const p = () => letras[Math.floor(Math.random() * letras.length)];
+  const d = () => nums[Math.floor(Math.random() * nums.length)];
+  $('senhaAdminNova').value = 'hum' + d() + d() + [0,1,2].map(p).join('') + d();
+  $('senhaAdminNova').focus();
+  $('senhaAdminNova').select();
+});
+
+$('btnRedefinirSenhaAdmin')?.addEventListener('click', async () => {
+  const email = $('userEmail').value.trim().toLowerCase();
+  const nova  = $('senhaAdminNova').value;
+  if (!email) return;
+  if (nova.length < 6) { _saMsg('err', 'A senha precisa ter ao menos 6 caracteres.'); return; }
+  if (!confirm(`Trocar a senha de ${email}?\n\nA senha atual deixa de funcionar imediatamente.`)) return;
+
+  const btn = $('btnRedefinirSenhaAdmin');
+  btn.disabled = true;
+  _saMsg('info', 'Gravando no servidor…');
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const resp = await fetch(WMS_SENHA_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, email, novaSenha: nova })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.sucesso) {
+      _saMsg('err', data.mensagem || `Falha (HTTP ${resp.status}).`);
+    } else {
+      _saMsg('ok', `Pronto. Entregue esta senha para a pessoa: ${nova}`);
+      renderUsers();
+    }
+  } catch(e) {
+    _saMsg('err', 'Não foi possível falar com o servidor: ' + (e.message || e));
   }
   btn.disabled = false;
 });

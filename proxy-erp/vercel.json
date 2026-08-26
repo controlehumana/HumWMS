@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/erp.js": { "maxDuration": 30 }
+    "api/erp.js": { "maxDuration": 30 },
+    "api/senha.js": { "maxDuration": 30 }
   }
 }
