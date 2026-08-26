@@ -1432,6 +1432,10 @@ header {
           Configurações
         </button>
         <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <button class="user-dropdown-item" id="btnDropSenha">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Minha senha do coletor
+        </button>
         <button class="user-dropdown-item danger" id="btnLogout">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Sair
@@ -2761,6 +2765,33 @@ header {
 </div>
 
 <!-- ══════════ MODAL: USUÁRIO ══════════ -->
+<div class="modal-overlay" id="minhaSenhaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Minha senha do coletor</div>
+      <button class="modal-close" data-close="minhaSenhaModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Aqui no computador você entra com o Google, sem senha. O coletor usa e-mail e senha, então defina abaixo a senha que vai usar no aparelho. Serve tanto para criar quanto para trocar.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nova senha</label>
+        <input class="form-input" id="minhaSenha1" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Repita a senha</label>
+        <input class="form-input" id="minhaSenha2" type="password" autocomplete="new-password">
+      </div>
+      <div id="minhaSenhaMsg" style="display:none;font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="minhaSenhaModal">Cancelar</button>
+      <button class="btn btn-primary" id="btnSalvarMinhaSenha">Salvar senha</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="userModal">
   <div class="modal">
     <div class="modal-header">
@@ -2779,15 +2810,25 @@ header {
       <!-- Campos de senha — só visíveis ao criar novo usuário -->
       <div id="userPasswordSection" style="display:none">
         <div class="form-group">
-          <label class="form-label">Senha</label>
-          <input class="form-input" id="userPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
-          <div class="form-hint">Cria uma conta com e-mail e senha no Firebase.</div>
+          <label class="form-label">Senha inicial</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="userPassword" type="text" placeholder="Mínimo 6 caracteres" autocomplete="off" style="flex:1">
+            <button class="btn" id="btnGerarSenha" type="button" style="white-space:nowrap">Gerar</button>
+          </div>
+          <div class="form-hint">Fica visível de propósito: é você que entrega essa senha para a pessoa. Ela troca no primeiro acesso ao coletor.</div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="userMustChange" checked>
+            Exigir troca de senha no primeiro acesso
+          </label>
         </div>
       </div>
       <!-- Redefinir senha — só visível ao editar usuário existente -->
       <div id="resetPasswordSection" style="display:none">
-        <div class="form-group">
+        <div class="form-group" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
           <button class="btn" id="btnResetPassword" style="padding:6px 14px;font-size:13px;color:var(--muted)">📧 Enviar e-mail de redefinição de senha</button>
+          <button class="btn" id="btnForcarTroca" style="padding:6px 14px;font-size:13px;color:var(--muted)">🔁 Exigir troca de senha no próximo acesso</button>
         </div>
       </div>
       <div class="form-group">
@@ -4835,14 +4876,105 @@ $('saveUserBtn').addEventListener('click', async () => {
       await secApp.delete();
     }
 
-    await db.collection('wms_users').doc(email).set(
-      { name, role, modules, canColetor, active: true, updatedAt: new Date().toISOString() },
-      { merge: true }
-    );
+    const dados = { name, role, modules, canColetor, active: true, updatedAt: new Date().toISOString() };
+    // Senha inicial é entregue pelo admin, então o coletor obriga a troca no 1º acesso.
+    if (isNew && $('userMustChange')?.checked) dados.mustChangePassword = true;
+    await db.collection('wms_users').doc(email).set(dados, { merge: true });
     closeModal('userModal');
     renderUsers();
   } catch(e) { alert('Erro: ' + e.message); }
   loading(false);
+});
+
+// Senha inicial legível, fácil de ditar por telefone e sem caractere ambíguo.
+// Não existe senha padrão fixa no código: o arquivo é público no GitHub Pages,
+// e uma senha fixa ali valeria para todo mundo que soubesse ler a página.
+$('btnGerarSenha')?.addEventListener('click', () => {
+  const letras = 'abcdefghjkmnpqrstuvwxyz';
+  const nums   = '23456789';
+  const p = i => letras[Math.floor(Math.random() * letras.length)];
+  const d = i => nums[Math.floor(Math.random() * nums.length)];
+  $('userPassword').value = 'hum' + d() + d() + [0,1,2].map(p).join('') + d();
+  $('userPassword').focus();
+  $('userPassword').select();
+});
+
+$('btnForcarTroca')?.addEventListener('click', async () => {
+  const email = $('userEmail').value.trim().toLowerCase();
+  if (!email) return;
+  try {
+    await db.collection('wms_users').doc(email).update({ mustChangePassword: true });
+    alert(`${email} vai precisar criar uma senha nova no próximo acesso ao coletor.`);
+  } catch(e) { alert('Erro: ' + e.message); }
+});
+
+// ── Minha senha do coletor ──
+// A conta de quem entra por Google não tem provedor de senha, então o primeiro
+// caminho é vincular (link) a credencial de e-mail/senha à conta existente. Se a
+// conta já tiver senha, cai no update.
+function _msMsg(tipo, texto) {
+  const el = $('minhaSenhaMsg');
+  const cores = {
+    ok:   'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0',
+    err:  'background:#fef2f2;color:#dc2626;border:1px solid #fecaca',
+    info: 'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe'
+  };
+  el.style.cssText = 'font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);margin-top:4px;' + cores[tipo];
+  el.textContent = texto;
+  el.style.display = 'block';
+}
+
+async function _aplicarNovaSenha(nova) {
+  const user = auth.currentUser;
+  const cred = firebase.auth.EmailAuthProvider.credential(user.email, nova);
+  try {
+    await user.linkWithCredential(cred);
+  } catch(e) {
+    if (['auth/provider-already-linked','auth/credential-already-in-use','auth/email-already-in-use'].includes(e.code)) {
+      await user.updatePassword(nova);
+    } else {
+      throw e;
+    }
+  }
+}
+
+$('btnDropSenha')?.addEventListener('click', () => {
+  $('userDropdown')?.classList.remove('open');
+  $('minhaSenha1').value = '';
+  $('minhaSenha2').value = '';
+  $('minhaSenhaMsg').style.display = 'none';
+  openModal('minhaSenhaModal');
+  setTimeout(() => $('minhaSenha1').focus(), 120);
+});
+
+$('btnSalvarMinhaSenha')?.addEventListener('click', async () => {
+  const s1 = $('minhaSenha1').value;
+  const s2 = $('minhaSenha2').value;
+  if (s1.length < 6)  { _msMsg('err', 'A senha precisa ter ao menos 6 caracteres.'); return; }
+  if (s1 !== s2)      { _msMsg('err', 'As duas senhas não são iguais.'); return; }
+
+  const btn = $('btnSalvarMinhaSenha');
+  btn.disabled = true;
+  _msMsg('info', 'Salvando…');
+  try {
+    try {
+      await _aplicarNovaSenha(s1);
+    } catch(e) {
+      if (e.code === 'auth/requires-recent-login') {
+        _msMsg('info', 'Confirme sua conta Google para concluir…');
+        await auth.currentUser.reauthenticateWithPopup(new firebase.auth.GoogleAuthProvider());
+        await _aplicarNovaSenha(s1);
+      } else { throw e; }
+    }
+    await db.collection('wms_users').doc(auth.currentUser.email).set(
+      { mustChangePassword: false, senhaDefinidaEm: new Date().toISOString() }, { merge: true }
+    );
+    _msMsg('ok', 'Pronto. Use esse e-mail e essa senha para entrar no coletor.');
+    setTimeout(() => closeModal('minhaSenhaModal'), 2200);
+  } catch(e) {
+    _msMsg('err', 'Não foi possível salvar: ' + (e.message || e));
+  }
+  btn.disabled = false;
 });
 
 $('btnResetPassword')?.addEventListener('click', async () => {

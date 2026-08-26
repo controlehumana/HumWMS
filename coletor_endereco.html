@@ -455,6 +455,21 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
     <input class="inputField" id="loginSenha" type="password" autocomplete="current-password" placeholder="Senha">
     <div id="loginErro" class="loginErrMsg"></div>
     <button class="btn btn-primary" id="btnLoginEntrar" type="button">Entrar</button>
+    <button id="btnEsqueciSenha" type="button" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:14px;cursor:pointer;text-decoration:underline">Esqueci minha senha</button>
+  </div>
+</div>
+
+<!-- OVERLAY: primeira senha (troca obrigatória no 1º acesso) -->
+<div class="loginOverlay hidden" id="senhaOverlay">
+  <div class="loginCard">
+    <div class="loginLogo">🔐</div>
+    <div class="loginTitle">Crie sua senha</div>
+    <div class="loginSub" id="senhaSub">Este é seu primeiro acesso. Troque a senha que o supervisor te passou por uma que só você saiba.</div>
+    <input class="inputField" id="senhaNova1" type="password" autocomplete="new-password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px">
+    <input class="inputField" id="senhaNova2" type="password" autocomplete="new-password" placeholder="Repita a nova senha">
+    <div id="senhaErro" class="loginErrMsg"></div>
+    <button class="btn btn-primary" id="btnSalvarSenhaNova" type="button">Salvar e entrar</button>
+    <button id="btnSenhaSair" type="button" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:14px;cursor:pointer;text-decoration:underline">Sair</button>
   </div>
 </div>
 
@@ -655,6 +670,7 @@ async function doLogin() {
 
 async function doLogout() {
   fecharUserInfoOverlay();
+  $('senhaOverlay').classList.add('hidden');
   await auth.signOut();
   wmsUser = null;
   operadorAtivo = '';
@@ -676,18 +692,95 @@ auth.onAuthStateChanged(async user => {
     operadorEmail = user.email;
     operadorAtivo = wmsUser.name || user.displayName || user.email.split('@')[0];
     renderUserBtn();
-    hideLoginOverlay();
     $('loginSenha').value = '';
-    setTimeout(() => $('skuIn').focus(), 100);
-    carregarEstoque().then(() => {
-      renderRuaChips();
-      renderPosList();
-    });
+
+    // Senha inicial vem do supervisor: no primeiro acesso a troca é obrigatória,
+    // senão a senha que identifica a pessoa no log é conhecida por outra pessoa.
+    if (wmsUser.mustChangePassword === true) {
+      hideLoginOverlay();
+      mostrarTrocaSenha();
+      return;
+    }
+
+    liberarApp();
   } catch(e) {
     await auth.signOut();
     showLoginOverlay('Erro ao verificar o acesso: ' + mensagemErroAmigavel(e));
   }
 });
+
+function liberarApp() {
+  hideLoginOverlay();
+  $('senhaOverlay').classList.add('hidden');
+  setTimeout(() => $('skuIn').focus(), 100);
+  carregarEstoque().then(() => {
+    renderRuaChips();
+    renderPosList();
+  });
+}
+
+function mostrarTrocaSenha() {
+  $('senhaNova1').value = '';
+  $('senhaNova2').value = '';
+  $('senhaErro').style.display = 'none';
+  const btn = $('btnSalvarSenhaNova');
+  btn.disabled = false;
+  btn.innerHTML = 'Salvar e entrar';
+  $('senhaOverlay').classList.remove('hidden');
+  setTimeout(() => $('senhaNova1').focus(), 120);
+}
+
+async function salvarSenhaNova() {
+  const s1 = $('senhaNova1').value;
+  const s2 = $('senhaNova2').value;
+  const err = $('senhaErro');
+  const btn = $('btnSalvarSenhaNova');
+  err.style.display = 'none';
+
+  if (s1.length < 6) { err.textContent = 'A senha precisa ter ao menos 6 caracteres.'; err.style.display = 'block'; return; }
+  if (s1 !== s2)     { err.textContent = 'As duas senhas não são iguais.'; err.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await auth.currentUser.updatePassword(s1);
+    await db.collection('wms_users').doc(operadorEmail).set(
+      { mustChangePassword: false, senhaDefinidaEm: new Date().toISOString() }, { merge: true }
+    );
+    liberarApp();
+  } catch(e) {
+    if (e.code === 'auth/requires-recent-login') {
+      err.textContent = 'Por segurança, entre de novo e repita a troca.';
+      err.style.display = 'block';
+      setTimeout(doLogout, 1800);
+      return;
+    }
+    err.textContent = 'Não foi possível salvar: ' + mensagemErroAmigavel(e);
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Salvar e entrar';
+  }
+}
+
+async function esqueciSenha() {
+  const email = $('loginEmail').value.trim();
+  const err = $('loginErro');
+  if (!email) {
+    err.textContent = 'Digite seu e-mail acima e toque de novo.';
+    err.style.display = 'block';
+    $('loginEmail').focus();
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    err.style.cssText = 'border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-top:10px;background:var(--green-light);color:var(--green-dark);border:1px solid #a7f3d0;display:block';
+    err.textContent = 'Se esse e-mail estiver cadastrado, o link de nova senha chega em instantes. Não esqueça de olhar o spam.';
+  } catch(e) {
+    err.style.cssText = '';
+    err.textContent = 'Não foi possível enviar: ' + mensagemErroAmigavel(e);
+    err.style.display = 'block';
+  }
+}
 
 // ── Log local ────────────────────────────────────────────────────────────────
 const LOG_KEY = 'hum_log';
@@ -1487,6 +1580,15 @@ $('uiClose').addEventListener('click', fecharUserInfoOverlay);
 $('uiOverlay').addEventListener('click', e => { if (e.target === $('uiOverlay')) fecharUserInfoOverlay(); });
 $('btnLogout').addEventListener('click', doLogout);
 $('btnLogoutHeader').addEventListener('click', doLogout);
+$('btnEsqueciSenha').addEventListener('click', esqueciSenha);
+$('btnSalvarSenhaNova').addEventListener('click', salvarSenhaNova);
+$('btnSenhaSair').addEventListener('click', doLogout);
+$('senhaNova1').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('senhaNova2').focus(); }
+});
+$('senhaNova2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); salvarSenhaNova(); }
+});
 
 // ── Histórico: listeners ──────────────────────────────────────────────────────
 $('btnExportCSV').addEventListener('click', exportCSV);
