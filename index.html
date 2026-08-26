@@ -2826,6 +2826,23 @@ header {
       </div>
       <!-- Redefinir senha — só visível ao editar usuário existente -->
       <div id="resetPasswordSection" style="display:none">
+        <!-- Gravar senha direto só é possível para a própria conta: o Firebase no
+             navegador não deixa um usuário definir a senha de outro. -->
+        <div id="senhaPropriaBox" style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px">Gravar nova senha</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">Não precisa da senha antiga. Ela é substituída pela que você digitar aqui.</div>
+          <div class="form-group">
+            <input class="form-input" id="novaSenhaAdmin1" type="password" placeholder="Nova senha (mín. 6)" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <input class="form-input" id="novaSenhaAdmin2" type="password" placeholder="Repita a nova senha" autocomplete="new-password">
+          </div>
+          <button class="btn btn-primary" id="btnGravarSenhaPropria" style="padding:7px 14px;font-size:13px">Gravar nova senha</button>
+          <div id="senhaPropriaMsg" style="display:none;font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);margin-top:10px"></div>
+        </div>
+        <div id="senhaOutroBox" style="display:none;font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px">
+          A senha de outra pessoa não pode ser gravada daqui: o Firebase só permite isso com chave de servidor, e o WMS roda inteiro no navegador. Use o e-mail de redefinição abaixo, ou peça para a pessoa usar "Esqueci minha senha" na tela do coletor.
+        </div>
         <div class="form-group" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
           <button class="btn" id="btnResetPassword" style="padding:6px 14px;font-size:13px;color:var(--muted)">📧 Enviar e-mail de redefinição de senha</button>
           <button class="btn" id="btnForcarTroca" style="padding:6px 14px;font-size:13px;color:var(--muted)">🔁 Exigir troca de senha no próximo acesso</button>
@@ -4812,6 +4829,17 @@ function openUserModal(email, data) {
   $('userPasswordSection').style.display = isNew ? '' : 'none';
   $('resetPasswordSection').style.display = isNew ? 'none' : '';
 
+  // Só a própria conta pode ter a senha gravada aqui (limitação do SDK no navegador)
+  const ehVoce = !isNew && auth.currentUser &&
+                 String(email).toLowerCase() === String(auth.currentUser.email).toLowerCase();
+  if (!isNew) {
+    $('senhaPropriaBox').style.display = ehVoce ? '' : 'none';
+    $('senhaOutroBox').style.display   = ehVoce ? 'none' : '';
+    $('novaSenhaAdmin1').value = '';
+    $('novaSenhaAdmin2').value = '';
+    $('senhaPropriaMsg').style.display = 'none';
+  }
+
   // Normaliza role legado para 'custom' no novo sistema
   const rawRole = data?.role || 'custom';
   const displayRole = rawRole === 'admin' ? 'admin' : 'custom';
@@ -4924,6 +4952,22 @@ function _msMsg(tipo, texto) {
   el.style.display = 'block';
 }
 
+// Erro do Firebase traduzido para algo acionável: cada um destes tem uma causa
+// diferente e um caminho diferente de solução.
+function _erroSenhaAmigavel(e) {
+  const map = {
+    'auth/operation-not-allowed': 'O login por e-mail e senha está desligado no projeto. Ligue em Firebase Console → Authentication → Sign-in method → Email/Password.',
+    'auth/popup-blocked':         'O navegador bloqueou a janela do Google. Libere o pop-up para este site e tente de novo.',
+    'auth/popup-closed-by-user':  'A janela do Google foi fechada antes de confirmar. Tente de novo.',
+    'auth/cancelled-popup-request':'Outra janela de confirmação já estava aberta. Tente de novo.',
+    'auth/weak-password':         'Senha fraca demais para o Firebase. Use ao menos 6 caracteres.',
+    'auth/requires-recent-login': 'O Firebase pediu confirmação da conta e ela não foi concluída.',
+    'auth/credential-already-in-use': 'Essa credencial já pertence a outra conta.',
+    'auth/network-request-failed':'Sem conexão com o Firebase.'
+  };
+  return map[e.code] || ((e.code ? e.code + ' — ' : '') + (e.message || e));
+}
+
 async function _aplicarNovaSenha(nova) {
   const user = auth.currentUser;
   const cred = firebase.auth.EmailAuthProvider.credential(user.email, nova);
@@ -4972,19 +5016,68 @@ $('btnSalvarMinhaSenha')?.addEventListener('click', async () => {
     _msMsg('ok', 'Pronto. Use esse e-mail e essa senha para entrar no coletor.');
     setTimeout(() => closeModal('minhaSenhaModal'), 2200);
   } catch(e) {
-    _msMsg('err', 'Não foi possível salvar: ' + (e.message || e));
+    console.warn('[WMS senha]', e);
+    _msMsg('err', 'Não foi possível salvar: ' + _erroSenhaAmigavel(e));
+  }
+  btn.disabled = false;
+});
+
+// ── Gravar nova senha pelo módulo de Usuários (só a própria conta) ──
+function _spMsg(tipo, texto) {
+  const el = $('senhaPropriaMsg');
+  const cores = {
+    ok:   'background:#f0fdf4;color:#166534;border:1px solid #bbf7d0',
+    err:  'background:#fef2f2;color:#dc2626;border:1px solid #fecaca',
+    info: 'background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe'
+  };
+  el.style.cssText = 'font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);margin-top:10px;' + cores[tipo];
+  el.textContent = texto;
+  el.style.display = 'block';
+}
+
+$('btnGravarSenhaPropria')?.addEventListener('click', async () => {
+  const s1 = $('novaSenhaAdmin1').value;
+  const s2 = $('novaSenhaAdmin2').value;
+  if (s1.length < 6) { _spMsg('err', 'A senha precisa ter ao menos 6 caracteres.'); return; }
+  if (s1 !== s2)     { _spMsg('err', 'As duas senhas não são iguais.'); return; }
+
+  const btn = $('btnGravarSenhaPropria');
+  btn.disabled = true;
+  _spMsg('info', 'Gravando…');
+  try {
+    try {
+      await _aplicarNovaSenha(s1);
+    } catch(e) {
+      if (e.code === 'auth/requires-recent-login') {
+        _spMsg('info', 'Confirme sua conta Google na janela que abriu…');
+        await auth.currentUser.reauthenticateWithPopup(new firebase.auth.GoogleAuthProvider());
+        await _aplicarNovaSenha(s1);
+      } else { throw e; }
+    }
+    await db.collection('wms_users').doc(auth.currentUser.email).set(
+      { mustChangePassword: false, senhaDefinidaEm: new Date().toISOString() }, { merge: true }
+    );
+    _spMsg('ok', 'Senha gravada. Entre no coletor com ' + auth.currentUser.email + ' e essa senha.');
+    $('novaSenhaAdmin1').value = '';
+    $('novaSenhaAdmin2').value = '';
+  } catch(e) {
+    console.warn('[WMS senha]', e);
+    _spMsg('err', _erroSenhaAmigavel(e));
   }
   btn.disabled = false;
 });
 
 $('btnResetPassword')?.addEventListener('click', async () => {
-  const email = $('userEmail').value.trim();
+  const email = $('userEmail').value.trim().toLowerCase();
   if (!email) return;
   try {
     await auth.sendPasswordResetEmail(email);
-    alert(`E-mail de redefinição enviado para ${email}`);
+    // O projeto tem proteção contra enumeração de e-mail ligada, então o Firebase
+    // responde sucesso mesmo quando não há conta com senha para redefinir. Prometer
+    // "enviado" seria mentira em parte dos casos.
+    alert(`Pedido de redefinição enviado para ${email}.\n\nSe a pessoa não receber nada, é porque essa conta não tem senha (foi criada pelo login do Google) — nesse caso ela precisa entrar aqui no WMS com o Google e gravar a senha pelo próprio cadastro dela.`);
   } catch(e) {
-    alert('Erro ao enviar e-mail: ' + e.message);
+    alert('Erro ao enviar e-mail: ' + _erroSenhaAmigavel(e));
   }
 });
 
