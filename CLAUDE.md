@@ -334,6 +334,22 @@ O recorte por campo (`request.resource.data.diff(resource.data).affectedKeys().h
 
 **Três provedores de login convivem no projeto:** o `index.html` entra só com Google (`signInWithPopup`), o coletor entra só com e-mail e senha, e a conta de quem sempre usou Google **não tem senha nenhuma** — daí o `linkWithCredential` no botão "Minha senha do coletor". O projeto também tem proteção contra enumeração de e-mail ligada, então `sendPasswordResetEmail` responde sucesso mesmo quando não há conta com senha para redefinir, e `fetchSignInMethodsForEmail`/`createAuthUri` não revelam provedores. Não confiar nessas respostas para diagnosticar conta.
 
+## Grade de endereços — a trava contra "06" (27/08/2026)
+
+**O problema:** a operação digitava `06` onde o certo é `6`. O ERP engole os dois e devolve normalizado, mas **toda comparação de posição no sistema é de texto** (`String(r.posicao).trim() === String(pos)`), então `"06" !== "6"` e o efeito aparece em cascata: o item endereçado some dos chips de Consultar, o Mapa ganha uma posição fantasma ao lado da certa e o inventário conta as duas.
+
+**Onde nasce de verdade:** o `wms_addresses` do Firestore, não o ERP. O botão "+ Novo endereço" do Mapa e o import de endereços em lote gravavam a chave com o texto cru, então `B_06` virava um documento separado de `B_6`. Conferido em 27/08 com um GET ao vivo: das 339 linhas endereçadas no ERP, **zero** estavam fora do padrão `1`..`40`.
+
+**A grade:** ruas `A`-`G`, `M`, `P`; posições `1` a `40`, sem zero à esquerda. Decisão do usuário em 27/08: rua fora dessa lista passa a ser **recusada** (antes era texto livre). Se um dia abrir uma rua nova de verdade, é uma linha: `RUAS_BASE` no coletor e `WMS_RUAS` no `index.html` — e reler o gotcha de "grade de ruas" mais acima, que lista os `<select>` com opções escritas direto no HTML.
+
+**As funções** (mesmo comportamento nos dois arquivos, conferido por teste que compara as duas): `normalizarPos`/`normalizarRua` no `coletor_endereco.html`, `wmsPos`/`wmsRua` no `index.html`. Devolvem a forma canônica ou `null`. `addrKey()` passou a usar `wmsPos()`, então `B 06` e `B 6` caem no mesmo documento; fora da grade ela mantém o texto cru, senão não haveria como ler (nem limpar) o que já foi gravado torto.
+
+**Por que corrigir na tela em vez de gravar corrigido:** quando dá para entender o que a pessoa quis dizer (`06`), o campo é reescrito com o valor certo, a tela avisa e **o avanço é barrado uma vez**. É de propósito: no coletor o Enter na posição dispara o envio direto, então normalizar calado gravaria um endereço que o operador nunca viu. A segunda confirmação passa.
+
+**Defesa na leitura:** `normalizarEnderecos()` roda no `carregarEstoque()` do coletor. Endereço que já veio torto do ERP continua aparecendo, no lugar certo. É só exibição — o `id_item_enderecamento` gravado lá não muda, e é ele que o DELETE usa.
+
+**O que a trava não cobre:** a transferência do `index.html` usa `<select>` de endereços existentes, o "Cadastrar" pega a posição do próprio Mapa e o Cartaz Manual só imprime. Nenhum deles digita endereço livre. As portas de digitação livre eram só duas, e são as duas que foram fechadas.
+
 ## Publicação
 
 O diretório `WMS/` local **não é um repositório git**. Repositório: `https://github.com/controlehumana/HumWMS` — publicado via GitHub Pages em `https://controlehumana.github.io/HumWMS/`.

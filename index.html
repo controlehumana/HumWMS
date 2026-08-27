@@ -3211,10 +3211,31 @@ document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => showTab(tab.dataset.tab));
 });
 
-function addrKey(rua, pos) { return `${String(rua).toUpperCase()}_${pos}`; }
-
 // Ruas fixas do armazém (A-G, M, P × 40 posições)
 const WMS_RUAS = ['A','B','C','D','E','F','G','M','P'];
+const WMS_POS_MIN = 1, WMS_POS_MAX = 40;
+
+// Posição canônica ("06" -> "6") ou null quando está fora da grade. Toda
+// comparação de posição no sistema é de texto, então "06" e "6" viram dois
+// endereços diferentes: o mapa mostra a mesma posição duas vezes, uma delas
+// vazia, e o item endereçado some da consulta. Normalizar na entrada é o que
+// impede a duplicata de nascer.
+function wmsPos(txt) {
+  const cru = String(txt == null ? '' : txt).trim();
+  if (!/^[0-9]{1,3}$/.test(cru)) return null;
+  const n = parseInt(cru, 10);
+  return (n >= WMS_POS_MIN && n <= WMS_POS_MAX) ? String(n) : null;
+}
+
+// Rua canônica (maiúscula, só as da grade) ou null.
+function wmsRua(txt) {
+  const cru = String(txt == null ? '' : txt).trim().toUpperCase();
+  return WMS_RUAS.includes(cru) ? cru : null;
+}
+
+// Fora da grade, mantém o texto cru: é o que permite continuar lendo (e
+// limpando) o que já foi gravado torto antes desta trava existir.
+function addrKey(rua, pos) { return `${String(rua).toUpperCase()}_${wmsPos(pos) || pos}`; }
 
 // Módulos disponíveis para configuração por usuário
 const WMS_MODULES = [
@@ -5217,10 +5238,24 @@ function openAddrModal(addr) {
 $('btnAddAddr').addEventListener('click', () => openAddrModal(null));
 
 $('saveAddrNewBtn').addEventListener('click', async () => {
-  const rua = $('addrRua').value.trim().toUpperCase();
-  const pos = $('addrPos').value.trim();
+  const ruaCrua = $('addrRua').value.trim();
+  const posCrua = $('addrPos').value.trim();
   const cap = parseInt($('addrCap').value) || 1;
-  if (!rua || !pos) { $('addrModalError').textContent='Preencha rua e posição.'; $('addrModalError').style.display=''; return; }
+  const erroAddr = txt => { $('addrModalError').textContent = txt; $('addrModalError').style.display = ''; };
+  if (!ruaCrua || !posCrua) { erroAddr('Preencha rua e posição.'); return; }
+
+  const rua = wmsRua(ruaCrua);
+  if (!rua) { erroAddr(`A rua "${ruaCrua.toUpperCase()}" não existe. As ruas são ${WMS_RUAS.join(', ')}.`); return; }
+  const pos = wmsPos(posCrua);
+  if (!pos) { erroAddr(`A posição "${posCrua}" não existe. A posição vai de ${WMS_POS_MIN} a ${WMS_POS_MAX}.`); return; }
+  // Deu para entender o que a pessoa quis dizer, mas ela vê a correção antes de
+  // gravar: endereço errado só aparece depois, no mapa, e aí já duplicou.
+  if (rua !== ruaCrua.toUpperCase() || pos !== posCrua) {
+    $('addrRua').value = rua;
+    $('addrPos').value = pos;
+    erroAddr(`Corrigido para ${rua} · Pos. ${pos}. Confira e salve de novo.`);
+    return;
+  }
 
   loading(true, 'Salvando...');
   try {
@@ -5248,11 +5283,22 @@ $('btnSeedAddrs').addEventListener('click', async () => {
 });
 $('importAddrsSaveBtn').addEventListener('click', async () => {
   const lines = $('importAddrsText').value.trim().split('\n').filter(Boolean);
+  const recusadas = [];
   const parsed = lines.map(l => {
     const parts = l.trim().split(/\s+/);
-    return parts.length >= 2 ? { rua: parts[0].toUpperCase(), pos: parts[1] } : null;
+    if (parts.length < 2) { recusadas.push(l.trim()); return null; }
+    const rua = wmsRua(parts[0]), pos = wmsPos(parts[1]);
+    if (!rua || !pos) { recusadas.push(l.trim()); return null; }
+    return { rua, pos };
   }).filter(Boolean);
 
+  if (recusadas.length) {
+    $('importAddrsResult').textContent =
+      `${recusadas.length} linha(s) fora da grade (ruas ${WMS_RUAS.join(', ')}, posições ${WMS_POS_MIN} a ${WMS_POS_MAX}): ` +
+      recusadas.slice(0, 5).join(' | ') + (recusadas.length > 5 ? ' …' : '') +
+      '. Corrija e importe de novo, nada foi gravado.';
+    return;
+  }
   if (!parsed.length) { $('importAddrsResult').textContent = 'Nenhum endereço válido encontrado.'; return; }
 
   loading(true, `Importando ${parsed.length} endereços...`);
