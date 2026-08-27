@@ -299,6 +299,35 @@ Aplicada nas **4 cópias** do coletor de endereçamento (não em `coletor_v3.htm
 
 **Cobertura:** só vale para o que acontecer a partir da publicação. Para o que veio antes, o que existe é `wms_limpeza_log` (limpeza geral de 24/08), sem tela no `index.html` — foi criada a página avulsa `consulta_log_limpeza.html` para ler essa coleção com login.
 
+## Regras do Firestore — allowlist por coleção (`firestore.rules`)
+
+**A armadilha:** as regras deste projeto não têm um `match /{document=**}` genérico. Cada coleção é listada uma a uma, e **o que não está listado é negado**. Criar uma coleção nova no código não basta: sem entrar nas regras, a tela que a lê mostra `Missing or insufficient permissions` e a gravação falha calada. Foi exatamente o que aconteceu com `wms_mov_log` em 26/08/2026, entre publicar a aba Auditoria e ela funcionar.
+
+**Onde vive:** `WMS/firestore.rules`, versionado. O que está no ar antes de cada publicação é salvo em `WMS/backups/firestore_rules_*.rules`.
+
+**Como publicar:**
+```
+set FIREBASE_SA=C:\caminho\para\service-account.json
+node publicar-regras.js
+```
+O script guarda o backup, cria o ruleset novo e aponta o release `cloud.firestore` para ele. Para voltar atrás, republicar o conteúdo do backup. Não existe dependência de npm: o JWT é assinado com o `crypto` do Node.
+
+**Papéis:** `isWhitelisted()` (existe em `wms_users`), `isOperator()` (não é viewer), `isAdmin()` (`role == 'admin'`) e `podeAuditar()` (admin ou módulo `auditoria`).
+
+**Regra dos logs:** `wms_mov_log` e `wms_limpeza_log` aceitam `create`, nunca `update` nem `delete`. Não trocar por `allow write`: um log que o próprio operador pode alterar ou apagar não prova nada, e a coleção existe justamente para provar quem mexeu em cada posição.
+
+## Redefinição de senha por administrador — `proxy-erp/api/senha.js`
+
+**Por que no servidor:** o Firebase no navegador só deixa alguém mexer na própria senha. Definir a senha de outra pessoa exige o Admin SDK, cuja credencial não pode viver no `index.html` (a página é pública no GitHub Pages). A função roda na Vercel, no mesmo projeto `humwms-proxy` do proxy do ERP.
+
+**Contrato:** `POST /api/senha` com `{ idToken, email, novaSenha }`. O e-mail de quem pede sai do `idToken` verificado no servidor, **nunca** do corpo da requisição, e o Firestore precisa reconhecer esse e-mail como `role: 'admin'` e ativo. Se a conta alvo não existir no Auth, é criada com a senha informada.
+
+**Efeito colateral proposital:** toda senha definida por terceiro grava `mustChangePassword: true`, e o coletor bloqueia o app numa tela de troca até a pessoa criar a dela. Senha entregue por outra pessoa não identifica ninguém no log.
+
+**Credencial:** variável `FIREBASE_SERVICE_ACCOUNT` no projeto da Vercel, com o JSON da conta de serviço em uma linha. Sem ela a função responde 503 dizendo o que falta, em vez de estourar erro técnico. Ela **não** está no repositório e é a mesma chave que o `publicar-regras.js` usa. Republicar a função: `cd proxy-erp && npx vercel deploy --prod --yes --scope support-solucoes` (sem `--scope` o CLI desta máquina devolve `Not authorized`).
+
+**Três provedores de login convivem no projeto:** o `index.html` entra só com Google (`signInWithPopup`), o coletor entra só com e-mail e senha, e a conta de quem sempre usou Google **não tem senha nenhuma** — daí o `linkWithCredential` no botão "Minha senha do coletor". O projeto também tem proteção contra enumeração de e-mail ligada, então `sendPasswordResetEmail` responde sucesso mesmo quando não há conta com senha para redefinir, e `fetchSignInMethodsForEmail`/`createAuthUri` não revelam provedores. Não confiar nessas respostas para diagnosticar conta.
+
 ## Publicação
 
 O diretório `WMS/` local **não é um repositório git**. Repositório: `https://github.com/controlehumana/HumWMS` — publicado via GitHub Pages em `https://controlehumana.github.io/HumWMS/`.
