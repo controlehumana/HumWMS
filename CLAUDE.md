@@ -340,7 +340,13 @@ O recorte por campo (`request.resource.data.diff(resource.data).affectedKeys().h
 
 **Onde nasce de verdade:** o `wms_addresses` do Firestore, não o ERP. O botão "+ Novo endereço" do Mapa e o import de endereços em lote gravavam a chave com o texto cru, então `B_06` virava um documento separado de `B_6`. Conferido em 27/08 com um GET ao vivo: das 339 linhas endereçadas no ERP, **zero** estavam fora do padrão `1`..`40`.
 
-**A grade:** ruas `A`-`G`, `M`, `P`; posições `1` a `40`, sem zero à esquerda. Decisão do usuário em 27/08: rua fora dessa lista passa a ser **recusada** (antes era texto livre). Se um dia abrir uma rua nova de verdade, é uma linha: `RUAS_BASE` no coletor e `WMS_RUAS` no `index.html` — e reler o gotcha de "grade de ruas" mais acima, que lista os `<select>` com opções escritas direto no HTML.
+**A grade:** ruas `A`-`G`, `M`, `P`, `Z`; posições `1` a `40`, sem zero à esquerda, **menos a `Z`, que vai só até `10`**. Decisão do usuário em 27/08: rua fora dessa lista passa a ser **recusada** (antes era texto livre).
+
+**Rua com tamanho próprio:** `POS_MAX_RUA` no coletor e `WMS_POS_MAX_RUA` no `index.html` — hoje só `{ Z: 10 }`. Quem não está no mapa herda o teto geral de 40. Isso também alimenta `posesParaRua()`, então a rua Z mostra 10 chips na aba Consultar, não 40. Se a Z crescer, é o número aí.
+
+**Abrir uma rua nova são quatro lugares** (a rua Z entrou em 27/08/2026 e serve de roteiro): `RUAS_BASE` no coletor, `WMS_RUAS` no `index.html`, e os **dois `<select>` com as opções escritas direto no HTML** — o filtro Rua do Mapa e o do Cartaz Manual. Os dois selects não passam por variável nenhuma, então grepar por `<option value="P">P</option>` faz parte do roteiro. Se a rua não tiver 40 posições, somar a entrada em `POS_MAX_RUA`/`WMS_POS_MAX_RUA` também.
+
+**Cuidado ao mexer:** o `99` guarda-chuva da Bomba Enteral (`P/99`, ver `normalizarBombaEnteral`) depende de continuar **fora** da grade — `normalizarPos` devolve `null` para ele e o valor cru é preservado, tanto na leitura quanto nos chips. Subir o teto da rua P para 99 quebraria isso.
 
 **As funções** (mesmo comportamento nos dois arquivos, conferido por teste que compara as duas): `normalizarPos`/`normalizarRua` no `coletor_endereco.html`, `wmsPos`/`wmsRua` no `index.html`. Devolvem a forma canônica ou `null`. `addrKey()` passou a usar `wmsPos()`, então `B 06` e `B 6` caem no mesmo documento; fora da grade ela mantém o texto cru, senão não haveria como ler (nem limpar) o que já foi gravado torto.
 
