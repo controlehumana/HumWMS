@@ -316,6 +316,12 @@ O script guarda o backup, cria o ruleset novo e aponta o release `cloud.firestor
 
 **Regra dos logs:** `wms_mov_log` e `wms_limpeza_log` aceitam `create`, nunca `update` nem `delete`. Não trocar por `allow write`: um log que o próprio operador pode alterar ou apagar não prova nada, e a coleção existe justamente para provar quem mexeu em cada posição.
 
+**Regra de `wms_users` — a exceção da própria senha (27/08/2026):** escrever em `wms_users` é de administrador (`allow write: if isAdmin()`), com **uma** exceção: a pessoa pode dar `update` no próprio documento desde que os únicos campos tocados sejam `mustChangePassword` e `senhaDefinidaEm`, e que `mustChangePassword` fique `false`. Sem essa exceção, a troca obrigatória do primeiro acesso (coletor) e o botão "Minha senha do coletor" (`index.html`, quando quem clica não é admin) trocavam a senha no Auth e **falhavam na linha seguinte** com `Não foi possível salvar: Missing or insufficient permissions` — e, como `mustChangePassword` continuava `true`, o coletor pedia a troca de novo a cada login, em laço.
+
+O recorte por campo (`request.resource.data.diff(resource.data).affectedKeys().hasOnly([...])`) é o que segura a porta: um `allow update` amplo no próprio documento deixaria qualquer operador escrever `role: 'admin'` ou reativar o próprio acesso desligado. Ao mexer nessa regra, tratar `role`, `modules` e `active` como intocáveis fora do `isAdmin()`.
+
+**Não dá para testar as regras pelo simulador com esta chave:** a conta de serviço do projeto cria e publica ruleset, mas o `projects/*:test` da API devolve 403 (`firebaserules.rulesets.test`, permissão que ela não tem). O emulador local também não roda nesta máquina: exige Java 11+ e aqui há Java 8. O que dá para conferir sem permissão nenhuma é que o release no ar bate byte a byte com o `firestore.rules` local (ler o `rulesetName` do release `cloud.firestore` e comparar). O teste de verdade continua sendo trocar a senha com uma conta de operador real.
+
 ## Redefinição de senha por administrador — `proxy-erp/api/senha.js`
 
 **Por que no servidor:** o Firebase no navegador só deixa alguém mexer na própria senha. Definir a senha de outra pessoa exige o Admin SDK, cuja credencial não pode viver no `index.html` (a página é pública no GitHub Pages). A função roda na Vercel, no mesmo projeto `humwms-proxy` do proxy do ERP.

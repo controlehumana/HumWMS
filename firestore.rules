@@ -27,6 +27,17 @@ rules_version = '2';
       match /wms_users/{email} {
         allow read: if isAdmin() || request.auth.token.email == email;
         allow write: if isAdmin();
+        // A própria pessoa confirma no seu cadastro que já trocou a senha do
+        // coletor. Sem isto, quem não é administrador esbarra em "Missing or
+        // insufficient permissions" bem na troca obrigatória do primeiro acesso.
+        // São só estes dois campos, e só no próprio documento: papel, módulos e
+        // ativo seguem sendo decisão de administrador, senão qualquer operador
+        // se promoveria a admin por esta mesma porta.
+        allow update: if request.auth != null
+                      && request.auth.token.email == email
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['mustChangePassword', 'senhaDefinidaEm'])
+                      && request.resource.data.mustChangePassword == false;
       }
       // Trilha de auditoria do endereçamento: quem endereçou, transferiu, liberou.
       // Qualquer usuário da allowlist grava (o coletor registra o próprio trabalho),
