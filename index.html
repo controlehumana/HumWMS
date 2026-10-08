@@ -1891,10 +1891,18 @@ header {
       </p>
 
       <div style="border:1px solid #fecaca;border-radius:10px;padding:16px;background:#fef2f2">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
           <div>
             <label class="form-label">Escopo da limpeza</label>
             <select class="form-select" id="limpEscopo" style="height:38px"><option value="">Selecione a rua…</option></select>
+          </div>
+          <div>
+            <label class="form-label">Posições</label>
+            <select class="form-select" id="limpParidade" style="height:38px">
+              <option value="">Todas as posições</option>
+              <option value="I">Somente ÍMPARES (1, 3, 5…)</option>
+              <option value="P">Somente PARES (2, 4, 6…)</option>
+            </select>
           </div>
           <button class="btn" id="btnLimpAnalisar" style="gap:6px;white-space:nowrap">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -4440,6 +4448,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 (function(){
   const sel = document.getElementById('limpEscopo');
   if (!sel) return;
+  const selPar = document.getElementById('limpParidade');
 
   const elMsg      = document.getElementById('limpMsg');
   const elPreview  = document.getElementById('limpPreview');
@@ -4459,10 +4468,15 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
 
   let _linhas = [];        // linhas do ERP dentro do escopo (todas com id_item_enderecamento)
   let _escopo = '';        // letra da rua ou '__ALL__'
+  let _par = '';           // '' = todas as posições | 'I' = só ímpares | 'P' = só pares
   let _backupOk = false;
 
   const _sleep = ms => new Promise(r => setTimeout(r, ms));
-  const _palavra = esc => esc === '__ALL__' ? 'LIMPAR TUDO' : 'LIMPAR ' + esc;
+  const _parTxt  = par => par === 'I' ? 'ímpares' : par === 'P' ? 'pares' : '';
+  const _palavra = (esc, par) => (esc === '__ALL__' ? 'LIMPAR TUDO' : 'LIMPAR ' + esc)
+                                 + (par === 'I' ? ' IMPAR' : par === 'P' ? ' PAR' : '');
+  // Rótulo legível do escopo (backup)
+  const _rotulo = (esc, par) => (esc === '__ALL__' ? 'TODAS as ruas' : 'Rua ' + esc) + (par ? ' (só ' + _parTxt(par) + ')' : '');
 
   function limpMsg(type, text){
     if (!elMsg) return;
@@ -4484,7 +4498,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
   }
 
   function _syncBtnExec(){
-    const palavraOk = inpConfirm.value.trim().toUpperCase() === _palavra(_escopo);
+    const palavraOk = inpConfirm.value.trim().toUpperCase() === _palavra(_escopo, _par);
     const ok = _linhas.length > 0 && _backupOk && palavraOk;
     btnExec.disabled = !ok;
     btnExec.style.opacity = ok ? '1' : '.5';
@@ -4492,7 +4506,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     if (!elDica) return;
     if (!_linhas.length)      { elDica.textContent = ''; return; }
     if (!_backupOk)           { elDica.style.color = '#b45309'; elDica.textContent = 'Falta o passo 1: baixar o backup antes de liberar a execução.'; return; }
-    if (!palavraOk)           { elDica.style.color = '#b45309'; elDica.textContent = 'Digite exatamente ' + _palavra(_escopo) + ' (maiúscula ou minúscula tanto faz).'; return; }
+    if (!palavraOk)           { elDica.style.color = '#b45309'; elDica.textContent = 'Digite exatamente ' + _palavra(_escopo, _par) + ' (maiúscula ou minúscula tanto faz).'; return; }
     elDica.style.color = '#065f46';
     elDica.textContent = 'Tudo pronto: o botão vermelho está liberado.';
   }
@@ -4517,17 +4531,23 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
   }
 
   // Só entra na limpeza quem tem id_item_enderecamento (linha de fato existente na tabela).
-  function _noEscopo(linha, escopo){
+  // Paridade olha o número da posição; posição não numérica nunca entra num filtro par/ímpar.
+  function _noEscopo(linha, escopo, par){
     if (!linha.id_item_enderecamento) return false;
+    if (par) {
+      const n = parseInt(linha.posicao, 10);
+      if (isNaN(n) || (n % 2 === 0) !== (par === 'P')) return false;
+    }
     if (escopo === '__ALL__') return true;
     return String(linha.rua || '').trim().toUpperCase() === escopo;
   }
 
   sel.addEventListener('change', () => { _escopo = sel.value; limpMsg(null,''); _resetEstado(); });
+  selPar.addEventListener('change', () => { _par = selPar.value; limpMsg(null,''); _resetEstado(); });
   inpConfirm.addEventListener('input', _syncBtnExec);
 
   btnAnalisar.addEventListener('click', async () => {
-    _escopo = sel.value;
+    _escopo = sel.value; _par = selPar.value;
     if (!_escopo) { limpMsg('err', 'Escolha uma rua ou "TODAS as ruas" antes de analisar.'); return; }
     _resetEstado();
     btnAnalisar.disabled = true;
@@ -4536,12 +4556,12 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       const todas = await _fetchErp();
       _preencherEscopo(todas.map(l => l.rua));
       sel.value = _escopo;
-      _linhas = todas.filter(l => _noEscopo(l, _escopo));
+      _linhas = todas.filter(l => _noEscopo(l, _escopo, _par));
 
       if (_linhas.length === 0) {
         limpMsg('ok', _escopo === '__ALL__'
-          ? 'Não há nenhum endereçamento registrado no ERP. Nada a limpar.'
-          : `A rua ${_escopo} não tem nenhum item endereçado no ERP. Nada a limpar.`);
+          ? `Não há nenhum endereçamento registrado no ERP${_par ? ' em posições ' + _parTxt(_par) : ''}. Nada a limpar.`
+          : `A rua ${_escopo} não tem nenhum item endereçado no ERP${_par ? ' em posições ' + _parTxt(_par) : ''}. Nada a limpar.`);
         return;
       }
 
@@ -4570,13 +4590,13 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
           <td style="padding:5px 8px;text-align:right">${l.saldo_aberto||''}</td>
         </tr>`).join('')}</tbody></table>`;
 
-      elPalavra.textContent = _palavra(_escopo);
-      inpConfirm.placeholder = _palavra(_escopo);
+      elPalavra.textContent = _palavra(_escopo, _par);
+      inpConfirm.placeholder = _palavra(_escopo, _par);
       elPreview.style.display = '';
       _syncBtnExec(); // já mostra o que falta (backup) assim que o preview abre
       limpMsg('info', _escopo === '__ALL__'
-        ? `${_linhas.length} registros de endereçamento serão apagados em TODAS as ruas. O armazém fica sem mapa até a equipe reendereçar.`
-        : `${_linhas.length} registros da rua ${_escopo} serão apagados. As demais ruas continuam intactas.`);
+        ? `${_linhas.length} registros de endereçamento serão apagados em TODAS as ruas${_par ? ' (somente posições ' + _parTxt(_par) + ')' : ''}. ` + (_par ? 'As posições ' + (_par === 'I' ? 'pares' : 'ímpares') + ' continuam intactas.' : 'O armazém fica sem mapa até a equipe reendereçar.')
+        : `${_linhas.length} registros da rua ${_escopo}${_par ? ' (somente posições ' + _parTxt(_par) + ')' : ''} serão apagados. ` + (_par ? 'As posições ' + (_par === 'I' ? 'pares' : 'ímpares') + ' e as demais ruas continuam intactas.' : 'As demais ruas continuam intactas.'));
     } catch(e){
       limpMsg('err', 'Erro ao consultar o ERP: ' + (e.message || e));
     } finally {
@@ -4588,7 +4608,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     if (!_linhas.length) return;
     try {
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    const nome  = `BACKUP_ENDERECAMENTO_${_escopo === '__ALL__' ? 'GERAL' : 'RUA-'+_escopo}_${stamp}`;
+    const nome  = `BACKUP_ENDERECAMENTO_${_escopo === '__ALL__' ? 'GERAL' : 'RUA-'+_escopo}${_par === 'I' ? '_IMPARES' : _par === 'P' ? '_PARES' : ''}_${stamp}`;
 
     // Excel legível para conferência
     const headers = ['id_item_enderecamento','item_id','empresa_id','SKU','Produto','Lote','Validade','Rua','Posição','Nível','Estoque (bruto)','Saldo do lote'];
@@ -4604,7 +4624,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Backup gerado em:', now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR')],
       ['Por:', (S.user && S.user.email) || '—'],
-      ['Escopo:', _escopo === '__ALL__' ? 'TODAS as ruas' : 'Rua ' + _escopo],
+      ['Escopo:', _rotulo(_escopo, _par)],
       ['Registros:', _linhas.length]
     ]), 'Info');
     XLSX.writeFile(wb, nome + '.xlsx');
@@ -4629,8 +4649,9 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     if (btnExec.disabled || !_linhas.length) return;
     const alvo = _linhas.slice();
     const escopoExec = _escopo;
+    const parExec = _par;
     btnExec.disabled = true; btnExec.style.opacity = '.5';
-    btnAnalisar.disabled = true; sel.disabled = true;
+    btnAnalisar.disabled = true; sel.disabled = true; selPar.disabled = true;
     elPreview.style.display = 'none';
     elProgress.style.display = '';
     limpMsg(null, '');
@@ -4660,7 +4681,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
     let restantes = null;
     try {
       const todas = await _fetchErp();
-      restantes = todas.filter(l => _noEscopo(l, escopoExec)).length;
+      restantes = todas.filter(l => _noEscopo(l, escopoExec, parExec)).length;
     } catch(e){ /* conferência é best-effort */ }
 
     // Registro de auditoria no Firestore
@@ -4669,7 +4690,8 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
         await db.collection('wms_limpeza_log').add({
           ts: new Date().toISOString(),
           por: (S.user && S.user.email) || '—',
-          escopo: escopoExec === '__ALL__' ? 'TODAS' : escopoExec,
+          escopo: (escopoExec === '__ALL__' ? 'TODAS' : escopoExec) + (parExec === 'I' ? ' (ímpares)' : parExec === 'P' ? ' (pares)' : ''),
+          paridade: parExec === 'I' ? 'impares' : parExec === 'P' ? 'pares' : 'todas',
           totalAlvo: alvo.length, apagados: ok, falhas: falhas.length, restantes,
           registros: alvo.map(l => ({
             idEnd:l.id_item_enderecamento, itemId:l.item_id, unidadeId:l.empresa_id,
@@ -4690,7 +4712,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       <div class="alert ${tudoOk ? 'alert-success' : 'alert-warn'}" style="align-items:flex-start">
         <div>
           <strong>${ok} de ${alvo.length} registros apagados</strong>
-          ${escopoExec === '__ALL__' ? ' (limpeza geral)' : ' na rua ' + escopoExec}.<br>
+          ${escopoExec === '__ALL__' ? ' (limpeza geral)' : ' na rua ' + escopoExec}${parExec ? ' · somente posições ' + _parTxt(parExec) : ''}.<br>
           ${restantes === null
             ? 'Não foi possível conferir no ERP agora. Clique em "Sincronizar agora" e confira o mapa.'
             : `Conferência no ERP: <strong>${restantes}</strong> registro(s) ainda no escopo.`}
@@ -4700,7 +4722,7 @@ $('importDoneBtn').addEventListener('click', () => { showTab('map'); importShowS
       <div style="font-size:12px;color:var(--muted)">Os itens voltaram para a aba <strong>Pendentes</strong>. O saldo do estoque no ERP não foi alterado. Agora a equipe reendereça pelo coletor.</div>`;
     if (falhas.length) console.warn('[WMS limpeza] falhas:', falhas);
 
-    sel.disabled = false; btnAnalisar.disabled = false;
+    sel.disabled = false; selPar.disabled = false; btnAnalisar.disabled = false;
     _resetEstado();
     elResult.innerHTML = html;
     elResult.style.display = '';
