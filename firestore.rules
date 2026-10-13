@@ -19,11 +19,22 @@ rules_version = '2';
                 get(/databases/$(database)/documents/wms_users/$(request.auth.token.email)).data.get('modules', []).hasAny(['auditoria']));
       }
 
+      // Quem publica sugestões de endereço para o coletor: administrador, ou quem
+      // recebeu o módulo 'sugestao' no cadastro de usuários.
+      function podeSugerir() {
+        return isAdmin() ||
+               (isWhitelisted() &&
+                get(/databases/$(database)/documents/wms_users/$(request.auth.token.email)).data.get('modules', []).hasAny(['sugestao']));
+      }
+
       match /wms_items/{d}              { allow read: if isWhitelisted(); allow write: if isOperator(); }
       match /wms_addresses/{d}          { allow read: if isWhitelisted(); allow write: if isAdmin(); }
       match /wms_import_log/{d}         { allow read: if isWhitelisted(); allow write: if isAdmin(); }
       match /wms_unaddressed/{d}        { allow read: if isWhitelisted(); allow write: if isOperator(); }
       match /wms_export_log/{d}         { allow read: if isAdmin();       allow write: if isWhitelisted(); }
+      match /wms_sugestoes/{d}          { allow read: if isWhitelisted(); allow write: if podeSugerir(); }
+      // Histórico de cada envio de sugestões ao coletor: só cria, ninguém edita nem apaga.
+      match /wms_sugestoes_log/{d}      { allow read: if podeSugerir(); allow create: if podeSugerir(); }
       match /wms_users/{email} {
         allow read: if isAdmin() || request.auth.token.email == email;
         allow write: if isAdmin();

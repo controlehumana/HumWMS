@@ -38,8 +38,8 @@ O Token de Segurança pode ser enviado de duas formas. Escolha uma delas:
 
 | Forma | Como enviar | Exemplo |
 | :--- | :--- | :--- |
-| **Header (recomendado)** | Cabeçalho HTTP | `HTTP_X_API_TOKEN: WMS-TOKEN-STOCK-2026` |
-| **Query String** | Parâmetro na URL | `?token=WMS-TOKEN-STOCK-2026` |
+| **Header (recomendado)** | Cabeçalho HTTP | `HTTP_X_API_TOKEN: <ERP_TOKEN>` |
+| **Query String** | Parâmetro na URL | `?token=<ERP_TOKEN>` |
 
 > **ATENÇÃO À SEGURANÇA**
 > Enviar o token pela URL o deixa visível em logs e histórico. Prefira sempre o Header em ambientes de produção.
@@ -60,7 +60,7 @@ Retorna a listagem atualizada do estoque e das posições. É a operação segur
 
 ```bash
 # Consulta simples com token via query string
-curl -X GET "https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php?token=WMS-TOKEN-STOCK-2026"
+curl -X GET "https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php?token=<ERP_TOKEN>"
 ```
 
 ---
@@ -101,7 +101,7 @@ Insere um novo endereço / posição de item no estoque.
 
 ```bash
 curl -X POST "https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php" \
-     -H "HTTP_X_API_TOKEN: WMS-TOKEN-STOCK-2026" \
+     -H "HTTP_X_API_TOKEN: <ERP_TOKEN>" \
      -H "Content-Type: application/json" \
      -d '{"item_id": 1050, "unidade_id": 1, "estoque": 25.5, "rua": "05"}'
 ```
@@ -148,7 +148,7 @@ Atualiza um ou mais campos de um registro já existente. Envie apenas os campos 
 
 ```bash
 curl -X PUT "https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php" \
-     -H "HTTP_X_API_TOKEN: WMS-TOKEN-STOCK-2026" \
+     -H "HTTP_X_API_TOKEN: <ERP_TOKEN>" \
      -H "Content-Type: application/json" \
      -d '{"id_item_enderecamento": 45, "estoque": 100}'
 ```
@@ -190,7 +190,7 @@ Exclui permanentemente registros do estoque.
 
 ```bash
 curl -X DELETE "https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php" \
-     -H "HTTP_X_API_TOKEN: WMS-TOKEN-STOCK-2026" \
+     -H "HTTP_X_API_TOKEN: <ERP_TOKEN>" \
      -H "Content-Type: application/json" \
      -d '{"id_item_enderecamento": 45}'
 ```

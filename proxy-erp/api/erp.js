@@ -39,6 +39,16 @@ module.exports = async (req, res) => {
     return res.status(403).json({ sucesso: false, mensagem: 'Destino não permitido.' });
   }
 
+  // O token do ERP mora aqui (variável ERP_TOKEN da Vercel), não no HTML público.
+  // Se o cliente ainda mandar um token na URL (versão antiga em cache), vale o dele.
+  // Trocar o token = mudar a variável na Vercel, sem republicar o WMS nem os coletores.
+  if (!destino.searchParams.has('token')) {
+    if (!process.env.ERP_TOKEN) {
+      return res.status(503).json({ sucesso: false, mensagem: 'Proxy sem ERP_TOKEN configurado na Vercel.' });
+    }
+    destino.searchParams.set('token', process.env.ERP_TOKEN);
+  }
+
   const opcoes = {
     method: req.method,
     headers: { 'Accept': 'application/json' }

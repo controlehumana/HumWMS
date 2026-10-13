@@ -215,6 +215,42 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .sugTxt small{display:block;font-size:10.5px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 .sugTxt b{font-family:var(--mono);font-size:22px;letter-spacing:.02em}
 .sugTxt span{display:block;font-size:12px;color:var(--warn);margin-top:2px}
+.tabBadge{
+  position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:99px;
+  background:#d32f2f;color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;
+  box-shadow:0 0 0 2px #fff;
+}
+.tabBadge[hidden]{display:none}
+.valSeg{display:flex;gap:8px;overflow-x:auto;margin:0 -16px 14px;padding:2px 16px;scrollbar-width:none}
+.valSeg::-webkit-scrollbar{display:none}
+.valChip{
+  flex-shrink:0;height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--line);background:#fff;
+  font-size:13.5px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;
+}
+.valChip b{font-family:var(--mono);font-size:13px;background:#e8edf3;border-radius:99px;padding:1px 8px;color:var(--muted)}
+.valChip.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.valChip.active b{background:var(--amber);color:var(--ink)}
+.valChip.venc b{background:#fde4e4;color:#b42318}
+.valChip.venc.active b{background:#ff8a80;color:#4a0d0d}
+.valList{display:flex;flex-direction:column;gap:8px}
+.valRow{display:flex;align-items:center;gap:12px;background:#fff;border-radius:var(--radius-md);padding:10px 12px;box-shadow:0 1px 2px rgba(15,28,24,.07);border-left:5px solid var(--line)}
+.valRow.venc{border-left-color:#d32f2f}
+.valRow.u7{border-left-color:#ef6c00}
+.valRow.u30{border-left-color:var(--amber)}
+.valRow.u90{border-left-color:#7aa7d4}
+.valInfo{flex:1;min-width:0}
+.valInfo .desc{font-weight:700;font-size:13.5px;line-height:1.25}
+.valInfo .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.valWhere{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.valWhere span{font-family:var(--mono);font-weight:800;font-size:12px;background:var(--ink);color:var(--amber);border-radius:6px;padding:2px 7px}
+.valWhere span.sem{background:#e8edf3;color:var(--muted);font-family:inherit;font-weight:700}
+.valDias{flex-shrink:0;text-align:center;min-width:58px;line-height:1.1}
+.valDias b{display:block;font-family:var(--mono);font-size:22px}
+.valDias small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.valRow.venc .valDias b{color:#b42318}
+.valRow.u7 .valDias b{color:#c25400}
+.sinalRow{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:600;margin:0 0 14px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sinalRow input{width:22px;height:22px;accent-color:var(--green)}
 .btnUsar{
   height:44px;padding:0 22px;border:none;border-radius:11px;background:var(--ink);color:var(--amber);
   font-size:15px;font-weight:800;cursor:pointer;
@@ -394,7 +430,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
           <p class="stepLead">Bipe o código de barras ou digite o SKU.</p>
           <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
           <div class="inputRow">
-            <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
+            <input class="inputField" id="skuIn" inputmode="numeric" pattern="[0-9]*" enterkeyhint="search" autocomplete="off" placeholder="Ex: 2155" autofocus>
             <button class="btn-scan" id="scanBtn" title="Escanear com câmera" aria-label="Escanear código de barras">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
             </button>
@@ -483,6 +519,14 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
         <div id="posList" class="posList"></div>
       </div>
 
+      <!-- VIEW: VALIDADES (lotes com saldo que vencem ou já venceram) ============ -->
+      <div class="view" id="viewValidades">
+        <h1 class="stepTitle">Validades</h1>
+        <p class="stepLead" id="valLead">Lotes com saldo que vencem nos próximos 90 dias, ou que já venceram.</p>
+        <div class="valSeg" id="valSeg"></div>
+        <div class="valList" id="valList"></div>
+      </div>
+
       <!-- VIEW: HISTÓRICO ============================================= -->
       <div class="view" id="viewHistorico">
         <div class="histActions">
@@ -500,6 +544,9 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
     </button>
     <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Consultar
+    </button>
+    <button class="tabBtn" id="tabValidades" data-view="viewValidades">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2.5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/><path d="M12 13.5v3.2M12 18.6v.1"/></svg>Validades<span class="tabBadge" id="valBadge" hidden>0</span>
     </button>
     <button class="tabBtn" id="tabHistorico" data-view="viewHistorico">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Histórico
@@ -544,6 +591,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
     </div>
     <div class="uiUserName" id="uiUserName">–</div>
     <div class="uiUserEmail" id="uiUserEmail">–</div>
+    <label class="sinalRow"><input type="checkbox" id="chkSinal"> Som e vibração</label>
     <button class="btn btn-danger" id="btnLogout" style="margin-top:0">Sair da conta</button>
   </div>
 </div>
@@ -563,11 +611,10 @@ const db   = firebase.firestore();
 
 // ── Config da API do ERP (mesmos valores usados no WMS principal) ──────────
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
-const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
 const ERP_PROXY       = 'https://humwms-proxy.vercel.app/api/erp?url='; // proxy próprio (Vercel); o corsproxy.io desligou as URLs anônimas em 08/2026
 
 function _erpUrl(extraQs = '') {
-  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+  return `${ERP_STOCK_URL}?_=1${extraQs}`; // o token é acrescentado pelo proxy (variável ERP_TOKEN na Vercel)
 }
 
 async function erpGetEstoque() {
@@ -620,15 +667,10 @@ async function erpWrite(method, payload) {
     body: JSON.stringify(payload),
     cache: 'no-store'
   };
-  let resp;
-  try {
-    // Tenta direto primeiro — se CORS bloqueado, falha em < 100 ms (sem custo de timeout)
-    resp = await fetch(_erpUrl(), { ...opts, signal: timeoutSignal(5000) });
-  } catch (_) {
-    resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
-      ...opts, signal: timeoutSignal(10000)
-    });
-  }
+  // Sempre pelo proxy: o ERP não aceita CORS e o token (que não está mais no HTML) é acrescentado lá.
+  const resp = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl()), {
+    ...opts, signal: timeoutSignal(10000)
+  });
   let data = null;
   try { data = await resp.json(); } catch(_) {}
   if (!resp.ok || (data && data.sucesso === false)) {
@@ -977,6 +1019,7 @@ function showStep(n) {
 }
 
 function showMsg(elId, type, text) {
+  if (type === 'err') sinal('erro'); else if (type === 'warn') sinal('aviso'); else if (type === 'ok') sinal('ok');
   const el = $(elId);
   el.className = 'msg ' + type;
   el.textContent = text;
@@ -1014,6 +1057,7 @@ async function carregarEstoque() {
   try {
     estoqueAtual = normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque()));
     atualizarContagemHint();
+    atualizarBadgeValidades();
     atualizarListaRuas();
   } catch (e) {
     $('pendingCountHint').textContent = 'Falha ao carregar estoque';
@@ -1438,6 +1482,104 @@ async function confirmarEnvio() {
   }
 }
 
+// ── Validades: lotes com saldo que vencem em até 90 dias (ou já venceram) ─────
+// Um lote dividido em várias posições aparece uma vez só, com todas as posições.
+// saldo_aberto é o saldo total do lote (não por posição), então não se soma.
+const VAL_FAIXAS = [
+  { id: 'venc', label: 'Vencidos',   teste: d => d < 0 },
+  { id: '30',   label: 'Até 30 dias', teste: d => d >= 0 && d <= 30 },
+  { id: '60',   label: '31 a 60',    teste: d => d > 30 && d <= 60 },
+  { id: '90',   label: '61 a 90',    teste: d => d > 60 && d <= 90 }
+];
+let valFaixa = null;
+
+function diasParaVencer(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return null;
+  const h = new Date(), hoje = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - hoje) / 86400000);
+}
+function validadesAgrupadas() {
+  const mapa = new Map();
+  for (const r of estoqueAtual) {
+    const dias = diasParaVencer(r.dt_validade);
+    if (dias === null || dias > 90) continue;
+    const saldo = Number(String(r.saldo_aberto == null ? '' : r.saldo_aberto).replace(',', '.')) || 0;
+    if (saldo <= 0) continue;
+    const chave = [r.item_codigo, r.numero_lote, r.dt_validade].join('|');
+    let g = mapa.get(chave);
+    if (!g) { g = { sku: String(r.item_codigo || '').trim(), desc: r.item_descricao || '', lote: r.numero_lote || '', val: r.dt_validade, dias, saldo, pos: new Set() }; mapa.set(chave, g); }
+    g.pos.add(r.rua && r.posicao ? r.rua + ' ' + r.posicao : '');
+  }
+  return [...mapa.values()].sort((a, b) => a.dias - b.dias);
+}
+function atualizarBadgeValidades() {
+  const urgentes = validadesAgrupadas().filter(g => g.dias <= 30).length;
+  const b = $('valBadge');
+  b.textContent = urgentes > 99 ? '99+' : urgentes;
+  b.hidden = urgentes === 0;
+}
+function renderValidades() {
+  const todos = validadesAgrupadas();
+  const conta = f => todos.filter(g => f.teste(g.dias)).length;
+  if (!valFaixa || !VAL_FAIXAS.some(f => f.id === valFaixa)) {
+    const primeira = VAL_FAIXAS.find(f => conta(f) > 0);
+    valFaixa = primeira ? primeira.id : '30';
+  }
+  $('valSeg').innerHTML = VAL_FAIXAS.map(f =>
+    `<button class="valChip ${f.id === 'venc' ? 'venc' : ''} ${f.id === valFaixa ? 'active' : ''}" data-faixa="${f.id}">${f.label}<b>${conta(f)}</b></button>`).join('');
+  $('valSeg').querySelectorAll('[data-faixa]').forEach(b => b.addEventListener('click', () => { valFaixa = b.dataset.faixa; renderValidades(); }));
+
+  const faixa = VAL_FAIXAS.find(f => f.id === valFaixa);
+  const lista = todos.filter(g => faixa.teste(g.dias));
+  if (!estoqueAtual.length) { $('valList').innerHTML = '<div class="histEmpty" style="display:block">Estoque ainda não carregado. Toque em atualizar.</div>'; return; }
+  if (!lista.length) { $('valList').innerHTML = '<div class="histEmpty" style="display:block">Nenhum lote com saldo nesta faixa.</div>'; return; }
+  const MAX = 150;
+  const fmtVal = iso => { const p = String(iso).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; };
+  $('valList').innerHTML = lista.slice(0, MAX).map(g => {
+    const cls = g.dias < 0 ? 'venc' : g.dias <= 7 ? 'u7' : g.dias <= 30 ? 'u30' : 'u90';
+    const numero = g.dias < 0 ? -g.dias : g.dias;
+    const rotulo = g.dias < 0 ? 'dias vencido' : g.dias === 0 ? 'vence hoje' : 'dias';
+    const onde = [...g.pos].map(p => p ? `<span>${p}</span>` : '<span class="sem">sem endereço</span>').join('');
+    return `<div class="valRow ${cls}"><div class="valInfo"><div class="desc">${g.desc || '–'}</div>
+      <div class="meta">SKU ${g.sku} · Lote ${g.lote || '–'} · Val. ${fmtVal(g.val)} · Saldo ${g.saldo.toLocaleString('pt-BR')}</div>
+      <div class="valWhere">${onde}</div></div>
+      <div class="valDias"><b>${g.dias === 0 ? 'HOJE' : numero}</b><small>${g.dias === 0 ? '' : rotulo}</small></div></div>`;
+  }).join('') + (lista.length > MAX ? `<div class="hint" style="text-align:center">Mostrando ${MAX} de ${lista.length}. Os mais urgentes primeiro.</div>` : '');
+}
+
+// ── Som e vibração (dá retorno onde nem sempre se olha a tela) ───────────────
+// O operador pode desligar na sessão atual; a escolha fica no aparelho.
+const SINAL_KEY = 'hum_sinal';
+const sinalAtivo = () => { try { return localStorage.getItem(SINAL_KEY) !== 'off'; } catch (_) { return true; } };
+let _audioCtx = null;
+function _bip(freq, ms, quando) {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    const o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    const t0 = _audioCtx.currentTime + (quando || 0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
+    o.connect(g); g.connect(_audioCtx.destination);
+    o.start(t0); o.stop(t0 + ms / 1000 + 0.02);
+  } catch (_) {}
+}
+function sinal(tipo) {
+  if (!sinalAtivo()) return;
+  const padroes = {
+    scan:  { v: [25],            t: [[1200, 60]] },
+    ok:    { v: [45],            t: [[880, 90], [1320, 110, 0.1]] },
+    aviso: { v: [70],            t: [[440, 130]] },
+    erro:  { v: [120, 60, 120],  t: [[220, 150], [220, 150, 0.22]] }
+  };
+  const p = padroes[tipo]; if (!p) return;
+  try { if (navigator.vibrate) navigator.vibrate(p.v); } catch (_) {}
+  p.t.forEach(([f, ms, q]) => _bip(f, ms, q));
+}
+
 // ── Dashboard de posições (Consultar endereço) ──────────────────────────────
 const RUAS_BASE = ['A','B','C','D','E','F','G','M','P','Z'];
 let RUAS = [...RUAS_BASE];
@@ -1555,6 +1697,7 @@ function _onBarcodeDetected(code) {
   const val = String(code || '').trim();
   if (!val) return;
   $('skuIn').value = val;
+  sinal('scan');
   buscarSku(val);
 }
 
@@ -1720,9 +1863,16 @@ function switchView(viewId) {
   document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
   if (viewId === 'viewConsultar') renderPosList();
   if (viewId === 'viewHistorico') renderHistorico();
+  if (viewId === 'viewValidades') renderValidades();
 }
 $('tabEnderecar').addEventListener('click', () => switchView('viewEnderecar'));
 $('tabConsultar').addEventListener('click', () => switchView('viewConsultar'));
+$('chkSinal').checked = sinalAtivo();
+$('chkSinal').addEventListener('change', e => {
+  try { localStorage.setItem(SINAL_KEY, e.target.checked ? 'on' : 'off'); } catch (_) {}
+  if (e.target.checked) sinal('ok');
+});
+$('tabValidades').addEventListener('click', () => switchView('viewValidades'));
 $('tabHistorico').addEventListener('click', () => switchView('viewHistorico'));
 
 // ── Listeners ────────────────────────────────────────────────────────────────

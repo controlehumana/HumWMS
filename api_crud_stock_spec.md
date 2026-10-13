@@ -10,8 +10,8 @@ A API é um endpoint RESTful simples localizado em `/api/v1/human/crud-stock/ind
 
 ### 1.1 Autenticação
 Todas as requisições devem possuir o token de segurança.
-- **Header:** `X-API-TOKEN: WMS-TOKEN-STOCK-2026`
-- **Query Params (opcional):** `?token=WMS-TOKEN-STOCK-2026`
+- **Header:** `X-API-TOKEN: <ERP_TOKEN>`
+- **Query Params (opcional):** `?token=<ERP_TOKEN>`
 
 ### 1.2 Métodos Disponíveis
 
@@ -64,7 +64,7 @@ Para o agente externo (Claude Code) trabalhar adequadamente com esta API, ele de
 Instruções diretas para o Agente de IA que assumirá o lado cliente:
 
 ### Fase 1: Setup e Validação de Conectividade
-1. Configure as credenciais no seu arquivo `.env` (ou similar) com a URL base da API e o Token (`WMS-TOKEN-STOCK-2026`).
+1. Configure as credenciais no seu arquivo `.env` (ou similar) com a URL base da API e o Token (`<ERP_TOKEN>`).
 2. Execute uma requisição `GET` com o parâmetro `?data_limite=HOJE` para assegurar conectividade e mapear os tipos de dados do JSON de resposta.
 
 ### Fase 2: Adaptação do Sistema Fonte

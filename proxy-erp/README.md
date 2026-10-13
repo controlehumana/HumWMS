@@ -19,6 +19,17 @@ e proíbe cache (o corsproxy guardava GET por 1 hora e servia estoque velho).
 
 Só aceita destino em `gestao.humanaalimentar.com.br`: não é proxy aberto.
 
+## Token do ERP
+
+O token da API não fica no HTML. O proxy acrescenta `token=` na URL quando o cliente não manda um, lendo a variável de ambiente **`ERP_TOKEN`** (a mesma que o `api/sync.js` usa). Sem ela o proxy responde 503. Para criar ou trocar o valor (sem repassar pelo PowerShell, que corrompe segredos em pipe):
+
+```
+printf '%s' "<token>" | npx vercel env add ERP_TOKEN production --scope support-solucoes
+npx vercel deploy --prod --yes --scope support-solucoes
+```
+
+Trocar o token = mudar essa variável e republicar o proxy; não precisa mexer no WMS nem nos coletores.
+
 ## Onde isso é consumido
 
 Constante `ERP_PROXY` em `index.html`, `coletor_endereco.html` e

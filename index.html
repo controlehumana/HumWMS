@@ -1769,6 +1769,18 @@ header {
         </div>
       </div>
 
+      <div class="sug-card" id="sugAcompCard">
+        <h3>3. Acompanhamento das sugestões</h3>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">Compara o que foi sugerido num envio ao coletor com o que foi endereçado de fato depois dele (lê o log de movimentos, então precisa do módulo Auditoria ou ser admin).</div>
+        <div class="sug-ctl" style="margin-top:0">
+          <select id="sugEnvio" style="padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--surface);max-width:100%"></select>
+          <button class="btn" id="sugAcompBtn">Conferir</button>
+          <span style="font-size:12px;color:var(--muted)" id="sugAcompInfo"></span>
+        </div>
+        <div class="sug-kpis" id="sugAcompKpis" style="margin-top:14px"></div>
+        <div style="overflow-x:auto" id="sugAcompTabela"></div>
+      </div>
+
     </div>
   </div>
 
@@ -1782,6 +1794,10 @@ header {
         <button class="btn" id="btnAudCSV" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Exportar CSV
+        </button>
+        <button class="btn" id="btnAudBackup" title="Baixa TODO o log de movimentos e o log de limpezas, sem filtro" style="gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Backup completo
         </button>
       </div>
 
@@ -3142,6 +3158,41 @@ function showTab(tabId) {
 // ══════════════════════════════════════════════════════
 //  AUDITORIA — quem mexeu no endereçamento (wms_mov_log)
 // ══════════════════════════════════════════════════════
+// Backup de tudo, sem filtro: o estoque se reconstrói a partir do ERP, mas estes logs
+// (quem endereçou, transferiu, liberou, limpou) só existem no Firestore.
+async function _audLerColecao(nome) {
+  const out = [];
+  let ultimo = null;
+  for (;;) {
+    let q = db.collection(nome).orderBy(firebase.firestore.FieldPath.documentId()).limit(1000);
+    if (ultimo) q = q.startAfter(ultimo);
+    const snap = await q.get();
+    snap.docs.forEach(d => out.push({ _id: d.id, ...d.data() }));
+    if (snap.docs.length < 1000) break;
+    ultimo = snap.docs[snap.docs.length - 1];
+  }
+  return out;
+}
+async function backupAuditoriaCompleta() {
+  const btn = $("btnAudBackup"), rot = btn.innerHTML;
+  btn.disabled = true; btn.textContent = "Baixando…";
+  try {
+    const [mov, limpeza] = await Promise.all([_audLerColecao("wms_mov_log"), _audLerColecao("wms_limpeza_log")]);
+    const pacote = { geradoEm: new Date().toISOString(), geradoPor: S.user?.email || "", wms_mov_log: mov, wms_limpeza_log: limpeza };
+    const blob = new Blob([JSON.stringify(pacote)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "auditoria_backup_" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    btn.textContent = "✓ " + mov.length + " movimentos, " + limpeza.length + " limpezas";
+    setTimeout(() => { btn.innerHTML = rot; btn.disabled = false; }, 5000);
+  } catch (e) {
+    btn.innerHTML = rot; btn.disabled = false;
+    alert("Não foi possível gerar o backup: " + (e.message || e));
+  }
+}
+
 let _audDados = [];
 let _audIniciado = false;
 
@@ -3165,6 +3216,7 @@ function renderAuditoria() {
     $("audAte").value = iso(hoje);
     $("btnAudBuscar").addEventListener("click", buscarAuditoria);
     $("btnAudCSV").addEventListener("click", exportarAuditoriaCSV);
+    $("btnAudBackup").addEventListener("click", backupAuditoriaCompleta);
     ["audPos","audOp","audSku"].forEach(id => {
       $(id).addEventListener("keydown", e => { if (e.key === "Enter") buscarAuditoria(); });
     });
@@ -3754,11 +3806,10 @@ function renderCard(addr) {
 // ── ERP API (crud-stock) — config e helpers compartilhados ──────────────────
 // crud-stock/index.php: CRUD completo (GET/POST/PUT/DELETE), confirmado ativo em produção desde 2026-06-23.
 const ERP_STOCK_URL   = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php';
-const ERP_STOCK_TOKEN = 'WMS-TOKEN-STOCK-2026';
 const ERP_PROXY       = 'https://humwms-proxy.vercel.app/api/erp?url='; // proxy próprio (Vercel); o corsproxy.io desligou as URLs anônimas em 08/2026
 
 function _erpUrl(extraQs = '') {
-  return `${ERP_STOCK_URL}?token=${ERP_STOCK_TOKEN}${extraQs}`;
+  return `${ERP_STOCK_URL}?_=1${extraQs}`; // o token é acrescentado pelo proxy (variável ERP_TOKEN na Vercel)
 }
 
 // POST/PUT/DELETE em crud-stock sempre retornam { sucesso, mensagem }.
@@ -8774,6 +8825,12 @@ async function _sugPublicar() {
       docs.slice(i, i + 400).forEach(d => b.set(col.doc(d.id), d.data));
       await b.commit();
     }
+    // Histórico permanente do envio: sem ele, o acompanhamento não saberia o que foi sugerido
+    // depois que o próximo envio substitui wms_sugestoes.
+    await db.collection('wms_sugestoes_log').add({
+      ts, por,
+      itens: com.map(r => ({ sku: String(r.sku), desc: r.desc, rua: r.sugestao.rua, pos: String(r.sugestao.pos), tipo: r.tipo, motivo: r.motivo }))
+    });
     const novos = new Set(docs.map(d => d.id)), sobras = antigos.filter(id => !novos.has(id));
     for (let i = 0; i < sobras.length; i += 400) {
       const b = db.batch();
@@ -8781,6 +8838,7 @@ async function _sugPublicar() {
       await b.commit();
     }
     btn.textContent = `✓ ${docs.length} enviadas`;
+    _sugCarregarEnvios();
     setTimeout(() => { btn.textContent = txt; btn.disabled = false; }, 3000);
   } catch (e) {
     btn.textContent = txt; btn.disabled = false;
@@ -8788,10 +8846,71 @@ async function _sugPublicar() {
   }
 }
 
+// ── Acompanhamento: o que foi sugerido x o que foi endereçado depois ──
+let _sugEnvios = [];
+async function _sugCarregarEnvios() {
+  const sel = $('sugEnvio');
+  try {
+    const snap = await db.collection('wms_sugestoes_log').orderBy('ts', 'desc').limit(10).get();
+    _sugEnvios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    sel.innerHTML = _sugEnvios.length
+      ? _sugEnvios.map(e => '<option value="' + e.id + '">' + new Date(e.ts).toLocaleString('pt-BR') + ' · ' + (e.itens || []).length + ' SKUs · ' + _sugEsc(e.por || '') + '</option>').join('')
+      : '<option value="">Nenhum envio ainda</option>';
+    $('sugAcompInfo').textContent = '';
+  } catch (e) {
+    sel.innerHTML = '<option value="">—</option>';
+    $('sugAcompInfo').textContent = 'Não foi possível ler os envios: ' + (e.message || e);
+  }
+}
+
+async function _sugConferir() {
+  const envio = _sugEnvios.find(e => e.id === $('sugEnvio').value);
+  if (!envio) { $('sugAcompInfo').textContent = 'Envie uma sugestão ao coletor primeiro.'; return; }
+  const btn = $('sugAcompBtn'); btn.disabled = true; $('sugAcompInfo').textContent = 'Conferindo…';
+  try {
+    // Só movimentos depois do envio; filtro de um campo só, não precisa de índice composto.
+    const snap = await db.collection('wms_mov_log').where('ts', '>=', envio.ts).get();
+    const ACOES = ['Endereçamento', 'Endereçamento adicional', 'Transferência'];
+    const movs = snap.docs.map(d => d.data()).filter(m => ACOES.includes(m.acao)).sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+    const linhas = (envio.itens || []).map(it => {
+      const feitos = movs.filter(m => String(m.sku || '').trim() === String(it.sku).trim());
+      const seguiu = feitos.find(m => String(m.rua || '').toUpperCase() === String(it.rua).toUpperCase() && String(m.pos) === String(it.pos));
+      if (seguiu) return { it, estado: 'seguiu', mov: seguiu };
+      if (feitos.length) return { it, estado: 'outra', mov: feitos[feitos.length - 1] };
+      return { it, estado: 'pendente', mov: null };
+    });
+    _sugRenderAcomp(linhas);
+    $('sugAcompInfo').textContent = '';
+  } catch (e) {
+    $('sugAcompInfo').textContent = 'Não foi possível conferir: ' + (e.message || e);
+  }
+  btn.disabled = false;
+}
+
+function _sugRenderAcomp(linhas) {
+  const n = k => linhas.filter(l => l.estado === k).length;
+  const feitos = n('seguiu') + n('outra');
+  const kpi = (v, l) => '<div class="sug-kpi"><div class="n">' + v + '</div><div class="l">' + l + '</div></div>';
+  $('sugAcompKpis').innerHTML = kpi(linhas.length, 'SKUs sugeridos') + kpi(n('seguiu'), 'Seguiu a sugestão') + kpi(n('outra'), 'Outra posição') + kpi(n('pendente'), 'Ainda não endereçado') +
+    kpi(feitos ? Math.round(n('seguiu') / feitos * 100) + '%' : '—', 'Seguiu (dos já endereçados)');
+  const TAG = { seguiu: ['t-chegou', 'seguiu'], outra: ['t-rule', 'outra posição'], pendente: ['t-solto', 'pendente'] };
+  const ordem = { outra: 0, pendente: 1, seguiu: 2 };
+  const lista = linhas.slice().sort((a, b) => ordem[a.estado] - ordem[b.estado]);
+  $('sugAcompTabela').innerHTML = '<table><thead><tr><th>SKU</th><th>Produto</th><th>Sugerido</th><th>Resultado</th><th>Endereçado em</th><th>Quem · quando</th></tr></thead><tbody>' +
+    lista.map(l => {
+      const [cls, rot] = TAG[l.estado], m = l.mov;
+      return '<tr><td class="mono">' + _sugEsc(l.it.sku) + '</td><td>' + _sugEsc(l.it.desc) + '</td><td><span class="sug-pos" style="font-size:13px;padding:3px 8px">' + _sugEsc(l.it.rua) + ' ' + _sugEsc(l.it.pos) + '</span></td>' +
+        '<td><span class="sug-tag ' + cls + '">' + rot + '</span></td>' +
+        '<td class="mono">' + (m ? _sugEsc(m.rua) + ' ' + _sugEsc(m.pos) : '—') + '</td>' +
+        '<td style="font-size:12px">' + (m ? _sugEsc(m.operador || m.op || m.email || '') + '<div class="sug-note">' + new Date(m.ts).toLocaleString('pt-BR') + '</div>' : '—') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
 function renderSugestao() {
   $('sugMapaInfo').textContent = `Mapa atual: ${S.items.length} itens endereçados, ${S.addresses.length} posições cadastradas.`;
   _sugRenderArquivos();
   if (_sugResultado) _sugRenderResultado();
+  _sugCarregarEnvios();
 }
 
 (function _sugInit() {
@@ -8806,6 +8925,7 @@ function renderSugestao() {
   $('sugFiltroSit').addEventListener('change', () => { if (_sugResultado) _sugRenderResultado(); });
   $('sugExport').addEventListener('click', _sugExportar);
   $('sugPublicar').addEventListener('click', _sugPublicar);
+  $('sugAcompBtn').addEventListener('click', _sugConferir);
 })();
 </script>
 

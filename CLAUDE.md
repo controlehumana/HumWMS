@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `backups/` — snapshots do endereçamento tirados antes de limpezas em massa (JSON cru do GET, permite recriar registros via POST)
 - `API-Stock-v1.md` / `.pdf` — documentação oficial (fornecida pelo ERP) da API `crud-stock`
 - `api_crud_stock_spec.md` — spec complementar da mesma API (fornecida pelo dev do ERP em 2026-06-23), com detalhes de comportamento (ex.: POST retorna `id_item_enderecamento`, log em `api_log`)
+- `sugestao_endereco_TESTE.html` — protótipo de teste (não publicado) de sugestão de endereçamento a partir do pedido de compra; ver seção própria
 
 ### O coletor de endereçamento — só duas cópias desde 26/08/2026
 
@@ -105,7 +106,7 @@ API CRUD completa sobre a tabela `t_item_enderecamento`. Documentação completa
 
 ```
 GET / POST / PUT / DELETE
-https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php?token=WMS-TOKEN-STOCK-2026
+https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php?token=<ERP_TOKEN>
 ```
 
 Todas as chamadas passam por um proxy próprio na Vercel (CORS não configurado no servidor do ERP) — ver a seção do proxy abaixo. Até 2026-08-24 esse papel era do `corsproxy.io`, que desligou as URLs anônimas. Respostas de escrita (POST/PUT/DELETE) sempre trazem `{ sucesso, mensagem }`; GET retorna o array de itens (mesmos campos de antes: `item_id`, `item_codigo`, `item_descricao`, `numero_lote`, `dt_validade`, `saldo_aberto`, `estoque`, `rua`, `posicao`, `id_item_enderecamento`, `empresa_id`, `empresa_apelido`...).
@@ -138,7 +139,7 @@ O que a função faz: repassa método, corpo e resposta sem alterar nada; acresc
 
 **Para republicar o proxy:** `cd WMS/proxy-erp && npx vercel deploy --prod`. O código também está versionado em `proxy-erp/` no repositório.
 
-**Melhoria em aberto:** hoje o token do ERP viaja dentro da URL montada pelo cliente, ou seja, continua visível no HTML público (era assim antes também, não é regressão). Como o proxy agora é nosso, dá para guardar o token numa variável de ambiente da Vercel e injetá-lo no servidor, tirando-o do HTML. Exige mexer em `_erpUrl()`/`erpUrl()` nos 3 arquivos.
+**Token do ERP fora do HTML (implementado em 13/10/2026, publicar na ordem certa):** o proxy (`erp.js`) acrescenta `token=` na URL quando o cliente não manda um, lendo a variável **`ERP_TOKEN`** do projeto `humwms-proxy` na Vercel; o `sync.js` lê a mesma variável. `_erpUrl()` no `index.html` e no coletor passou a montar `...index.php?_=1<extra>`, sem token. Sem a variável o proxy responde 503 (`Proxy sem ERP_TOKEN configurado`) em vez de chamar o ERP sem token. **Ordem de publicação: 1) criar `ERP_TOKEN` na Vercel e republicar o proxy; 2) só então publicar o HTML.** Cliente antigo em cache que ainda manda o token continua funcionando (vale o token da URL). O coletor deixou de tentar a chamada direta ao ERP antes do proxy (nunca funcionou por causa do CORS e, sem token, só atrapalharia). **Limite importante:** o valor antigo do token continua no histórico do git público, no `API-Stock-v1.pdf` e em quem já abriu o site, então tirar do HTML **não o torna secreto**; para isso o dev do ERP precisa gerar um token novo, e aí basta trocar `ERP_TOKEN` na Vercel (sem republicar WMS nem coletores). Nos `.md` o valor foi trocado por `<ERP_TOKEN>`.
 
 **Alternativa definitiva:** se o dev do ERP habilitar CORS (`Access-Control-Allow-Origin` + resposta ao `OPTIONS`), o proxy pode sair do caminho por completo.
 
@@ -167,6 +168,8 @@ Módulo para zerar o endereçamento quando a operação remaneja muitas posiçõ
 **O que ele apaga e o que não apaga:** cada linha selecionada vira um `DELETE` em `t_item_enderecamento` (via `_erpDeleteEndereco`), o que remove o vínculo item↔posição **e** o campo `estoque` daquela linha. O `saldo_aberto` do ERP não é tocado (é calculado pelo ERP a partir das movimentações reais e não pertence a essa tabela), então o item volta a aparecer como **pendente de endereçamento** com o saldo intacto. Prova disso nos próprios dados: itens sem endereço vêm no GET com `saldo_aberto` cheio e `id_item_enderecamento` nulo.
 
 **Escopo:** um `<select>` com cada rua individualmente ou `__ALL__` ("TODAS as ruas · limpeza geral"). A lista de ruas é montada de `WMS_RUAS` + ruas presentes em `S.items` + ruas presentes na resposta do GET (por isso ruas fora da grade fixa, como a `Q`, aparecem depois do "Analisar"). Só entram no escopo linhas **com** `id_item_enderecamento` — pendentes não têm o que apagar.
+
+**Filtro de paridade (08/10/2026):** segundo `<select>` "Posições" (`limpParidade`): todas / só ÍMPARES / só PARES, aplicado em `_noEscopo(linha, escopo, par)` pelo `parseInt(posicao)`. Posição não numérica nunca entra num filtro par/ímpar. A palavra de confirmação ganha sufixo (`LIMPAR A IMPAR`, `LIMPAR A PAR`), o nome do backup ganha `_IMPARES`/`_PARES`, e o `wms_limpeza_log` grava `escopo` com o sufixo e o campo `paridade`. A conferência pós-DELETE usa o mesmo filtro, então "restantes" conta só o que era alvo.
 
 **Fluxo (3 travas antes de apagar):**
 1. **Analisar** — GET ao vivo no ERP (nunca o Firestore, que pode estar defasado), monta KPIs (registros, posições, SKUs) e a tabela do que será apagado.
@@ -225,6 +228,8 @@ PIN de supervisor com hash SHA-256 via Web Crypto API. Ações destrutivas (rese
 ### Backup opcional
 
 Endpoint configurável (`coletor_server_endpoint` no localStorage) para POST JSON do registro ao concluir. Falha silenciosa com timeout de 5s.
+
+**Status em campo (13/10/2026):** o `coletor_v3` **não está implantado em campo** e fica como está. Falta uma forma de capturar a ordem de separação: o pedido de venda do ERP (aba Itens, ex. pedido 283610) traz só SKU, quantidade e valores, **sem lote, validade nem endereço**, que são as colunas que o app exige (Pedido, Local, Código, EAN, Produto, Und, Lote, Validade, Qtd). Retomar quando houver um endpoint de pedidos no ERP (com o lote reservado no pré-faturamento, se existir). Alternativa estudada: montar a ordem com pedido + estoque do WMS (FEFO), mas o lote escolhido pode divergir do que o ERP reserva para a NF.
 
 ## Arquitetura — coletor_endereco.html / coletor_endereco2.html
 
@@ -355,6 +360,75 @@ O recorte por campo (`request.resource.data.diff(resource.data).affectedKeys().h
 **Defesa na leitura:** `normalizarEnderecos()` roda no `carregarEstoque()` do coletor. Endereço que já veio torto do ERP continua aparecendo, no lugar certo. É só exibição — o `id_item_enderecamento` gravado lá não muda, e é ele que o DELETE usa.
 
 **O que a trava não cobre:** a transferência do `index.html` usa `<select>` de endereços existentes, o "Cadastrar" pega a posição do próprio Mapa e o Cartaz Manual só imprime. Nenhum deles digita endereço livre. As portas de digitação livre eram só duas, e são as duas que foram fechadas.
+
+## Sincronização automática server-side — `proxy-erp/api/sync.js` (21/09/2026)
+
+**O incidente que motivou isto:** em 21/09/2026, `wms_items` apareceu **vazio** em produção (0 documentos), apesar de `wms_addresses` (332) e `wms_mov_log` mostrarem endereçamento real e recente (auditoria com movimentos até 18/09). O último `wms_import_log` bem-sucedido era de 17/09. Causa: o auto-sync das 10h/17h só roda se um admin estiver com o `index.html` aberto numa aba (`setInterval` no navegador — ver "Auto-sync agendado" acima). `_commitImportData()` **apaga `wms_items` primeiro e só depois regrava** em lotes, sem transação nem log de erro intermediário (o `wms_import_log` só é escrito no fim, se tudo terminar). Uma sincronização interrompida no meio (proxy/ERP fora do ar, aba fechada, timeout) deixa a coleção vazia, sem rastro do que aconteceu, e sem next-tentativa automática porque ninguém tinha o site aberto no horário seguinte. Diagnosticado lendo o Firestore direto com a service account (`firebase-admin`, só leitura) — não dá para reproduzir isso pelo simulador de regras (ver limitação já documentada acima).
+
+**A correção:** função nova, `proxy-erp/api/sync.js`, publicada ao lado do proxy do ERP e da troca de senha no mesmo projeto Vercel (`humwms-proxy`, conta `supportsolucoes`). Roda sozinha via **Vercel Cron**, sem depender de navegador nenhum:
+
+```
+proxy-erp/vercel.json → "crons": [
+  { "path": "/api/sync", "schedule": "0 13 * * *" },  // 10h BRT
+  { "path": "/api/sync", "schedule": "0 20 * * *" }   // 17h BRT
+]
+```
+(Brasil não tem horário de verão desde 2019, então BRT = UTC-3 o ano inteiro; 2 crons diários é o limite do plano Hobby da Vercel — cada um roda 1x/dia.)
+
+**Diferença deliberada do fluxo do navegador:** em vez de "apaga tudo, depois regrava" (`_commitImportData`), `sync.js` **grava os itens novos primeiro e só depois apaga os documentos antigos que sobraram sem corresponder a nenhum item novo** (`safeReplace()` no arquivo). Se a função cair no meio do caminho, o pior cenário é dado velho misturado com novo — nunca coleção vazia. `_commitImportData()` no `index.html` **recebeu a mesma correção em 13/10/2026**: lê os IDs antigos, grava o novo e só então apaga as sobras (`_antigos`/`_gravar`/`_apagarSobras`, valem para `wms_items`, `wms_unaddressed` e, no import por Excel, `wms_addresses`). Os IDs de `wms_unaddressed` deixaram de levar `Date.now()` (agora `unaddr_<índice>`) para poderem ser sobrescritos. Testado com Firestore simulado, inclusive com queda de rede no 1º e no 3º commit: a coleção nunca fica vazia. Ainda não rodado contra o Firestore real.
+
+**Autenticação e credenciais:** mesma variável `FIREBASE_SERVICE_ACCOUNT` que `senha.js` já usa (Admin SDK, sem passar pelo proxy CORS — a função é servidor, fala direto com o ERP). Protegida por `CRON_SECRET` (variável de ambiente nova, configurada em produção em 21/09/2026): a Vercel manda esse valor automaticamente como `Authorization: Bearer <CRON_SECRET>` quando o cron dispara; chamada manual precisa do mesmo header. Sem `CRON_SECRET` configurada, a função funcionaria aberta — não é o caso aqui, mas vale conferir se `vercel env ls --scope support-solucoes` continuar mostrando ela no futuro.
+
+**Chamada manual** (ex.: consertar uma sincronização perdida sem esperar o próximo horário):
+```
+curl -X GET "https://humwms-proxy.vercel.app/api/sync" -H "Authorization: Bearer <CRON_SECRET>"
+```
+
+**Armadilha encontrada e corrigida:** lote/código de item às vezes vem do ERP com `/` (ex. `"2745/24"`). Usado cru como parte do ID de um documento Firestore, quebra (`/` é separador de caminho — erro "Value for argument documentPath must point to a document"). `safeIdPart()` em `sync.js` troca `/` e espaços por `-` antes de montar qualquer ID. O `index.html` não tem esse problema porque os IDs de `wms_items` lá são por índice sequencial (`${addrKey}_${i}`), não por `itemId`+`lote` — os dois esquemas de ID convivem sem conflito (nenhum código lê `_id` reconstruindo o formato, só usa o que veio do Firestore).
+
+**Teste antes de publicar:** rodado em dry-run local (só leitura, sem gravar) contra a API real do ERP e comparado com `wms_mov_log`, antes do primeiro deploy.
+
+## Sugestão de endereçamento a partir do pedido de compra — protótipo (21/09/2026)
+
+**Ideia:** a partir da listagem de pedido de compra do ERP (SKUs com previsão de chegada), sugerir posição de armazenagem por SKU, priorizando ficar perto do mesmo SKU já endereçado e, na falta disso, um bloco de espaço vazio compacto na mesma rua. Não há controle de saldo por posição, então a sugestão é sempre 1 posição por SKU (o operador decide se cabe tudo ali).
+
+**Protótipo standalone:** `WMS/sugestao_endereco_TESTE.html` — arquivo de teste, não publicado, não grava nada no Firestore/ERP (só lê `wms_items`/`wms_addresses`). Login Google igual ao `index.html`, mesmo `FIREBASE_CONFIG`. Precisa rodar num servidor local (`python -m http.server` ou Live Server) porque o Firebase Auth não autoriza `file://`; `localhost` já é domínio autorizado por padrão no projeto.
+
+**Entrada:** a "Listagem de Pedido de Compra" exportada do ERP tem extensão `.xls` mas o conteúdo é **HTML** (`<table>` com `<thead>`/`<tbody>`/`<tfoot>`), não OOXML/binário real. O parser do protótipo detecta isso pelos bytes mágicos do arquivo (ZIP/OLE2 = binário real → `XLSX.read`; senão → `DOMParser` na tabela). O HTML desse export tem um `<tr>` sem fechar (`<tr>` no lugar de `</tr>`) no fim do `<thead>`, que o navegador fecha sozinho criando uma linha vazia extra — tratado no parser (linha com 0 células é ignorada). Números vêm em formato BR (`880,00`), então qualquer coluna monetária precisa trocar `,` por `.` antes de `parseFloat` — a sugestão não usa nenhuma coluna de valor, só `Item` (SKU), `Item Desc`, `Dt Prev`, `Status`, `PED FOR`/`PED SKU`, `Qtd Pedido`.
+
+**Só foi possível validar a lógica depois de consertar o incidente do `wms_items` vazio acima** — antes disso, todo SKU aparecia como "novo" porque não havia nenhum item para comparar.
+
+**Regra de rua fixa por palavra-chave (21/09/2026):** `REGRAS_RUA_FIXA` no protótipo — alguns produtos têm que ir sempre para uma rua específica por causa da estrutura física do armazém (KABIVEN/SMOFKABIVEN → rua `M`, sala refrigerada), independente de proximidade ou espaço livre em outras ruas. `SMOFKABIVEN` contém `KABIVEN` como substring, então uma regra só já cobre as duas descrições citadas pelo usuário — as duas entradas ficam na lista mesmo assim, só para documentar a intenção. Quando o SKU casa com uma regra, a busca por "mesmo SKU próximo" fica restrita à rua da regra (ignora endereço existente em outra rua — ex.: se por engano um SMOFKABIVEN estiver endereçado fora da `M`, a sugestão não usa aquele endereço como referência, força `M` mesmo assim). Sem posição livre na rua obrigatória, o resultado fica `tipo:'none'` (não cai para outra rua — é restrição física, não teria como sugerir uma alternativa sem quebrar o combinado).
+
+**Lote/validade de referência (21/09/2026):** quando a sugestão é por proximidade de mesmo SKU (`tipo:'same'` ou `'regra'` com ocorrência existente na rua), a tabela mostra o lote e a validade do item que já está na posição de referência — para o operador comparar se é o mesmo lote chegando ou um lote novo antes de decidir se separa fisicamente.
+
+**Rua M estava incompleta em `wms_addresses` (achado e corrigido em 21/09/2026):** só existiam 12 posições cadastradas (`M_1`..`M_12`, todas ocupadas), apesar do código (`index.html`, `coletor_endereco.html`) já tratar `M` como rua padrão de 40 posições — só a `Z` tem exceção em `WMS_POS_MAX_RUA`/`POS_MAX_RUA`. Sem isso, a regra de rua fixa (abaixo) para KABIVEN/SMOFKABIVEN ficava sempre sem vaga livre na prática. Completado `M_13`..`M_40` direto no Firestore (só adição, mesmo formato dos demais: `{rua:'M', pos, cap:99, active:true}`) — não mexeu nas 12 posições nem nos itens já endereçados nelas. Vale conferir se outras ruas fora do A-G/P padrão (nenhuma outra hoje) têm o mesmo tipo de cadastro incompleto antes de confiar cegamente na contagem de `wms_addresses`.
+
+**Coluna de troca manual removida (21/09/2026):** a primeira versão do protótipo tinha um `<select>` por linha pra trocar a posição sugerida antes de exportar. Removida a pedido do usuário — não fazia sentido ter esse controle já que a ferramenta existe justamente para sugerir, e o ajuste fino na prática acontece no chão de fábrica via coletor, não nesta tela.
+
+**Integrado ao `index.html` em 13/10/2026** como aba **Sugestão de Endereço** (`data-tab="sugestao"`, `pageSugestao`, módulo `sugestao` em `WMS_MODULES`, `renderSugestao()` no `showTab`; funções com prefixo `_sug`). O protótipo `sugestao_endereco_TESTE.html` fica só como histórico. Backup do index anterior: `backups/index_pre_sugestao_2026-10-13.html`. Publicado no commit `e3c5ca1`.
+
+**Duas fontes, uma tela.** A aba aceita os dois relatórios do ERP (upload de vários arquivos de uma vez; o tipo é reconhecido pelo cabeçalho, não pelo nome): **Listagem de Pedido de Compra** (cabeçalho com `Item` + `Dt Prev`; traz previsão de chegada, sem lote) e **Conferência de NF de entrada** ABERTA, export `ITENS_PENDENTES (...).xls` (cabeçalho `Codigo Item`/`Lote`; colunas Empresa, Codigo Item, Descricao Item, Num NF, Emitente, Lote, Vencimento, Qtd; traz lote e validade). Os dois são HTML com extensão .xls. O SKU que aparece nos dois vira uma linha só (selos "chegou"/"previsto"); quem já chegou vem primeiro, depois por Dt Prev. Lotes iguais (mesmo lote+validade) são somados; lotes diferentes ficam como linhas dentro do mesmo SKU, com uma única posição sugerida.
+
+**Regras:** as do protótipo (mesmo SKU perto, bloco livre na rua com mais espaço, KABIVEN → rua M) mais duas: posição só dentro da grade (`wmsPos`), então `P/99` nunca é sugerida nem serve de âncora, e **BOMBA ENTERAL não recebe posição** (fica solta em P 99). Quando a NF traz um lote que já está endereçado, a linha avisa "já em X". Só lê `S.items`/`S.addresses`, não grava no Firestore nem no ERP.
+
+**Busca automática: não existe.** A API `crud-stock` só cobre `t_item_enderecamento`; conferência de NF e pedido de compra são telas com login. Decisão do usuário em 13/10/2026: manter o upload. Se um dia quiser automático, o caminho recomendado é pedir ao dev do ERP um endpoint GET com token (NF aberta: SKU, descrição, NF, lote, validade, qtd; pedido aberto: SKU, dt prev, qtd) e ligá-lo ao proxy, como o crud-stock.
+
+**Sugestão no coletor (13/10/2026, commit `3493d35`).** O botão **Enviar ao coletor** da aba grava um doc por SKU em `wms_sugestoes` (`sku`, `desc`, `rua`, `pos`, `motivo`, `lotes`, `ts`, `por`); cada envio substitui o anterior (grava o novo, depois apaga as sobras). O coletor lê a coleção uma vez ao entrar (`carregarSugestoes`, falha silenciosa) e, ao abrir um item **pendente**, mostra "Posição sugerida" com botão **Usar** (`sugestaoDoItem`): só vale se o `ts` tiver até 7 dias (`SUG_VALIDADE_DIAS`) e a posição continuar livre no `estoqueAtual`. **Regras:** `wms_sugestoes` lê quem está em `wms_users`; escreve admin ou módulo `sugestao` (`podeSugerir()`), publicado em 13/10/2026 (backup `backups/firestore_rules_2026-10-13-19-36-59.rules`).
+
+**Sugestão já na busca (13/10/2026).** O lote novo de uma NF em conferência ainda não existe no ERP, então não há item pendente para abrir; por isso a sugestão aparece já na busca do SKU (`sugestaoPorSku`, `sugestaoHtml`): bloco "Nova entrada: posição sugerida" acima da lista de lotes, sem botão. Item pendente aberto = com botão **Usar**; item já endereçado = só aviso (sem Usar, para ninguém mover por engano um lote guardado); SKU sem nenhuma linha no estoque = mostra a sugestão em vez de "nenhum item encontrado".
+
+**Redesenho do coletor (13/10/2026).** De "site" para "app": casca `.app` com barra fixa (`.appbar`), conteúdo que rola (`.main`) e abas embaixo (`.tabbar`), ações grudadas no fim (`.actions`), safe-area (`viewport-fit=cover`). Elemento marcante: a **placa de prateleira** (`.plate` para digitar rua/posição, `.plateShow` na confirmação, login e posições ocupadas). Paleta da marca Humana: azul `#06549d` (barra e ações, é a `theme-color` do site da empresa), marinho `#0a2a47` (placas, login), verde só para estados positivos, âmbar só nas placas e no indicador da aba. Só fontes do sistema (app offline). Todos os `id` usados pelo JS foram mantidos (58 conferidos); a lógica de envio ao ERP não mudou. `sw-endereco.js` na v5, manifesto com as cores novas. Backup do visual anterior: `backups/coletor_endereco_pre_redesign_2026-10-13.html`. Não foi validado em celular físico.
+
+## Backup da auditoria, acompanhamento, validades e sinal (13/10/2026)
+
+**Backup completo da auditoria (`index.html`, aba Auditoria, botão "Backup completo").** Lê `wms_mov_log` e `wms_limpeza_log` inteiros, em páginas de 1000 por `documentId`, e baixa um `auditoria_backup_AAAA-MM-DD.json` (`geradoEm`, `geradoPor`, as duas listas, cada doc com `_id`). Existe porque o estoque se reconstrói a partir do ERP, mas esses logs só vivem no Firestore. Sem filtro, ao contrário do "Exportar CSV". Rodar de vez em quando e guardar o arquivo fora do computador.
+
+**Acompanhamento das sugestões (aba Sugestão de Endereço, seção 3).** Cada "Enviar ao coletor" também grava um doc em **`wms_sugestoes_log`** (`ts`, `por`, `itens[]` com sku/desc/rua/pos/tipo/motivo), porque `wms_sugestoes` é substituída a cada envio. A seção lista os últimos 10 envios e, em "Conferir", lê `wms_mov_log` com `ts >= envio.ts` (filtro de um campo, sem índice composto) e classifica cada SKU: **seguiu** (algum Endereçamento, Endereçamento adicional ou Transferência na mesma rua+posição), **outra posição** (movimentou mas em outro lugar, mostra onde, quem e quando) ou **pendente**. Liberação não conta. Mostra o percentual de quem seguiu entre os já endereçados. Precisa de permissão de leitura do `wms_mov_log` (admin ou módulo `auditoria`). **Regras:** `wms_sugestoes_log` lê e cria quem `podeSugerir()`; sem update nem delete.
+
+**Aba Validades no coletor (`viewValidades`, selo vermelho na aba).** Lotes com saldo (`saldo_aberto > 0`) que vencem em até 90 dias ou já venceram, calculados do `estoqueAtual` (sem consulta nova). Faixas: Vencidos, Até 30 dias, 31 a 60, 61 a 90, com contagem; abre na primeira faixa que tem algo. Um lote dividido em várias posições aparece **uma vez**, com todas as posições (o `saldo_aberto` é o total do lote, não se soma). Lote sem endereço aparece como "sem endereço". O selo da aba conta vencidos + até 30 dias e é atualizado a cada `carregarEstoque()`. Só mostra, não age: tocar na linha não faz nada, de propósito. **Não há aviso fora do app** (Telegram/e-mail): fica pendente, depende de definir o canal e de credenciais.
+
+**Som e vibração no coletor (`sinal(tipo)`).** Tipos `scan`, `ok`, `aviso`, `erro`; vibração por `navigator.vibrate` (não existe no iPhone) e bip por WebAudio. Disparados em `showMsg` (`err`/`warn`/`ok`) e ao ler um código na câmera. O operador desliga na folha da sessão ("Som e vibração", `localStorage.hum_sinal`).
 
 ## Publicação
 
