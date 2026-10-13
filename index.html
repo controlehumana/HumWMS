@@ -4392,65 +4392,60 @@ async function _commitImportData(parsed, opts = {}) {
     $('importProgressMsg').textContent = msg;
   };
 
-  progress(2, 'Limpando dados anteriores...');
-  const colsToClear = isApi ? ['wms_items', 'wms_unaddressed'] : ['wms_items', 'wms_addresses', 'wms_unaddressed'];
-  for (const col of colsToClear) {
-    const snap = await db.collection(col).get();
-    for (let i = 0; i < snap.docs.length; i += CHUNK) {
+  // Grava o novo primeiro e só depois apaga o que sobrou (mesma ideia do safeReplace
+  // do proxy-erp/api/sync.js). Antes era "apaga tudo, depois regrava": uma queda no
+  // meio deixava wms_items vazio (incidente de 21/09/2026). Agora o pior caso é dado
+  // velho misturado com novo, nunca a coleção vazia.
+  const _antigos = async col => new Set((await db.collection(col).get()).docs.map(d => d.id));
+  const _gravar = async (col, docs, merge) => {          // docs: [{ id, data }]
+    for (let i = 0; i < docs.length; i += CHUNK) {
       const batch = db.batch();
-      snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+      docs.slice(i, i + CHUNK).forEach(d => batch.set(db.collection(col).doc(d.id), d.data, merge ? { merge: true } : {}));
       await batch.commit();
     }
-  }
+  };
+  const _apagarSobras = async (col, antigos, novos) => {
+    const ids = [...antigos].filter(id => !novos.has(id));
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = db.batch();
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(db.collection(col).doc(id)));
+      await batch.commit();
+    }
+  };
+
+  progress(2, 'Lendo dados anteriores...');
+  const velhosItems = await _antigos('wms_items');
+  const velhosUnaddr = await _antigos('wms_unaddressed');
+  const velhosAddr = isApi ? null : await _antigos('wms_addresses');
 
   if (!isApi) {
     progress(10, 'Salvando endereços...');
-    for (let i = 0; i < addresses.length; i += CHUNK) {
-      const batch = db.batch();
-      addresses.slice(i, i + CHUNK).forEach(a => {
-        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a);
-      });
-      await batch.commit();
-      done += Math.min(CHUNK, addresses.length - i);
+    const docs = addresses.map(a => ({ id: addrKey(a.rua, a.pos), data: a }));
+    for (let i = 0; i < docs.length; i += CHUNK) {
+      await _gravar('wms_addresses', docs.slice(i, i + CHUNK));
+      done += Math.min(CHUNK, docs.length - i);
       progress(10 + Math.round((done / total) * 70), `Endereços: ${done}/${addresses.length}`);
     }
+    await _apagarSobras('wms_addresses', velhosAddr, new Set(docs.map(d => d.id)));
   } else if (addresses.length > 0) {
     // API: só cria endereços novos (ex: P-99 para Bomba Enteral) sem apagar os existentes
-    for (let i = 0; i < addresses.length; i += CHUNK) {
-      const batch = db.batch();
-      addresses.slice(i, i + CHUNK).forEach(a => {
-        batch.set(db.collection('wms_addresses').doc(addrKey(a.rua, a.pos)), a, { merge: true });
-      });
-      await batch.commit();
-    }
+    await _gravar('wms_addresses', addresses.map(a => ({ id: addrKey(a.rua, a.pos), data: a })), true);
   }
 
   progress(isApi ? 10 : 75, 'Salvando itens...');
-  for (let i = 0; i < items.length; i += CHUNK) {
-    const batch = db.batch();
-    items.slice(i, i + CHUNK).forEach((it, j) => {
-      batch.set(db.collection('wms_items').doc(`${addrKey(it.rua, it.pos)}_${i+j}`), it);
-    });
-    await batch.commit();
-    done += Math.min(CHUNK, items.length - i);
+  const itemDocs = items.map((it, k) => ({ id: `${addrKey(it.rua, it.pos)}_${k}`, data: it }));
+  for (let i = 0; i < itemDocs.length; i += CHUNK) {
+    await _gravar('wms_items', itemDocs.slice(i, i + CHUNK));
+    done += Math.min(CHUNK, itemDocs.length - i);
     const pBase = isApi ? 10 : 75, pRange = isApi ? 76 : 10;
     progress(pBase + Math.round(((i + CHUNK) / items.length) * pRange), `Itens: ${Math.min(i+CHUNK,items.length)}/${items.length}`);
   }
+  await _apagarSobras('wms_items', velhosItems, new Set(itemDocs.map(d => d.id)));
 
   progress(isApi ? 88 : 86, 'Salvando itens sem endereço...');
-  const uSnap = await db.collection('wms_unaddressed').get();
-  for (let i = 0; i < uSnap.docs.length; i += CHUNK) {
-    const batch = db.batch();
-    uSnap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
-    await batch.commit();
-  }
-  for (let i = 0; i < noAddr.length; i += CHUNK) {
-    const batch = db.batch();
-    noAddr.slice(i, i + CHUNK).forEach((it, j) => {
-      batch.set(db.collection('wms_unaddressed').doc(`unaddr_${i+j}_${Date.now()}`), { ...it, pendingAddr: true });
-    });
-    await batch.commit();
-  }
+  const unaddrDocs = noAddr.map((it, k) => ({ id: `unaddr_${k}`, data: { ...it, pendingAddr: true } }));
+  await _gravar('wms_unaddressed', unaddrDocs);
+  await _apagarSobras('wms_unaddressed', velhosUnaddr, new Set(unaddrDocs.map(d => d.id)));
 
   const importTs = new Date().toISOString();
   await db.collection('wms_import_log').add({
