@@ -1489,8 +1489,8 @@ async function confirmarEnvio() {
 // ── Etiqueta de lote dividido / linha repetida ───────────────────────────────
 // Um lote (SKU + lote + validade) pode ter várias linhas no ERP. Se as posições são
 // diferentes, o lote está dividido; se a mesma posição aparece mais de uma vez, é
-// provável linha repetida (cadastro duplicado). O estoque que vale por posição é o
-// campo bruto "estoque" de cada linha; "saldo_aberto" é o total do lote e se repete.
+// provável linha repetida (cadastro duplicado). "saldo_aberto" é o saldo ATUAL do lote
+// (igual em todas as linhas); "estoque" é o valor gravado no endereçamento e fica velho.
 // Só mostra, não altera nada.
 function etiquetaLote(item) {
   if (!item || !item.rua || !item.posicao) return '';
@@ -1507,7 +1507,8 @@ function etiquetaLote(item) {
                : 'Lote dividido em ' + posicoes.size + ' posições';
   const est = Number(String(item.estoque == null ? '' : item.estoque).replace(',', '.')) || 0;
   const id = item.id_item_enderecamento ? ' · ID ' + item.id_item_enderecamento : '';
-  return '<div class="tagDiv' + (repetida ? ' dup' : '') + '"><b>' + titulo + '</b><span>Estoque desta linha: ' + est.toLocaleString('pt-BR') + id + '</span></div>';
+  const saldo = Number(String(item.saldo_aberto == null ? '' : item.saldo_aberto).replace(',', '.')) || 0;
+  return '<div class="tagDiv' + (repetida ? ' dup' : '') + '"><b>' + titulo + '</b><span>Saldo atual do lote: ' + saldo.toLocaleString('pt-BR') + '</span><span>Gravado nesta linha: ' + est.toLocaleString('pt-BR') + id + '</span></div>';
 }
 
 // ── Validades: lotes com saldo que vencem em até 90 dias (ou já venceram) ─────
