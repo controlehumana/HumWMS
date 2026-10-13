@@ -214,6 +214,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .sugTxt{flex:1;min-width:0}
 .sugTxt small{display:block;font-size:10.5px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 .sugTxt b{font-family:var(--mono);font-size:22px;letter-spacing:.02em}
+.sugTxt span{display:block;font-size:12px;color:var(--warn);margin-top:2px}
 .btnUsar{
   height:44px;padding:0 22px;border:none;border-radius:11px;background:var(--ink);color:var(--amber);
   font-size:15px;font-weight:800;cursor:pointer;
@@ -664,12 +665,22 @@ async function carregarSugestoes() {
   } catch (e) { sugestoes = {}; console.warn('[coletor] sugestões indisponíveis:', e.message || e); }
 }
 // A sugestão só vale se for recente e a posição continuar livre no estoque carregado.
-function sugestaoDoItem(item) {
-  const s = sugestoes[String(item.item_codigo || '').trim()];
+function sugestaoPorSku(sku) {
+  const s = sugestoes[String(sku || '').trim()];
   if (!s) return null;
   if (s.ts && (Date.now() - new Date(s.ts).getTime()) > SUG_VALIDADE_DIAS * 86400000) return null;
   const ocupada = estoqueAtual.some(r => String(r.rua || '').trim().toUpperCase() === String(s.rua).toUpperCase() && String(r.posicao || '').trim() === String(s.pos));
   return ocupada ? null : s;
+}
+function sugestaoDoItem(item) { return sugestaoPorSku(item.item_codigo); }
+// Aviso da sugestão. Com "usar" = item pendente (dá para preencher a placa);
+// sem "usar" = só informa, porque o lote novo ainda não está no estoque do ERP.
+function sugestaoHtml(s, usar) {
+  const lotes = (s.lotes || []).filter(l => l.lote).slice(0, 2)
+    .map(l => 'lote ' + l.lote + (l.val ? ' · val. ' + l.val : '')).join(' | ');
+  const sub = usar ? '' : '<span>' + (lotes ? 'Entrada prevista: ' + lotes : 'Entrada prevista deste SKU') + '</span>';
+  return '<div class="sugBox"><div class="sugTxt"><small>' + (usar ? 'Posição sugerida' : 'Nova entrada: posição sugerida') + '</small><b>' + s.rua + ' · ' + s.pos + '</b>' + sub + '</div>' +
+    (usar ? '<button type="button" class="btnUsar" data-usar-sug data-rua="' + s.rua + '" data-pos="' + s.pos + '">Usar</button>' : '') + '</div>';
 }
 function usarSugestao(rua, pos) {
   $('ruaIn').value = rua;
@@ -1027,6 +1038,13 @@ function buscarSku(sku) {
   );
 
   if (matches.length === 0) {
+    const sugNova = sugestaoPorSku(skuNorm);
+    if (sugNova) {
+      $('matchList').innerHTML = sugestaoHtml(sugNova, false);
+      showMsg('step1Msg', 'info', 'Este código ainda não está no estoque do ERP (a nota ainda não foi conferida). Quando entrar, endereçar na posição sugerida.');
+      $('btnNovaConsulta').style.display = '';
+      return;
+    }
     showMsg('step1Msg', 'warn', `Nenhum item encontrado com o código "${skuNorm}". Confira o código ou atualize a lista.`);
     $('btnNovaConsulta').style.display = '';
     return;
@@ -1036,7 +1054,8 @@ function buscarSku(sku) {
     return;
   }
   // múltiplos lotes/posições do mesmo produto — pede pra escolher
-  $('matchList').innerHTML = matches.map((m, i) => {
+  const sugBusca = sugestaoPorSku(matches[0].item_codigo);
+  $('matchList').innerHTML = (sugBusca ? sugestaoHtml(sugBusca, false) : '') + matches.map((m, i) => {
     const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : 'Pendente (sem endereço)';
     return `
     <div class="matchCard" data-idx="${i}">
@@ -1067,10 +1086,8 @@ function selecionarItem(item) {
     ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
     : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
 
-  const sug = modoTransferencia ? null : sugestaoDoItem(item);
-  const sugHtml = sug
-    ? `<div class="sugBox"><div class="sugTxt"><small>Posição sugerida</small><b>${sug.rua} · ${sug.pos}</b></div><button type="button" class="btnUsar" data-usar-sug data-rua="${sug.rua}" data-pos="${sug.pos}">Usar</button></div>`
-    : '';
+  const sug = sugestaoDoItem(item);
+  const sugHtml = sug ? sugestaoHtml(sug, !modoTransferencia) : '';
 
   $('itemBoxDestino').innerHTML = `
     <div class="desc">${item.item_descricao || '–'}</div>
