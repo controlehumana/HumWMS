@@ -1450,6 +1450,7 @@ header {
     <button class="tab" data-tab="dashboard" id="tabDashboard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
     <button class="tab" data-tab="expiry"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Validades</button>
     <button class="tab" data-tab="fragmentados" id="tabFragmentados"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Lotes Divididos</button>
+    <button class="tab" data-tab="sugestao" id="tabSugestao"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Sugestão de Endereço</button>
     <button class="tab" data-tab="pending" id="tabPending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>Pendentes <span id="pendingBadge" style="display:none;background:#f97316;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
     <button class="tab" data-tab="auditoria" id="tabAuditoria" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><polyline points="12 6 12 12 16 14"/></svg>Auditoria</button>
     <button class="tab" data-tab="addresses" id="tabAddresses" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Endereços</button>
@@ -1681,6 +1682,89 @@ header {
           <div style="margin-bottom:16px;display:flex;justify-content:center"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px">Nenhum lote dividido no momento</div>
           <div style="font-size:13px">Todo SKU+lote endereçado está concentrado em uma única posição</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: SUGESTÃO DE ENDEREÇO ══════════ -->
+  <div class="page" id="pageSugestao" style="align-items:center">
+    <style>
+      #pageSugestao .sug-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px}
+      #pageSugestao .sug-card h3{font-size:14px;margin:0 0 10px;font-weight:600}
+      #pageSugestao .sug-drop{border:2px dashed var(--border2);border-radius:var(--radius);padding:22px;text-align:center;cursor:pointer;color:var(--muted);transition:var(--transition)}
+      #pageSugestao .sug-drop:hover,#pageSugestao .sug-drop.drag{border-color:var(--accent);background:var(--bg);color:var(--text)}
+      #pageSugestao .sug-drop b{display:block;color:var(--text);font-size:14px;margin-bottom:4px}
+      #pageSugestao .sug-files{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+      #pageSugestao .sug-file{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:7px 10px;border-radius:var(--radius-sm);background:#f0fdf4;border:1px solid #b7e4c7;color:#1b4332}
+      #pageSugestao .sug-file.err{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+      #pageSugestao .sug-file button{margin-left:auto;background:none;border:0;cursor:pointer;color:inherit;font-size:15px;line-height:1}
+      #pageSugestao .sug-ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px;font-size:13px}
+      #pageSugestao .sug-ctl label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+      #pageSugestao table{width:100%;border-collapse:collapse}
+      #pageSugestao th{padding:10px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border);background:var(--bg);white-space:nowrap}
+      #pageSugestao td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
+      #pageSugestao .mono{font-family:'DM Mono',monospace}
+      #pageSugestao .sug-pos{display:inline-block;font-family:'DM Mono',monospace;font-weight:700;font-size:15px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff}
+      #pageSugestao .sug-tag{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+      #pageSugestao .t-chegou{background:#dcfce7;color:#166534}
+      #pageSugestao .t-prev{background:#dbeafe;color:#1e40af}
+      #pageSugestao .t-same{background:#e0f2fe;color:#075985}
+      #pageSugestao .t-rule{background:#fef3c7;color:#92400e}
+      #pageSugestao .t-new{background:#ede9fe;color:#5b21b6}
+      #pageSugestao .t-none{background:#fee2e2;color:#991b1b}
+      #pageSugestao .t-solto{background:#f1f5f9;color:#475569}
+      #pageSugestao .sug-lote{display:flex;gap:8px;align-items:baseline;font-size:12px;white-space:nowrap}
+      #pageSugestao .sug-note{font-size:11px;color:var(--muted);margin-top:3px}
+      #pageSugestao .sug-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+      #pageSugestao .sug-kpi{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+      #pageSugestao .sug-kpi .n{font-size:20px;font-weight:700;font-family:'DM Mono',monospace}
+      #pageSugestao .sug-kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    </style>
+    <div style="padding:20px 24px;max-width:1250px;width:100%;margin:0 auto">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+        <div class="section-title">Sugestão de endereço para itens novos</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;max-width:900px">
+        Suba os relatórios do ERP e o sistema cruza com o mapa atual para indicar onde guardar cada SKU: perto do mesmo SKU já endereçado e, na falta dele, num bloco livre da mesma rua.
+        O <b>pedido de compra</b> traz a previsão de chegada; a <b>conferência de NF de entrada</b> traz lote, validade e quantidade do que já chegou. Dá para subir os dois juntos (o sistema reconhece cada um) e o SKU que aparece nos dois vira uma linha só.
+        A sugestão é só uma orientação: nada aqui grava no ERP, quem endereça de fato é o coletor.
+      </div>
+
+      <div class="sug-card">
+        <h3>1. Relatórios do ERP</h3>
+        <div class="sug-drop" id="sugDrop">
+          <b>Arraste os arquivos aqui ou clique para selecionar</b>
+          Listagem de Pedido de Compra e/ou Conferência de NF de entrada (.xls do ERP ou .xlsx)
+        </div>
+        <input type="file" id="sugFile" accept=".xls,.xlsx" multiple style="display:none">
+        <div class="sug-files" id="sugFiles"></div>
+        <div class="sug-ctl">
+          <label title="Ignora pedidos já encerrados"><input type="checkbox" id="sugChkAberto" checked> Pedido: só Status ABERTO</label>
+          <label title="Pedidos sem previsão não entram"><input type="checkbox" id="sugChkPrev" checked> Pedido: só com Dt Prev</label>
+          <button class="btn btn-primary" id="sugGerar" disabled>Gerar sugestão</button>
+          <span style="font-size:12px;color:var(--muted)" id="sugMapaInfo"></span>
+        </div>
+      </div>
+
+      <div class="sug-card" id="sugResultCard" style="display:none">
+        <h3>2. Sugestão de posições</h3>
+        <div class="sug-kpis" id="sugKpis"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <select id="sugFiltroSit" style="padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--surface)">
+            <option value="">Todas as situações</option>
+            <option value="chegou">Já chegaram (NF)</option>
+            <option value="prev">Só previstos (pedido)</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn" id="sugExport" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332">Exportar Excel</button>
+        </div>
+        <div style="overflow-x:auto" id="sugTabela"></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:12px">
+          A posição sugerida está sempre livre. O "vizinho" é o mesmo SKU numa posição já ocupada, que serviu de âncora para escolher aquele canto do armazém; o lote e a validade dele aparecem para você comparar com o que está chegando.
+          Cada SKU recebe uma única posição (o sistema não controla saldo por posição, então quem decide se tudo cabe ali é o operador).
         </div>
       </div>
 
@@ -3049,6 +3133,7 @@ function showTab(tabId) {
   if (tabId === 'addresses') renderAddresses();
   if (tabId === 'expiry')    renderExpiry();
   if (tabId === 'fragmentados') renderFragmentados();
+  if (tabId === 'sugestao')  renderSugestao();
   if (tabId === 'pending')   renderPending();
   if (tabId === 'auditoria') renderAuditoria();
 }
@@ -3257,6 +3342,7 @@ const WMS_MODULES = [
   { id:'dashboard',  label:'Dashboard',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
   { id:'expiry',     label:'Validades',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
   { id:'fragmentados',label:'Lotes Divididos',           icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>' },
+  { id:'sugestao',   label:'Sugestão de Endereço',       icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>' },
   { id:'alterar_end',label:'Coletor — Alterar Endereço', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
   { id:'auditoria',  label:'Auditoria',                  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
   { id:'pending',    label:'Pendentes',        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>' },
@@ -3376,7 +3462,7 @@ auth.onAuthStateChanged(async user => {
       // Legado: usa role antigo para compatibilidade
       if (S.role === 'coletor') {
         document.querySelector('[data-tab="map"]').style.display = 'none';
-        ['tabDashboard','tabExpiry','tabFragmentados','tabPending','tabInventario'].forEach(id => {
+        ['tabDashboard','tabExpiry','tabFragmentados','tabSugestao','tabPending','tabInventario'].forEach(id => {
           const el=$(id); if(el) el.style.display='none';
         });
         $('tabColetor').style.display = '';
@@ -8358,6 +8444,336 @@ function _invExport() {
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`inventario_${new Date().toISOString().slice(0,10)}.csv`;a.click();
 }
+
+// ══════════════════════════════════════════════════════
+//  SUGESTÃO DE ENDEREÇO — itens novos (pedido de compra + conferência de NF)
+//  Só lê S.items/S.addresses; não grava no Firestore nem no ERP.
+// ══════════════════════════════════════════════════════
+// Rua obrigatória por palavra-chave na descrição (estrutura física do armazém).
+const SUG_REGRAS_RUA_FIXA = [{ termo: 'KABIVEN', rua: 'M' }]; // cobre SMOFKABIVEN também
+// Bomba Enteral fica solta na rua P (P 99), fora da grade — não recebe posição.
+const SUG_SEM_POSICAO = ['BOMBA ENTERAL'];
+
+const _sugEsc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _sugNorm = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+const _sugNum = s => parseFloat(_sugNorm(s).replace(/\./g, '').replace(',', '.')) || 0;
+const _sugDataSort = d => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+
+let _sugPedido = null;   // { nome, linhas }
+let _sugNF = null;       // { nome, linhas }
+let _sugErros = [];      // arquivos que não deram certo
+let _sugResultado = null;
+
+function _sugRegraRua(desc) {
+  const d = String(desc || '').toUpperCase();
+  const r = SUG_REGRAS_RUA_FIXA.find(r => d.includes(r.termo));
+  return r ? r.rua : null;
+}
+function _sugSemPosicao(desc) {
+  const d = String(desc || '').toUpperCase();
+  return SUG_SEM_POSICAO.some(t => d.includes(t));
+}
+
+// ── Leitura dos arquivos ──────────────────────────────
+// O .xls do ERP é HTML com extensão de Excel; .xlsx/.xls binário vai pelo SheetJS.
+function _sugLerArquivo(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('não foi possível ler o arquivo'));
+    reader.onload = e => {
+      try {
+        const buf = new Uint8Array(e.target.result);
+        const isZip = buf[0] === 0x50 && buf[1] === 0x4B;
+        const isOle = buf[0] === 0xD0 && buf[1] === 0xCF && buf[2] === 0x11 && buf[3] === 0xE0;
+        let rows;
+        if (isZip || isOle) {
+          const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: false });
+          rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+        } else {
+          let text;
+          try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+          catch (_) { text = new TextDecoder('iso-8859-1').decode(buf); }
+          const doc = new DOMParser().parseFromString(text, 'text/html');
+          const table = doc.querySelector('table');
+          if (!table) throw new Error('nenhuma tabela encontrada (esperado o .xls exportado pelo ERP)');
+          rows = [...table.rows].map(tr => [...tr.cells].map(td => _sugNorm(td.textContent)));
+        }
+        resolve(rows);
+      } catch (err) { reject(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Pedido de compra: ... | Status | Item | Item Desc | PED FOR | PED SKU | Dt Prev | Qtd Pedido | Razão For ...
+function _sugParsePedido(rows, idx) {
+  const h = rows[idx].map(_sugNorm), c = n => h.indexOf(n);
+  const iSt = c('Status'), iItem = c('Item'), iDesc = c('Item Desc'), iPF = c('PED FOR'),
+        iPS = c('PED SKU'), iPrev = c('Dt Prev'), iQtd = c('Qtd Pedido'), iForn = c('Razão For');
+  const out = [];
+  for (let i = idx + 1; i < rows.length; i++) {
+    const r = rows[i]; if (!r || r.length < 3) continue;
+    const sku = _sugNorm(r[iItem]);
+    if (!/^[0-9]+$/.test(sku)) continue;
+    out.push({
+      status: _sugNorm(r[iSt]), sku, desc: _sugNorm(r[iDesc]),
+      pedido: _sugNorm(r[iPF]) || _sugNorm(r[iPS]), fornecedor: _sugNorm(r[iForn]),
+      dtPrev: _sugNorm(r[iPrev]), qtd: _sugNum(r[iQtd])
+    });
+  }
+  return out;
+}
+
+// Conferência de NF: Empresa | Codigo Item | Descricao Item | Num NF | Emitente | Lote | Vencimento | Qtd
+function _sugParseNF(rows, idx) {
+  const h = rows[idx].map(_sugNorm), c = n => h.indexOf(n);
+  const iSku = c('Codigo Item'), iDesc = c('Descricao Item'), iNF = c('Num NF'),
+        iEmi = c('Emitente'), iLote = c('Lote'), iVenc = c('Vencimento'), iQtd = c('Qtd');
+  const out = [];
+  for (let i = idx + 1; i < rows.length; i++) {
+    const r = rows[i]; if (!r || r.length < 3) continue;
+    const sku = _sugNorm(r[iSku]);
+    if (!/^[0-9]+$/.test(sku)) continue;
+    out.push({
+      sku, desc: _sugNorm(r[iDesc]), nf: _sugNorm(r[iNF]), emitente: _sugNorm(r[iEmi]),
+      lote: _sugNorm(r[iLote]), val: _sugNorm(r[iVenc]), qtd: _sugNum(r[iQtd])
+    });
+  }
+  return out;
+}
+
+async function _sugReceber(files) {
+  for (const file of files) {
+    try {
+      const rows = await _sugLerArquivo(file);
+      const iPed = rows.findIndex(r => r.some(c => _sugNorm(c) === 'Item') && r.some(c => _sugNorm(c).startsWith('Dt Prev')));
+      const iNF  = rows.findIndex(r => r.some(c => _sugNorm(c) === 'Codigo Item') && r.some(c => _sugNorm(c) === 'Lote'));
+      if (iPed >= 0)      _sugPedido = { nome: file.name, linhas: _sugParsePedido(rows, iPed) };
+      else if (iNF >= 0)  _sugNF     = { nome: file.name, linhas: _sugParseNF(rows, iNF) };
+      else throw new Error('não reconheci o formato (esperado Listagem de Pedido de Compra ou Conferência de NF de entrada)');
+      _sugErros = _sugErros.filter(e => e.nome !== file.name);
+    } catch (err) {
+      _sugErros = _sugErros.filter(e => e.nome !== file.name);
+      _sugErros.push({ nome: file.name, msg: err.message || String(err) });
+    }
+  }
+  _sugRenderArquivos();
+}
+
+function _sugRenderArquivos() {
+  const lin = [];
+  if (_sugPedido) lin.push(`<div class="sug-file">✓ <b>Pedido de compra</b> ${_sugEsc(_sugPedido.nome)} · ${_sugPedido.linhas.length} linhas <button data-k="p" title="Remover">×</button></div>`);
+  if (_sugNF)     lin.push(`<div class="sug-file">✓ <b>Conferência de NF</b> ${_sugEsc(_sugNF.nome)} · ${_sugNF.linhas.length} linhas <button data-k="n" title="Remover">×</button></div>`);
+  _sugErros.forEach(e => lin.push(`<div class="sug-file err">✕ ${_sugEsc(e.nome)}: ${_sugEsc(e.msg)}</div>`));
+  $('sugFiles').innerHTML = lin.join('');
+  $('sugFiles').querySelectorAll('button[data-k]').forEach(b => b.onclick = () => {
+    if (b.dataset.k === 'p') _sugPedido = null; else _sugNF = null;
+    _sugRenderArquivos();
+  });
+  $('sugGerar').disabled = !(_sugPedido || _sugNF);
+}
+
+// ── Cálculo ───────────────────────────────────────────
+function _sugAgrupar() {
+  const porSku = {};
+  const g = (sku, desc) => (porSku[sku] ||= {
+    sku, desc, dtPrev: '', dtPrevSort: '', qtdPedido: 0, fornecedores: new Set(), pedidos: new Set(),
+    lotes: [], nfs: new Set(), chegou: false, previsto: false
+  });
+
+  if (_sugPedido) {
+    let linhas = _sugPedido.linhas;
+    if ($('sugChkAberto').checked) linhas = linhas.filter(r => r.status.toUpperCase() === 'ABERTO');
+    if ($('sugChkPrev').checked)   linhas = linhas.filter(r => r.dtPrev);
+    for (const r of linhas) {
+      const x = g(r.sku, r.desc);
+      x.previsto = true;
+      x.qtdPedido += r.qtd;
+      if (r.fornecedor) x.fornecedores.add(r.fornecedor);
+      if (r.pedido) x.pedidos.add(r.pedido);
+      const s = _sugDataSort(r.dtPrev);
+      if (s && (!x.dtPrevSort || s < x.dtPrevSort)) { x.dtPrevSort = s; x.dtPrev = r.dtPrev; }
+    }
+  }
+  if (_sugNF) {
+    for (const r of _sugNF.linhas) {
+      const x = g(r.sku, r.desc);
+      x.chegou = true;
+      if (r.nf) x.nfs.add(r.nf);
+      if (r.emitente) x.fornecedores.add(r.emitente);
+      const l = x.lotes.find(l => l.lote === r.lote && l.val === r.val);
+      if (l) { l.qtd += r.qtd; if (r.nf) l.nfs.add(r.nf); }
+      else x.lotes.push({ lote: r.lote, val: r.val, qtd: r.qtd, nfs: new Set(r.nf ? [r.nf] : []) });
+    }
+  }
+  // Quem já chegou vem primeiro (é o que o operador tem na mão); depois por previsão.
+  return Object.values(porSku).sort((a, b) =>
+    (b.chegou - a.chegou) || (a.dtPrevSort || '9999').localeCompare(b.dtPrevSort || '9999') || a.sku.localeCompare(b.sku, 'pt-BR', { numeric: true }));
+}
+
+function _sugCalcular(grupos) {
+  const skuPos = {};
+  for (const it of S.items) {
+    if (!it.sku || !it.rua) continue;
+    const p = wmsPos(it.pos, it.rua);
+    if (p == null) continue; // fora da grade (ex.: P/99 da Bomba Enteral) não serve de âncora
+    (skuPos[it.sku] ||= []).push({ rua: it.rua, pos: parseInt(p, 10), lote: it.lote || '', val: it.val || '' });
+  }
+  const ocupadas = new Set();
+  for (const it of S.items) if (it.rua && it.pos != null && it.pos !== '') ocupadas.add(addrKey(it.rua, it.pos));
+
+  const livres = {};
+  for (const a of S.addresses) {
+    if (a.active === false) continue;
+    const p = wmsPos(a.pos, a.rua); if (p == null) continue;
+    if (ocupadas.has(addrKey(a.rua, a.pos))) continue;
+    (livres[String(a.rua).toUpperCase()] ||= []).push(parseInt(p, 10));
+  }
+  Object.values(livres).forEach(arr => arr.sort((x, y) => x - y));
+
+  const tomar = (rua, pos) => { const a = livres[rua]; if (!a) return; const i = a.indexOf(pos); if (i >= 0) a.splice(i, 1); };
+  const maisPerto = (rua, alvo) => {
+    const a = livres[rua]; if (!a || !a.length) return null;
+    let best = null, bd = Infinity;
+    for (const p of a) { const d = Math.abs(p - alvo); if (d < bd) { bd = d; best = p; } }
+    return best;
+  };
+  const ruaMaisVazia = () => {
+    let best = null, n = 0;
+    for (const r of WMS_RUAS) { const c = (livres[r] || []).length; if (c > n) { n = c; best = r; } }
+    return best;
+  };
+  const melhorPerto = ocs => {
+    let best = null, bd = Infinity;
+    for (const o of ocs) {
+      const p = maisPerto(o.rua, o.pos);
+      if (p != null && Math.abs(p - o.pos) < bd) { bd = Math.abs(p - o.pos); best = { rua: o.rua, pos: p, ref: o }; }
+    }
+    return best;
+  };
+
+  let ruaBloco = null;
+  return grupos.map(g => {
+    const existentes = skuPos[g.sku] || [];
+    const ruaFixa = _sugRegraRua(g.desc);
+    let escolhida = null, tipo = '', motivo = '', ref = null;
+
+    if (_sugSemPosicao(g.desc)) {
+      tipo = 'solto'; motivo = 'Fica solto na rua P (P 99), sem posição na grade';
+    } else if (ruaFixa) {
+      const ach = melhorPerto(existentes.filter(e => e.rua === ruaFixa));
+      if (ach) { escolhida = { rua: ach.rua, pos: ach.pos }; ref = ach.ref; tipo = 'rule'; motivo = `Rua obrigatória ${ruaFixa} (sala refrigerada), perto do mesmo SKU em ${ach.ref.rua} ${ach.ref.pos}`; }
+      else if ((livres[ruaFixa] || []).length) { escolhida = { rua: ruaFixa, pos: livres[ruaFixa][0] }; tipo = 'rule'; motivo = `Rua obrigatória ${ruaFixa} (sala refrigerada)`; }
+      else { tipo = 'none'; motivo = `Exige a rua ${ruaFixa} (sala refrigerada), mas não há posição livre nela`; }
+    } else if (existentes.length) {
+      const ach = melhorPerto(existentes);
+      if (ach) { escolhida = { rua: ach.rua, pos: ach.pos }; ref = ach.ref; tipo = 'same'; motivo = `Mesmo SKU já em ${ach.ref.rua} ${ach.ref.pos}`; }
+    }
+    if (!escolhida && tipo !== 'none' && tipo !== 'solto') {
+      if (!ruaBloco || !(livres[ruaBloco] || []).length) ruaBloco = ruaMaisVazia();
+      if (ruaBloco) {
+        escolhida = { rua: ruaBloco, pos: livres[ruaBloco][0] }; tipo = 'new';
+        motivo = existentes.length ? `SKU já endereçado, mas sem vaga por perto: bloco novo em ${ruaBloco}` : `SKU novo: bloco livre em ${ruaBloco}`;
+      } else { tipo = 'none'; motivo = 'Sem posição livre na grade'; }
+    }
+    if (escolhida) tomar(escolhida.rua, escolhida.pos);
+
+    // Lote já endereçado? (só dá para saber quando a NF trouxe o lote)
+    const lotes = g.lotes.map(l => ({
+      ...l,
+      jaEm: S.items.filter(it => it.sku === g.sku && it.lote === l.lote && it.val === l.val && it.rua).map(it => `${it.rua} ${it.pos}`)
+    }));
+    return { ...g, lotes, sugestao: escolhida, tipo, motivo, ref };
+  });
+}
+
+// ── Tela ──────────────────────────────────────────────
+function _sugGerar() {
+  _sugResultado = _sugCalcular(_sugAgrupar());
+  _sugRenderResultado();
+}
+
+function _sugRenderResultado() {
+  const todos = _sugResultado || [];
+  $('sugResultCard').style.display = 'block';
+  const cnt = t => todos.filter(r => r.tipo === t).length;
+  const kpi = (n, l) => `<div class="sug-kpi"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  $('sugKpis').innerHTML =
+    kpi(todos.length, 'SKUs') + kpi(todos.filter(r => r.chegou).length, 'Já chegaram (NF)') +
+    kpi(todos.filter(r => !r.chegou).length, 'Só previstos') + kpi(cnt('same'), 'Perto do mesmo SKU') +
+    kpi(cnt('rule'), 'Rua obrigatória') + kpi(cnt('new'), 'Bloco novo') + kpi(cnt('none'), 'Sem vaga');
+
+  const f = $('sugFiltroSit').value;
+  const lista = todos.filter(r => f === 'chegou' ? r.chegou : f === 'prev' ? !r.chegou : true);
+  if (!lista.length) { $('sugTabela').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Nenhum SKU para mostrar com os filtros atuais.</div>'; return; }
+
+  const TAG = { same: ['t-same', 'mesmo SKU'], rule: ['t-rule', 'rua obrigatória'], new: ['t-new', 'bloco novo'], none: ['t-none', 'sem vaga'], solto: ['t-solto', 'sem posição'] };
+  const fmt = n => n ? n.toLocaleString('pt-BR') : '';
+  const linhas = lista.map(r => {
+    const sit = [r.chegou ? '<span class="sug-tag t-chegou">chegou</span>' : '', r.previsto ? '<span class="sug-tag t-prev">previsto</span>' : ''].filter(Boolean).join(' ');
+    const lotesHtml = r.lotes.length
+      ? r.lotes.map(l => `<div class="sug-lote"><span class="mono">${_sugEsc(l.lote) || '—'}</span><span style="color:var(--muted)">val. ${_sugEsc(l.val) || '—'}</span><span class="mono">× ${fmt(l.qtd)}</span>${l.jaEm.length ? `<span class="sug-tag t-rule" title="Este lote já está endereçado">já em ${_sugEsc(l.jaEm.join(', '))}</span>` : ''}</div>`).join('')
+      : '<span style="color:var(--muted);font-size:12px">aguardando NF</span>';
+    const refHtml = r.ref
+      ? `<div class="mono" style="font-size:12px">${r.ref.rua} ${r.ref.pos}</div><div style="font-size:11.5px;color:var(--muted)">lote ${_sugEsc(r.ref.lote) || '—'} · val. ${_sugEsc(r.ref.val) || '—'}</div>`
+      : '<span style="color:var(--muted)">—</span>';
+    const [cls, rot] = TAG[r.tipo] || TAG.none;
+    return `<tr>
+      <td>${sit}</td>
+      <td class="mono">${_sugEsc(r.sku)}</td>
+      <td>${_sugEsc(r.desc)}<div class="sug-note">${_sugEsc([...r.fornecedores].join(' · '))}</div></td>
+      <td>${r.dtPrev ? `<span class="mono">${_sugEsc(r.dtPrev)}</span>` : '<span style="color:var(--muted)">—</span>'}${r.qtdPedido ? `<div class="sug-note">pedido: ${fmt(r.qtdPedido)}</div>` : ''}</td>
+      <td class="mono">${_sugEsc([...r.nfs].join(', ')) || '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${lotesHtml}</td>
+      <td>${r.sugestao ? `<span class="sug-pos">${r.sugestao.rua} ${r.sugestao.pos}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${refHtml}</td>
+      <td><span class="sug-tag ${cls}">${rot}</span><div class="sug-note">${_sugEsc(r.motivo)}</div></td>
+    </tr>`;
+  }).join('');
+
+  $('sugTabela').innerHTML = `<table><thead><tr>
+    <th>Situação</th><th>SKU</th><th>Produto</th><th>Previsão</th><th>NF</th><th>Lote · validade · qtd</th>
+    <th>Posição sugerida</th><th>Vizinho (referência)</th><th>Motivo</th>
+  </tr></thead><tbody>${linhas}</tbody></table>`;
+}
+
+function _sugExportar() {
+  if (!_sugResultado) return;
+  const dados = [];
+  for (const r of _sugResultado) {
+    const base = {
+      Situação: [r.chegou ? 'Chegou' : '', r.previsto ? 'Previsto' : ''].filter(Boolean).join(' + '),
+      SKU: r.sku, Produto: r.desc, 'Dt Prev': r.dtPrev, 'Qtd Pedido': r.qtdPedido || '',
+      Fornecedor: [...r.fornecedores].join(' · '),
+      'Posição sugerida': r.sugestao ? `${r.sugestao.rua} ${r.sugestao.pos}` : (r.tipo === 'solto' ? 'SEM POSIÇÃO (P 99)' : 'SEM VAGA'),
+      Motivo: r.motivo
+    };
+    if (!r.lotes.length) dados.push({ ...base, NF: '', Lote: '', Validade: '', 'Qtd NF': '', 'Lote já endereçado em': '' });
+    else r.lotes.forEach(l => dados.push({ ...base, NF: [...l.nfs].join(', '), Lote: l.lote, Validade: l.val, 'Qtd NF': l.qtd, 'Lote já endereçado em': l.jaEm.join(', ') }));
+  }
+  const ws = XLSX.utils.json_to_sheet(dados), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sugestão');
+  XLSX.writeFile(wb, `sugestao_enderecamento_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function renderSugestao() {
+  $('sugMapaInfo').textContent = `Mapa atual: ${S.items.length} itens endereçados, ${S.addresses.length} posições cadastradas.`;
+  _sugRenderArquivos();
+  if (_sugResultado) _sugRenderResultado();
+}
+
+(function _sugInit() {
+  const drop = $('sugDrop'), inp = $('sugFile');
+  if (!drop) return;
+  drop.addEventListener('click', () => inp.click());
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag'); _sugReceber([...e.dataTransfer.files]); });
+  inp.addEventListener('change', e => { _sugReceber([...e.target.files]); inp.value = ''; });
+  $('sugGerar').addEventListener('click', _sugGerar);
+  $('sugFiltroSit').addEventListener('change', () => { if (_sugResultado) _sugRenderResultado(); });
+  $('sugExport').addEventListener('click', _sugExportar);
+})();
 </script>
 
 <!-- Modal: Log da Ordem de Separação -->
