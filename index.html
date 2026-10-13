@@ -1759,6 +1759,7 @@ header {
             <option value="prev">Só previstos (pedido)</option>
           </select>
           <div style="flex:1"></div>
+          <button class="btn" id="sugPublicar" title="Grava as posições sugeridas para o coletor mostrar ao endereçar cada SKU">Enviar ao coletor</button>
           <button class="btn" id="sugExport" style="background:#f0fdf4;border-color:#b7e4c7;color:#1b4332">Exportar Excel</button>
         </div>
         <div style="overflow-x:auto" id="sugTabela"></div>
@@ -8751,6 +8752,42 @@ function _sugExportar() {
   XLSX.writeFile(wb, `sugestao_enderecamento_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
+// Grava a sugestão em wms_sugestoes (um doc por SKU) para o coletor mostrar ao endereçar.
+// Mesmo padrão seguro do import: grava o novo e só depois apaga o que sobrou, então a
+// lista do coletor nunca fica vazia no meio. Cada envio substitui o anterior.
+async function _sugPublicar() {
+  const com = (_sugResultado || []).filter(r => r.sugestao);
+  if (!com.length) { alert('Não há nenhuma posição sugerida para enviar.'); return; }
+  if (!confirm(`Enviar ${com.length} sugestões ao coletor?\n\nIsso substitui as sugestões enviadas antes.`)) return;
+  const btn = $('sugPublicar'); btn.disabled = true; const txt = btn.textContent; btn.textContent = 'Enviando…';
+  try {
+    const col = db.collection('wms_sugestoes');
+    const antigos = (await col.get()).docs.map(d => d.id);
+    const ts = new Date().toISOString(), por = S.user?.email || '';
+    const docs = com.map(r => ({
+      id: String(r.sku).replace(/[\/\s]/g, '-'),
+      data: { sku: r.sku, desc: r.desc, rua: r.sugestao.rua, pos: String(r.sugestao.pos), motivo: r.motivo,
+              lotes: r.lotes.map(l => ({ lote: l.lote, val: l.val })), ts, por }
+    }));
+    for (let i = 0; i < docs.length; i += 400) {
+      const b = db.batch();
+      docs.slice(i, i + 400).forEach(d => b.set(col.doc(d.id), d.data));
+      await b.commit();
+    }
+    const novos = new Set(docs.map(d => d.id)), sobras = antigos.filter(id => !novos.has(id));
+    for (let i = 0; i < sobras.length; i += 400) {
+      const b = db.batch();
+      sobras.slice(i, i + 400).forEach(id => b.delete(col.doc(id)));
+      await b.commit();
+    }
+    btn.textContent = `✓ ${docs.length} enviadas`;
+    setTimeout(() => { btn.textContent = txt; btn.disabled = false; }, 3000);
+  } catch (e) {
+    btn.textContent = txt; btn.disabled = false;
+    alert('Não foi possível enviar ao coletor: ' + (e.message || e));
+  }
+}
+
 function renderSugestao() {
   $('sugMapaInfo').textContent = `Mapa atual: ${S.items.length} itens endereçados, ${S.addresses.length} posições cadastradas.`;
   _sugRenderArquivos();
@@ -8768,6 +8805,7 @@ function renderSugestao() {
   $('sugGerar').addEventListener('click', _sugGerar);
   $('sugFiltroSit').addEventListener('change', () => { if (_sugResultado) _sugRenderResultado(); });
   $('sugExport').addEventListener('click', _sugExportar);
+  $('sugPublicar').addEventListener('click', _sugPublicar);
 })();
 </script>
 

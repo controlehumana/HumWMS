@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Coletor de Endereçamento</title>
 
 <!-- PWA: instalar com ícone na tela inicial -->
 <link rel="manifest" href="manifest-endereco.json">
-<meta name="theme-color" content="#059669">
+<meta name="theme-color" content="#06549d">
 <link rel="icon" href="icons/endereco-192.png">
 <link rel="apple-touch-icon" href="icons/endereco-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,329 +20,377 @@
 
 <style>
 :root{
-  --bg:#f0faf6;
+  --bar:#06549d;          /* azul da marca Humana: barra de topo, ações */
+  --ink:#0a2a47;          /* marinho: placas, login */
+  --ink2:#143c61;
+  --paper:#f1f5f9;        /* fundo do conteúdo */
   --card:#ffffff;
-  --surface:#f8fffe;
-  --text:#111827;
-  --muted:#6b7280;
-  --subtle:#9ca3af;
-  --line:#e5e7eb;
-  --line2:#d1fae5;
-  --green:#059669;
-  --green-light:#d1fae5;
-  --green-dark:#047857;
-  --danger:#dc2626;
-  --danger-bg:#fef2f2;
-  --warn:#b45309;
-  --warn-bg:#fffbeb;
+  --text:#0f1b2d;
+  --muted:#5a6a7d;
+  --subtle:#8794a6;
+  --line:#d9e2ec;
+  --amber:#f2b400;        /* fita de piso: só nas placas e no destaque da aba */
+  --green:#06549d;        /* ação: azul da marca */
+  --green-dark:#043f78;
+  --green-light:#dce9f7;
+  --free:#e0f4e5;
+  --free-text:#14632b;
+  --danger:#c62828;
+  --danger-bg:#fdecec;
+  --warn:#92400e;
+  --warn-bg:#fff6dd;
   --info:#1d4ed8;
-  --info-bg:#eff6ff;
-  --radius-lg:16px;
-  --radius-md:10px;
-  --radius-sm:6px;
+  --info-bg:#eaf1ff;
+  --radius-lg:18px;
+  --radius-md:14px;
+  --radius-sm:12px;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,"Roboto Mono",monospace;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
 body{
   font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  background:var(--bg);
+  background:var(--ink);
   color:var(--text);
-  min-height:100vh;
-  display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding:20px 14px 48px;
   font-size:15px;
-  line-height:1.5;
+  line-height:1.45;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;
 }
-.wrap{width:min(480px,100%);}
-.card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius-lg);
-  box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 24px rgba(0,0,0,.05);
-  overflow:hidden;
-}
-.header{
-  padding:16px 20px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  border-bottom:1px solid var(--line);
-  background:#fff;
-}
-.appIcon{
-  width:38px;height:38px;border-radius:10px;background:var(--green-light);
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-}
-.appIcon svg{width:20px;height:20px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.appName{font-weight:700;font-size:15px;color:var(--text);letter-spacing:-0.01em}
-.appSub{font-size:12px;color:var(--muted)}
-.sessionCount{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
-.sessionCount b{display:block;font-size:18px;color:var(--green-dark);line-height:1.1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+input,textarea{-webkit-user-select:text;user-select:text}
 
-.tabBar{display:flex;border-bottom:1px solid var(--line);background:#fff}
-.tabBtn{
-  flex:1;padding:12px 8px;background:none;border:none;cursor:pointer;
-  font-size:13px;font-weight:600;color:var(--muted);border-bottom:2.5px solid transparent;
-  transition:color .15s ease,border-color .15s ease;
+/* ── Estrutura de app: barra fixa em cima, abas embaixo, conteúdo rola no meio ── */
+.app{
+  height:100vh;height:100dvh;
+  width:min(520px,100%);margin:0 auto;
+  display:flex;flex-direction:column;
+  background:var(--paper);
+  position:relative;overflow:hidden;
 }
-.tabBtn.active{color:var(--green-dark);border-bottom-color:var(--green)}
+.appbar{
+  background:var(--bar);color:#fff;flex-shrink:0;
+  padding:calc(var(--safe-t) + 10px) 16px 10px;
+}
+.appbarTop{display:flex;align-items:center;gap:12px}
+.appMark{
+  width:34px;height:34px;border-radius:9px;flex-shrink:0;background:rgba(255,255,255,.14);
+  display:flex;align-items:center;justify-content:center;
+}
+.appMark svg{width:19px;height:19px;stroke:var(--amber);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.appName{font-weight:700;font-size:16px;letter-spacing:-.01em;line-height:1.2}
+.appSub{font-size:11.5px;color:#c4d9ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appHead{flex:1;min-width:0}
+.sessionCount{text-align:center;line-height:1;padding:0 4px}
+.sessionCount b{display:block;font-family:var(--mono);font-size:20px;color:var(--amber);font-variant-numeric:tabular-nums}
+.sessionCount span{font-size:9.5px;color:#c4d9ee;text-transform:uppercase;letter-spacing:.06em}
+.iconBtn2{
+  width:42px;height:42px;border-radius:12px;border:none;background:rgba(255,255,255,.14);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+}
+.iconBtn2 svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.iconBtn2:disabled{opacity:.5}
+.iconBtn2.spin svg{animation:spin .8s linear infinite}
+.appbarSub{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.hint{font-size:12px;color:var(--subtle);margin-top:6px}
+.appbar .hint{margin:0;color:#c4d9ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.userBtn{
+  display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
+  font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);border:none;border-radius:99px;
+  padding:5px 11px;cursor:pointer;white-space:nowrap;max-width:48%;overflow:hidden;text-overflow:ellipsis;
+}
 
-.body{padding:20px}
-.step{display:none}
-.step.active{display:block;animation:materialIn .28s cubic-bezier(.2,.8,.2,1)}
+.main{scrollbar-width:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 12px;scroll-padding-bottom:120px}
+.main::-webkit-scrollbar{display:none}
 .view{display:none}
-.view.active{display:block;animation:materialIn .28s cubic-bezier(.2,.8,.2,1)}
+.view.active{display:block;animation:materialIn .26s cubic-bezier(.2,.8,.2,1)}
+.step{display:none}
+.step.active{display:block;animation:materialIn .26s cubic-bezier(.2,.8,.2,1)}
+@keyframes materialIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-@keyframes materialIn{
-  from{opacity:0;transform:translateY(6px) scale(.99)}
-  to{opacity:1;transform:none}
+.tabbar{
+  display:flex;flex-shrink:0;background:#fff;border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b);
+}
+.tabBtn{
+  flex:1;position:relative;padding:9px 4px 8px;background:none;border:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:11.5px;font-weight:600;color:var(--subtle);
+}
+.tabBtn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabBtn.active{color:var(--green-dark)}
+.tabBtn.active::before{
+  content:"";position:absolute;top:-1px;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--amber);
 }
 
-/* ── Resposta tátil: feedback instantâneo no toque, não na soltura ── */
-button,.ruaChip,.matchCard,.posRow.occ{transition:transform .1s cubic-bezier(.2,.8,.2,1)}
-button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:active{transform:scale(.96)}
-
+/* ── Resposta tátil: feedback instantâneo no toque ── */
+button,.ruaChip,.matchCard,.posRow.occ{transition:transform .1s cubic-bezier(.2,.8,.2,1),background .15s}
+button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:active{transform:scale(.97)}
 @media (prefers-reduced-motion: reduce){
-  .step.active,.view.active,.scanModal{animation:none!important}
+  .step.active,.view.active,.scanModal,.loginCard,.uiModal{animation:none!important}
   button,.ruaChip,.matchCard,.posRow.occ{transition:none!important}
   button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:active{transform:none!important}
+  .iconBtn2.spin svg{animation:none}
 }
 
-.label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:block}
+.stepTitle{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-bottom:4px}
+.stepLead{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+.label{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:block}
 .inputField{
-  width:100%;height:48px;padding:0 14px;
-  border:1.5px solid var(--line);border-radius:var(--radius-sm);
-  background:#fff;font-size:17px;color:var(--text);outline:none;
-  transition:border-color .15s,background .15s;
+  width:100%;height:54px;padding:0 16px;
+  border:2px solid var(--line);border-radius:var(--radius-sm);
+  background:#fff;font-size:18px;color:var(--text);outline:none;
+  transition:border-color .15s,box-shadow .15s;
 }
-.inputField:focus{border-color:var(--green);background:#fafffe}
-.hint{font-size:12px;color:var(--subtle);margin-top:6px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inputField:focus{border-color:var(--green);box-shadow:0 0 0 4px rgba(6,84,157,.16)}
 
+/* ── Botões ── */
 .btn{
-  width:100%;height:48px;border-radius:var(--radius-sm);border:1.5px solid transparent;
-  font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;height:54px;border-radius:var(--radius-sm);border:2px solid transparent;
+  font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
 }
-.btn-primary{background:var(--green);color:#fff;margin-top:14px}
+.btn-primary{background:var(--green);color:#fff}
 .btn-primary:active{background:var(--green-dark)}
-.btn-primary:disabled{opacity:.5;cursor:default}
-.btn-ghost{background:#fff;color:var(--text);border-color:var(--line);margin-top:10px}
-.btn-danger{background:var(--danger);color:#fff;margin-top:10px}
-.btn-danger:active{background:#b91c1c}
-.btn-danger:disabled{opacity:.5;cursor:default}
+.btn-primary:disabled{opacity:.5}
+.btn-ghost{background:#fff;color:var(--text);border-color:var(--line)}
+.btn-danger{background:#fff;color:var(--danger);border-color:#f3c3c3}
+.btn-danger:active{background:var(--danger-bg)}
+.btn-danger:disabled{opacity:.5}
+.row2{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-top:12px}
 
-.itemBox{
-  background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-md);
-  padding:14px;margin-bottom:16px;
+/* Ações grudadas no fim da tela, acima das abas */
+.actions{
+  position:sticky;bottom:-12px;margin:18px -16px -12px;padding:14px 16px 14px;
+  background:linear-gradient(to bottom,rgba(242,245,242,0),var(--paper) 22%);
+  display:flex;flex-direction:column;gap:8px;
 }
-.itemBox .desc{font-weight:700;font-size:14px;margin-bottom:6px}
-.itemBox .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
-.itemBox .meta span{display:flex;align-items:center;gap:4px}
+.actions .btn-ghost,.actions .btn-danger{height:46px;font-size:14.5px}
+.actions .pair{display:flex;gap:8px}
+.actions .pair .btn{flex:1}
 
-.acaoToggle{display:flex;gap:8px;margin-bottom:16px}
-.acaoBtn{
-  flex:1;padding:10px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--line);
-  background:#fff;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:center;
+/* ── Busca / scanner ── */
+.inputRow{display:flex;gap:10px}
+.inputRow .inputField{flex:1;min-width:0}
+.btn-scan{
+  width:54px;height:54px;flex-shrink:0;border-radius:var(--radius-sm);
+  background:var(--ink);color:var(--amber);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
 }
-.acaoBtn.active{background:var(--green);color:#fff;border-color:var(--green-dark)}
-
-.matchList{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.btn-scan svg{width:24px;height:24px}
+.matchList{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 .matchCard{
-  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);
-  padding:12px 14px;cursor:pointer;transition:border-color .15s;
+  background:#fff;border:2px solid var(--line);border-left:5px solid var(--green);border-radius:var(--radius-md);
+  padding:13px 14px;cursor:pointer;
 }
 .matchCard:active{border-color:var(--green)}
-.matchCard .desc{font-weight:600;font-size:13px;margin-bottom:4px}
-.matchCard .meta{font-size:11.5px;color:var(--muted)}
+.matchCard .desc{font-weight:700;font-size:14.5px;margin-bottom:4px}
+.matchCard .meta{font-size:12.5px;color:var(--muted)}
 
-.msg{border-radius:var(--radius-md);padding:12px 14px;font-size:13px;margin-top:14px;display:none}
-.msg.ok{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid #a7f3d0}
-.msg.err{display:block;background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca}
-.msg.info{display:block;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
-.msg.warn{display:block;background:var(--warn-bg);color:#92400e;border:1px solid #fde68a}
-
-.footerBar{
-  padding:12px 20px;border-top:1px solid var(--line);background:var(--surface);
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
+/* ── Item selecionado ── */
+.itemBox{
+  background:var(--card);border-radius:var(--radius-md);border-left:5px solid var(--green);
+  padding:14px 16px;margin-bottom:18px;box-shadow:0 1px 2px rgba(15,28,24,.06);
 }
-.footerBar .hint{margin:0}
-.refreshBtn{
-  font-size:14px;color:#fff;background:var(--green);border:none;border-radius:var(--radius-sm);cursor:pointer;
-  display:flex;align-items:center;gap:7px;font-weight:700;padding:10px 18px;flex-shrink:0;
-}
-.refreshBtn:active{background:var(--green-dark)}
-.refreshBtn:disabled{opacity:.5;cursor:default}
-.refreshBtn svg{width:16px;height:16px}
-
-.summaryRow{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
-.summaryRow:last-child{border-bottom:none}
+.itemBox .desc{font-weight:800;font-size:16px;margin-bottom:6px;line-height:1.25}
+.itemBox .meta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.summaryRow{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:8px 0;border-top:1px solid var(--line);margin-top:8px}
+.summaryRow:first-of-type{margin-top:10px}
 .summaryRow .k{color:var(--muted)}
-.summaryRow .v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.summaryRow .v{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+
+.acaoToggle{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px;background:#e1e8f0;padding:5px;border-radius:var(--radius-sm)}
+.acaoBtn{
+  padding:11px 6px;border-radius:9px;border:none;background:transparent;color:var(--muted);
+  font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.2;
+}
+.acaoBtn.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(15,28,24,.18)}
+
+/* Sugestão de posição vinda do WMS */
+.sugBox{
+  display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;
+  background:var(--warn-bg);border-radius:var(--radius-sm);border:1.5px solid #f3dc9a;
+}
+.sugTxt{flex:1;min-width:0}
+.sugTxt small{display:block;font-size:10.5px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
+.sugTxt b{font-family:var(--mono);font-size:22px;letter-spacing:.02em}
+.btnUsar{
+  height:44px;padding:0 22px;border:none;border-radius:11px;background:var(--ink);color:var(--amber);
+  font-size:15px;font-weight:800;cursor:pointer;
+}
+
+/* ── A placa de prateleira: rua + posição ── */
+.plate{
+  display:grid;grid-template-columns:1fr 1.35fr;gap:2px;margin-bottom:6px;
+  background:var(--amber);padding:3px;border-radius:var(--radius-md);
+}
+.plate .cell{background:var(--ink);padding:10px 12px 8px;min-width:0}
+.plate .cell:first-child{border-radius:calc(var(--radius-md) - 3px) 0 0 calc(var(--radius-md) - 3px)}
+.plate .cell:last-child{border-radius:0 calc(var(--radius-md) - 3px) calc(var(--radius-md) - 3px) 0}
+.plate .label{color:#9db6d1;font-size:10.5px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plate .label span{color:#9db6d1!important}
+.plate .inputField{
+  height:68px;padding:0;border:none;background:transparent;box-shadow:none;border-radius:0;
+  font-family:var(--mono);font-weight:800;font-size:54px;line-height:68px;color:var(--amber);text-align:left;
+  caret-color:var(--amber);
+}
+.plate .inputField::placeholder{color:#3b5878}
+.plate .inputField:focus{border:none;box-shadow:none}
+.plate .cell:focus-within{background:var(--ink2)}
+
+.plateShow{display:inline-flex;align-items:stretch;background:var(--amber);padding:3px;border-radius:11px;gap:2px}
+.plateShow i{font-style:normal;background:var(--ink);color:var(--amber);font-family:var(--mono);font-weight:800;font-size:30px;line-height:1;padding:9px 14px}
+.plateShow i:first-child{border-radius:8px 0 0 8px}
+.plateShow i:last-child{border-radius:0 8px 8px 0}
+
+.msg{border-radius:var(--radius-sm);padding:12px 14px;font-size:13.5px;margin-top:14px;display:none;line-height:1.4}
+.msg.ok{display:block;background:var(--free);color:var(--free-text)}
+.msg.err{display:block;background:var(--danger-bg);color:#8e1c1c}
+.msg.info{display:block;background:var(--info-bg);color:#1e3a8a}
+.msg.warn{display:block;background:var(--warn-bg);color:var(--warn)}
 
 .spinner{
-  display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.5);
+  display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.inputRow{display:flex;gap:8px}
-.inputRow .inputField{flex:1}
-.btn-scan{
-  width:48px;height:48px;flex-shrink:0;border-radius:var(--radius-sm);
-  background:var(--green);color:#fff;border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-.btn-scan:active{background:var(--green-dark)}
-.btn-scan svg{width:20px;height:20px}
-
 /* ── Scanner de câmera ── */
-.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center;padding:16px}
+.scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center;padding:16px}
 .scanOverlay.show{display:flex}
 .scanModal{background:#111;border-radius:var(--radius-lg);width:min(440px,100%);overflow:hidden;animation:materialIn .3s cubic-bezier(.2,.8,.2,1)}
-
 @media (prefers-reduced-transparency: reduce){
-  .scanOverlay{background:rgba(0,0,0,.92);backdrop-filter:none}
+  .scanOverlay{background:rgba(0,0,0,.94);backdrop-filter:none}
 }
-.scanHeader{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#eee;font-size:13px;font-weight:600}
-.scanHeader .iconBtn{background:none;border:none;color:#ccc;cursor:pointer;padding:4px}
-.scanHeader .iconBtn svg{width:18px;height:18px;fill:none;stroke:#ccc;stroke-width:2}
+.scanHeader{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;color:#eee;font-size:14px;font-weight:700}
+.scanHeader .iconBtn{background:none;border:none;color:#ccc;cursor:pointer;padding:6px}
+.scanHeader .iconBtn svg{width:20px;height:20px;fill:none;stroke:#ccc;stroke-width:2}
 #scanReader{width:100%;background:#000;min-height:220px}
 #scanReader video{width:100%!important;object-fit:cover}
 #scanReader img{display:none!important}
 .scanHint{color:#aaa;font-size:13px;text-align:center;padding:10px 16px 14px}
 
-/* ── Dashboard de posições (Consultar endereço) ── */
-.ruaChips{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:2px}
+/* ── Consultar: ruas + posições ── */
+.ruaChips{
+  display:flex;gap:8px;overflow-x:auto;padding:2px 16px 12px;margin:-4px -16px 2px;
+  scrollbar-width:none;
+}
+.ruaChips::-webkit-scrollbar{display:none}
 .ruaChip{
-  flex-shrink:0;padding:8px 16px;border-radius:99px;border:1.5px solid var(--line);
-  background:#fff;font-weight:700;font-size:14px;cursor:pointer;color:var(--text);
+  flex-shrink:0;min-width:48px;height:46px;padding:0 16px;border-radius:12px;border:2px solid var(--line);
+  background:#fff;font-family:var(--mono);font-weight:800;font-size:18px;cursor:pointer;color:var(--text);
 }
-.ruaChip.active{background:var(--green);color:#fff;border-color:var(--green-dark)}
-
-.posList{display:flex;flex-direction:column;gap:7px;max-height:58vh;overflow-y:auto;padding-right:2px}
+.ruaChip.active{background:var(--ink);color:var(--amber);border-color:var(--ink)}
+.posList{display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
 .posRow{
-  display:flex;align-items:center;gap:10px;border-radius:var(--radius-md);padding:9px 11px;
-  border:1.5px solid var(--line2);background:var(--surface);
+  display:flex;align-items:center;gap:12px;border-radius:var(--radius-md);padding:8px 12px 8px 8px;min-height:58px;
+  border:2px dashed #c3d0de;background:transparent;
 }
-.posRow.occ{border-color:#fecaca;background:#fff8f8;cursor:pointer}
-.posRow.occ:active{background:#ffedee}
+.posRow.occ{border:2px solid transparent;background:#fff;box-shadow:0 1px 2px rgba(15,28,24,.07);cursor:pointer}
 .posRow.hide{display:none}
 .posNum{
-  width:32px;height:32px;border-radius:8px;background:#fff;border:1.5px solid var(--green);color:var(--green-dark);
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex-shrink:0;
+  width:44px;height:42px;border-radius:9px;background:transparent;color:var(--free-text);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px;flex-shrink:0;
   font-variant-numeric:tabular-nums;
 }
-.posRow.occ .posNum{border-color:var(--danger);color:var(--danger)}
+.posRow.occ .posNum{background:var(--ink);color:var(--amber);box-shadow:0 0 0 2px var(--amber)}
 .posInfo{flex:1;min-width:0}
-.posInfo .desc{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.posInfo .meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.posFreeLabel{font-size:12.5px;color:var(--green-dark);font-weight:600}
-.posBadge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;flex-shrink:0;white-space:nowrap}
-.posRow:not(.occ) .posBadge{background:var(--green-light);color:var(--green-dark)}
-.posRow.occ .posBadge{background:var(--danger-bg);color:var(--danger)}
-
-/* ── Usuário logado ── */
-.userBtn{
-  display:inline-flex;align-items:center;gap:4px;margin-top:3px;
-  font-size:11px;font-weight:600;color:var(--green-dark);
-  background:var(--green-light);border:1px solid #a7f3d0;border-radius:99px;
-  padding:2px 8px;cursor:pointer;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
-}
-.logoutBtn{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  background:none;border:1.5px solid #fecaca;border-radius:var(--radius-sm);
-  cursor:pointer;color:var(--danger);font-size:10px;font-weight:700;
-  padding:6px 8px;flex-shrink:0;
-}
-.logoutBtn svg{width:17px;height:17px;stroke:var(--danger);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.logoutBtn:active{background:var(--danger-bg)}
-
-/* ── Login overlay ── */
-.loginOverlay{
-  position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;
-  z-index:9999;background:linear-gradient(135deg,#064e3b 0%,#065f46 40%,#059669 100%);
-  display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;
-}
-.loginOverlay.hidden{display:none!important}
-.loginCard{
-  background:#fff;border-radius:20px;padding:36px 28px;width:min(360px,100%);
-  text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.32);
-  animation:materialIn .35s cubic-bezier(.2,.8,.2,1);
-}
-.loginLogo{font-size:36px;margin-bottom:8px}
-.loginTitle{font-weight:700;font-size:17px;color:var(--text);margin-bottom:4px;letter-spacing:-0.01em}
-.loginSub{font-size:13px;color:var(--muted);margin-bottom:24px}
-.loginErrMsg{border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-top:10px;
-  background:var(--danger-bg);color:#991b1b;border:1px solid #fecaca;display:none}
-
-/* ── Overlay da sessão (info + sair) ── */
-.uiOverlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:16px}
-.uiOverlay.show{display:flex}
-.uiModal{background:#fff;border-radius:var(--radius-lg);width:min(320px,100%);padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25);text-align:center;animation:materialIn .3s cubic-bezier(.2,.8,.2,1)}
-.uiModalTitle{font-weight:700;font-size:15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
-.uiModalTitle button{background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:2px 4px}
-.uiUserName{font-weight:700;font-size:16px;margin-bottom:4px}
-.uiUserEmail{font-size:12px;color:var(--muted);margin-bottom:16px;word-break:break-all}
-@media (prefers-reduced-transparency: reduce){
-  .uiOverlay{background:rgba(0,0,0,.85);backdrop-filter:none}
-}
+.posInfo .desc{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posInfo .meta{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posFreeLabel{font-size:13.5px;color:var(--muted);font-weight:600}
+.posBadge{font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:99px;flex-shrink:0;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+.posRow:not(.occ) .posBadge{background:var(--free);color:var(--free-text)}
+.posRow.occ .posBadge{background:#e8edf3;color:var(--muted)}
 
 /* ── Histórico ── */
-.logDay{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
-.logEntry{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:10px 12px}
-.logTop{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
-.logTime{font-size:11px;color:var(--muted);font-weight:600}
-.logOp{font-size:11px;color:var(--subtle)}
-.logBadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0}
-.logBadge.end{background:var(--green-light);color:var(--green-dark)}
+.logDay{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:14px 0 6px}
+.logEntry{background:#fff;border-radius:var(--radius-md);padding:11px 14px;box-shadow:0 1px 2px rgba(15,28,24,.07)}
+.logTop{display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap}
+.logTime{font-size:12px;color:var(--muted);font-weight:700;font-family:var(--mono)}
+.logOp{font-size:11.5px;color:var(--subtle)}
+.logBadge{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:99px;flex-shrink:0}
+.logBadge.end{background:var(--free);color:var(--free-text)}
 .logBadge.trf{background:var(--info-bg);color:var(--info)}
 .logBadge.del{background:var(--danger-bg);color:var(--danger)}
-.logDesc{font-weight:600;font-size:12.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.logMeta{font-size:11px;color:var(--muted)}
-.logLoc{font-weight:700;color:var(--text)}
-.logScroll{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto;padding-right:2px}
-.histActions{display:flex;gap:8px;margin-bottom:14px}
-.histActions .btn{margin-top:0;flex:1}
-.histEmpty{display:none;border-radius:var(--radius-md);padding:12px 14px;font-size:13px;background:var(--info-bg);color:#1e3a8a;border:1px solid #bfdbfe}
+.logDesc{font-weight:700;font-size:13.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logMeta{font-size:12px;color:var(--muted)}
+.logLoc{font-weight:800;color:var(--text);font-family:var(--mono)}
+.logScroll{display:flex;flex-direction:column;gap:8px}
+.histActions{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:6px}
+.histActions .btn{height:48px;font-size:14.5px}
+.histEmpty{display:none;border-radius:var(--radius-sm);padding:14px;font-size:13.5px;background:var(--info-bg);color:#1e3a8a}
+
+/* ── Login / troca de senha: tela cheia, sem cartão ── */
+.loginOverlay{
+  position:fixed;inset:0;width:100%;height:100%;z-index:9999;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(var(--safe-t) + 24px) 24px calc(var(--safe-b) + 24px);overflow-y:auto;
+}
+.loginOverlay.hidden{display:none!important}
+.loginCard{width:min(360px,100%);text-align:left;animation:materialIn .35s cubic-bezier(.2,.8,.2,1)}
+.loginLogo{margin-bottom:22px}
+.loginTitle{font-weight:800;font-size:26px;letter-spacing:-.02em;line-height:1.1;margin-bottom:4px}
+.loginSub{font-size:14px;color:#9db6d1;margin-bottom:26px}
+.loginCard .inputField{background:var(--ink2);border-color:#27517d;color:#fff;margin-bottom:10px}
+.loginCard .inputField::placeholder{color:#7f9bb9}
+.loginCard .inputField:focus{border-color:var(--amber);box-shadow:0 0 0 4px rgba(242,180,0,.16)}
+.loginCard .btn-primary{margin-top:8px;background:#1b7fd6;color:#fff}
+.loginCard .btn-primary:active{background:#1566b0}
+.loginErrMsg{border-radius:var(--radius-sm);padding:11px 14px;font-size:13.5px;margin-top:4px;background:#4a1d24;color:#ffd0d6;display:none}
+.linkBtn{background:none;border:none;color:#9db6d1;font-size:13.5px;margin-top:18px;cursor:pointer;text-decoration:underline;padding:6px 0}
+
+/* ── Sessão atual ── */
+.uiOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:flex-end;justify-content:center;padding:0}
+.uiOverlay.show{display:flex}
+.uiModal{
+  background:#fff;border-radius:22px 22px 0 0;width:min(520px,100%);padding:20px 20px calc(var(--safe-b) + 20px);
+  animation:sheetUp .28s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.uiModalTitle{font-weight:800;font-size:13px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.uiModalTitle button{background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);padding:4px 8px}
+.uiUserName{font-weight:800;font-size:20px;margin-bottom:2px}
+.uiUserEmail{font-size:13px;color:var(--muted);margin-bottom:18px;word-break:break-all}
+@media (prefers-reduced-transparency: reduce){
+  .uiOverlay{background:rgba(0,0,0,.88);backdrop-filter:none}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-
-    <div class="header">
-      <div class="appIcon" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div class="appName">Coletor de Endereçamento</div>
+<div class="app">
+  <header class="appbar">
+    <div class="appbarTop">
+      <div class="appMark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+      <div class="appHead">
+        <div class="appName">Endereçamento</div>
         <div class="appSub">Humana Alimentar</div>
-        <button class="userBtn" id="btnUser">👤 …</button>
       </div>
-      <div class="sessionCount"><b id="sessionCount">0</b>hoje</div>
-      <button class="logoutBtn" id="btnLogoutHeader" title="Sair da conta">
+      <div class="sessionCount"><b id="sessionCount">0</b><span>hoje</span></div>
+      <button class="iconBtn2" id="btnRefresh" title="Atualizar estoque" aria-label="Atualizar estoque">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </button>
+      <button class="iconBtn2" id="btnLogoutHeader" title="Sair da conta" aria-label="Sair da conta">
         <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Sair
       </button>
     </div>
-
-    <div class="tabBar">
-      <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">📦 Endereçar</button>
-      <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">📍 Consultar</button>
-      <button class="tabBtn" id="tabHistorico" data-view="viewHistorico">📋 Histórico</button>
+    <div class="appbarSub">
+      <span class="hint" id="pendingCountHint">Carregando estoque…</span>
+      <button class="userBtn" id="btnUser">👤 …</button>
     </div>
+  </header>
 
-    <div class="body">
+  <main class="main" id="mainScroll">
 
       <!-- VIEW: ENDEREÇAR / TRANSFERIR ============================== -->
       <div class="view active" id="viewEnderecar">
 
         <!-- STEP 1: buscar produto -->
         <div class="step active" id="step1">
+          <h1 class="stepTitle">Qual produto?</h1>
+          <p class="stepLead">Bipe o código de barras ou digite o SKU.</p>
           <label class="label" for="skuIn">Código do produto (SKU ou EAN)</label>
           <div class="inputRow">
             <input class="inputField" id="skuIn" inputmode="text" autocomplete="off" placeholder="Ex: 2155" autofocus>
@@ -352,13 +400,13 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
           </div>
           <div class="hint">Toque na câmera para escanear, ou use um leitor físico (envia Enter automaticamente)</div>
           <div class="row2">
-            <button class="btn btn-primary" id="btnBuscarSku" style="margin-top:10px">Buscar</button>
+            <button class="btn btn-primary" id="btnBuscarSku">Buscar</button>
             <button class="btn btn-ghost" id="btnLimparBusca">✕ Limpar</button>
           </div>
 
           <div id="matchList" class="matchList"></div>
           <div id="step1Msg" class="msg"></div>
-          <button class="btn btn-ghost" id="btnNovaConsulta" style="display:none">↻ Nova consulta</button>
+          <button class="btn btn-ghost" id="btnNovaConsulta" style="display:none;margin-top:10px">↻ Nova consulta</button>
         </div>
 
         <!-- OVERLAY SCANNER -->
@@ -377,6 +425,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 
         <!-- STEP 2: escolher destino -->
         <div class="step" id="step2">
+          <h1 class="stepTitle" id="step2Title">Para onde vai?</h1>
           <div class="itemBox" id="itemBoxDestino"></div>
 
           <div class="acaoToggle" id="acaoToggle" style="display:none">
@@ -384,28 +433,39 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
             <button type="button" class="acaoBtn" id="btnAcaoAdicionar">+ Adicionar novo endereço</button>
           </div>
 
-          <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
-          <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="Ex: A" maxlength="1" style="text-transform:uppercase">
-
-          <div style="height:10px"></div>
-
-          <label class="label" id="posLabel" for="posIn">Posição de destino <span style="font-weight:400;color:var(--muted)">(1 a 40)</span></label>
-          <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="Ex: 12" maxlength="2">
+          <div class="plate">
+            <div class="cell">
+              <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
+              <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="A" maxlength="1" style="text-transform:uppercase">
+            </div>
+            <div class="cell">
+              <label class="label" id="posLabel" for="posIn">Posição de destino <span style="font-weight:400">(1 a 40)</span></label>
+              <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="12" maxlength="2">
+            </div>
+          </div>
 
           <div id="step2Msg" class="msg"></div>
 
-          <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
-          <button class="btn btn-danger" id="btnLiberarPos" style="display:none">🗑 Liberar posição (sem produto)</button>
-          <button class="btn btn-ghost" id="btnBack1">← Buscar outro item</button>
+          <div class="actions">
+            <button class="btn btn-primary" id="btnToConfirm">Confirmar destino →</button>
+            <div class="pair">
+              <button class="btn btn-ghost" id="btnBack1">← Buscar outro</button>
+              <button class="btn btn-danger" id="btnLiberarPos" style="display:none">🗑 Liberar posição</button>
+            </div>
+          </div>
         </div>
 
         <!-- STEP 3: confirmar e enviar -->
         <div class="step" id="step3">
+          <h1 class="stepTitle">Confira antes de enviar</h1>
+          <p class="stepLead">Depois de enviado, o ERP já passa a usar este endereço.</p>
           <div class="msg warn" id="liberarWarn" style="display:none">⚠ Operação irreversível: o item será desvinculado dessa posição no ERP.</div>
           <div class="itemBox" id="itemBoxConfirm"></div>
           <div id="step3Msg" class="msg"></div>
-          <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
-          <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+          <div class="actions">
+            <button class="btn btn-primary" id="btnConfirmSend">✓ Confirmar Endereçamento</button>
+            <button class="btn btn-ghost" id="btnBack2">← Voltar</button>
+          </div>
         </div>
 
       </div>
@@ -415,7 +475,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
         <div class="ruaChips" id="ruaChips"></div>
         <div class="inputRow" style="margin-bottom:12px">
           <input class="inputField" id="dashFiltro" autocomplete="off" placeholder="Filtrar por SKU, descrição ou posição">
-          <button class="btn-scan" id="btnLimparFiltro" title="Limpar filtro" aria-label="Limpar filtro" style="background:#fff;border:1.5px solid var(--line);color:var(--muted)">
+          <button class="btn-scan" id="btnLimparFiltro" title="Limpar filtro" aria-label="Limpar filtro" style="background:#fff;border:2px solid var(--line);color:var(--muted)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -431,45 +491,46 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
         <div id="histEmpty" class="histEmpty">Nenhuma ação registrada neste dispositivo ainda.</div>
         <div id="logScroll" class="logScroll"></div>
       </div>
+  </main>
 
-    </div>
-
-    <div class="footerBar">
-      <span class="hint" id="pendingCountHint">Carregando estoque…</span>
-      <button class="refreshBtn" id="btnRefresh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        Atualizar
-      </button>
-    </div>
-
-  </div>
+  <nav class="tabbar" aria-label="Seções">
+    <button class="tabBtn active" id="tabEnderecar" data-view="viewEnderecar">
+      <svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Endereçar
+    </button>
+    <button class="tabBtn" id="tabConsultar" data-view="viewConsultar">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Consultar
+    </button>
+    <button class="tabBtn" id="tabHistorico" data-view="viewHistorico">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Histórico
+    </button>
+  </nav>
 </div>
 
 <!-- OVERLAY: login (e-mail corporativo + senha, cadastro em Usuários no WMS) -->
 <div class="loginOverlay" id="loginOverlay">
   <div class="loginCard">
-    <div class="loginLogo">📦</div>
-    <div class="loginTitle">Coletor de Endereçamento</div>
+    <div class="loginLogo"><span class="plateShow"><i>A</i><i>12</i></span></div>
+    <div class="loginTitle">Endereçamento</div>
     <div class="loginSub">Humana Alimentar</div>
     <input class="inputField" id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="seu@humanaalimentar.com.br" style="margin-bottom:10px">
     <input class="inputField" id="loginSenha" type="password" autocomplete="current-password" placeholder="Senha">
     <div id="loginErro" class="loginErrMsg"></div>
     <button class="btn btn-primary" id="btnLoginEntrar" type="button">Entrar</button>
-    <button id="btnEsqueciSenha" type="button" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:14px;cursor:pointer;text-decoration:underline">Esqueci minha senha</button>
+    <button id="btnEsqueciSenha" type="button" class="linkBtn">Esqueci minha senha</button>
   </div>
 </div>
 
 <!-- OVERLAY: primeira senha (troca obrigatória no 1º acesso) -->
 <div class="loginOverlay hidden" id="senhaOverlay">
   <div class="loginCard">
-    <div class="loginLogo">🔐</div>
+    <div class="loginLogo"><span class="plateShow"><i>•</i><i>•••</i></span></div>
     <div class="loginTitle">Crie sua senha</div>
     <div class="loginSub" id="senhaSub">Este é seu primeiro acesso. Troque a senha que o supervisor te passou por uma que só você saiba.</div>
     <input class="inputField" id="senhaNova1" type="password" autocomplete="new-password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px">
     <input class="inputField" id="senhaNova2" type="password" autocomplete="new-password" placeholder="Repita a nova senha">
     <div id="senhaErro" class="loginErrMsg"></div>
     <button class="btn btn-primary" id="btnSalvarSenhaNova" type="button">Salvar e entrar</button>
-    <button id="btnSenhaSair" type="button" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:14px;cursor:pointer;text-decoration:underline">Sair</button>
+    <button id="btnSenhaSair" type="button" class="linkBtn">Sair</button>
   </div>
 </div>
 
@@ -590,6 +651,32 @@ function brDate(iso) {
 const $ = id => document.getElementById(id);
 let estoqueAtual = [];
 let selecionado = null;       // registro do ERP escolhido
+// Sugestões de posição publicadas pelo WMS (coleção wms_sugestoes, um doc por SKU).
+// É só ajuda: se não carregar, o coletor funciona igual.
+let sugestoes = {};
+const SUG_VALIDADE_DIAS = 7;
+async function carregarSugestoes() {
+  try {
+    const snap = await db.collection('wms_sugestoes').get();
+    const m = {};
+    snap.docs.forEach(d => { const s = d.data(); if (s && s.sku) m[String(s.sku).trim()] = s; });
+    sugestoes = m;
+  } catch (e) { sugestoes = {}; console.warn('[coletor] sugestões indisponíveis:', e.message || e); }
+}
+// A sugestão só vale se for recente e a posição continuar livre no estoque carregado.
+function sugestaoDoItem(item) {
+  const s = sugestoes[String(item.item_codigo || '').trim()];
+  if (!s) return null;
+  if (s.ts && (Date.now() - new Date(s.ts).getTime()) > SUG_VALIDADE_DIAS * 86400000) return null;
+  const ocupada = estoqueAtual.some(r => String(r.rua || '').trim().toUpperCase() === String(s.rua).toUpperCase() && String(r.posicao || '').trim() === String(s.pos));
+  return ocupada ? null : s;
+}
+function usarSugestao(rua, pos) {
+  $('ruaIn').value = rua;
+  $('posIn').value = pos;
+  $('posIn').focus();
+}
+
 let modoTransferencia = false; // true = item já endereçado (mostra o seletor de ação)
 let acaoDestino = 'enderecar'; // 'enderecar' (POST, saldo cheio) | 'transferir' (PUT) | 'adicionar' (POST, mesmo lote/validade, sem saldo)
 let sessionCount = 0;
@@ -713,6 +800,7 @@ function liberarApp() {
   hideLoginOverlay();
   $('senhaOverlay').classList.add('hidden');
   setTimeout(() => $('skuIn').focus(), 100);
+  carregarSugestoes();
   carregarEstoque().then(() => {
     renderRuaChips();
     renderPosList();
@@ -979,6 +1067,11 @@ function selecionarItem(item) {
     ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
     : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
 
+  const sug = modoTransferencia ? null : sugestaoDoItem(item);
+  const sugHtml = sug
+    ? `<div class="sugBox"><div class="sugTxt"><small>Posição sugerida</small><b>${sug.rua} · ${sug.pos}</b></div><button type="button" class="btnUsar" data-usar-sug data-rua="${sug.rua}" data-pos="${sug.pos}">Usar</button></div>`
+    : '';
+
   $('itemBoxDestino').innerHTML = `
     <div class="desc">${item.item_descricao || '–'}</div>
     <div class="meta">
@@ -987,7 +1080,8 @@ function selecionarItem(item) {
       <span>Val. ${brDate(item.dt_validade)}</span>
       <span>Saldo ${item.saldo_aberto || '–'}</span>
     </div>
-    ${statusLine}`;
+    ${statusLine}${sugHtml}`;
+  $('itemBoxDestino').querySelectorAll('[data-usar-sug]').forEach(b => b.addEventListener('click', () => usarSugestao(b.dataset.rua, b.dataset.pos)));
 
   $('acaoToggle').style.display = modoTransferencia ? 'flex' : 'none';
   $('btnLiberarPos').style.display = modoTransferencia ? '' : 'none';
@@ -1210,7 +1304,7 @@ function irParaConfirmacao() {
     <div class="summaryRow"><span class="k">Validade</span><span class="v">${brDate(selecionado.dt_validade)}</span></div>
     <div class="summaryRow"><span class="k">Saldo</span><span class="v">${selecionado.saldo_aberto || '–'}</span></div>
     ${origemRow}
-    <div class="summaryRow"><span class="k">Para</span><span class="v">${rua} · Pos. ${pos}</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px"><span style="color:var(--muted);font-size:13.5px">Para</span><span class="plateShow"><i>${rua}</i><i>${pos}</i></span></div>
   `;
   hideMsg('step3Msg');
   showStep(3);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coletor-endereco-v4';
+const CACHE_NAME = 'coletor-endereco-v5';
 const ASSETS = [
   './coletor_endereco.html',
   './manifest-endereco.json',
