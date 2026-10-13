@@ -251,6 +251,10 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .valRow.u7 .valDias b{color:#c25400}
 .sinalRow{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:600;margin:0 0 14px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .sinalRow input{width:22px;height:22px;accent-color:var(--green)}
+.tagDiv{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--warn-bg);border:1.5px solid #f3dc9a;font-size:12.5px;line-height:1.35;color:var(--warn)}
+.tagDiv b{display:block;font-size:12.5px}
+.tagDiv span{display:block;font-family:var(--mono);font-size:12px;margin-top:2px;color:var(--text)}
+.tagDiv.dup{background:#fdecec;border-color:#f3c3c3;color:#8e1c1c}
 .btnUsar{
   height:44px;padding:0 22px;border:none;border-radius:11px;background:var(--ink);color:var(--amber);
   font-size:15px;font-weight:800;cursor:pointer;
@@ -1104,7 +1108,7 @@ function buscarSku(sku) {
     return `
     <div class="matchCard" data-idx="${i}">
       <div class="desc">${m.item_descricao || '–'}</div>
-      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'} · ${statusTxt}</div>
+      <div class="meta">Lote ${m.numero_lote || '–'} · Val. ${brDate(m.dt_validade)} · Saldo ${m.saldo_aberto || '–'} · ${statusTxt}</div>${etiquetaLote(m)}
     </div>`;
   }).join('');
   $('matchList').querySelectorAll('[data-idx]').forEach(card => {
@@ -1141,7 +1145,7 @@ function selecionarItem(item) {
       <span>Val. ${brDate(item.dt_validade)}</span>
       <span>Saldo ${item.saldo_aberto || '–'}</span>
     </div>
-    ${statusLine}${sugHtml}`;
+    ${statusLine}${etiquetaLote(item)}${sugHtml}`;
   $('itemBoxDestino').querySelectorAll('[data-usar-sug]').forEach(b => b.addEventListener('click', () => usarSugestao(b.dataset.rua, b.dataset.pos)));
 
   $('acaoToggle').style.display = modoTransferencia ? 'flex' : 'none';
@@ -1239,7 +1243,7 @@ function liberarPorEndereco(rua, pos) {
   $('matchList').innerHTML = itens.map((m, i) => `
     <div class="matchCard" data-idx="${i}">
       <div class="desc">${m.item_descricao || '–'}</div>
-      <div class="meta">SKU ${m.item_codigo || '–'} · Lote ${m.numero_lote || '–'} · Saldo ${m.saldo_aberto || '–'}</div>
+      <div class="meta">SKU ${m.item_codigo || '–'} · Lote ${m.numero_lote || '–'} · Saldo ${m.saldo_aberto || '–'}</div>${etiquetaLote(m)}
     </div>`).join('');
   $('matchList').querySelectorAll('[data-idx]').forEach(card => {
     card.addEventListener('click', () => {
@@ -1480,6 +1484,30 @@ async function confirmarEnvio() {
     btn.disabled = false;
     btn.innerHTML = acaoDestino === 'remover' ? '🗑 Confirmar liberação' : '✓ Confirmar Endereçamento';
   }
+}
+
+// ── Etiqueta de lote dividido / linha repetida ───────────────────────────────
+// Um lote (SKU + lote + validade) pode ter várias linhas no ERP. Se as posições são
+// diferentes, o lote está dividido; se a mesma posição aparece mais de uma vez, é
+// provável linha repetida (cadastro duplicado). O estoque que vale por posição é o
+// campo bruto "estoque" de cada linha; "saldo_aberto" é o total do lote e se repete.
+// Só mostra, não altera nada.
+function etiquetaLote(item) {
+  if (!item || !item.rua || !item.posicao) return '';
+  const mesmas = estoqueAtual.filter(r => r.rua && r.posicao &&
+    String(r.item_codigo || '').trim() === String(item.item_codigo || '').trim() &&
+    String(r.numero_lote || '') === String(item.numero_lote || '') &&
+    String(r.dt_validade || '') === String(item.dt_validade || ''));
+  if (mesmas.length < 2) return '';
+  const posicoes = new Set(mesmas.map(r => r.rua + ' ' + r.posicao));
+  const repetida = posicoes.size < mesmas.length;
+  const titulo = posicoes.size === 1
+    ? 'Possível linha repetida: ' + mesmas.length + ' linhas em ' + item.rua + ' ' + item.posicao
+    : repetida ? 'Dividido em ' + posicoes.size + ' posições, com linha repetida'
+               : 'Lote dividido em ' + posicoes.size + ' posições';
+  const est = Number(String(item.estoque == null ? '' : item.estoque).replace(',', '.')) || 0;
+  const id = item.id_item_enderecamento ? ' · ID ' + item.id_item_enderecamento : '';
+  return '<div class="tagDiv' + (repetida ? ' dup' : '') + '"><b>' + titulo + '</b><span>Estoque desta linha: ' + est.toLocaleString('pt-BR') + id + '</span></div>';
 }
 
 // ── Validades: lotes com saldo que vencem em até 90 dias (ou já venceram) ─────

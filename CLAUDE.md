@@ -430,6 +430,12 @@ curl -X GET "https://humwms-proxy.vercel.app/api/sync" -H "Authorization: Bearer
 
 **Som e vibração no coletor (`sinal(tipo)`).** Tipos `scan`, `ok`, `aviso`, `erro`; vibração por `navigator.vibrate` (não existe no iPhone) e bip por WebAudio. Disparados em `showMsg` (`err`/`warn`/`ok`) e ao ler um código na câmera. O operador desliga na folha da sessão ("Som e vibração", `localStorage.hum_sinal`).
 
+**Etiqueta de lote dividido / linha repetida no coletor (13/10/2026).** `etiquetaLote(item)` aparece na lista da busca, no resumo do item e na lista de "liberar pela posição": amarela quando o mesmo SKU+lote+validade está em posições diferentes, vermelha quando a **mesma posição** tem mais de uma linha (provável cadastro repetido). Mostra "Estoque desta linha" (campo bruto `estoque`, o que vale por posição; `saldo_aberto` é o total do lote e se repete) e o **ID da linha** no ERP. Só informa. Não foi criada aba de "Lotes divididos" no coletor: em 13/10/2026 havia 9 lotes divididos em 149 (6%).
+
+**Duplicados confirmados pelo usuário em 13/10/2026 (ainda por limpar):** SKU 2135 DIAMAX IG 200ML em E12 (linhas com estoque 0 e 1734: apagar a de 0); SKU 1952 LINHAHUM CHA SENSE em G29 (duas linhas com 466); SKU 2121 LINHAHUM PROTINA WHEY 300G em F4 (duas linhas com 0). A limpeza por script foi **negada** pelo classificador de permissões do Claude Code (apagar linha em produção); o caminho seguro é o próprio coletor: aba Consultar, tocar na posição ocupada, escolher a linha repetida pela etiqueta (ID) e Liberar, o que também deixa o registro com e-mail em `wms_mov_log`. Apagar sempre por `id_item_enderecamento`, nunca por item_id (apaga todas as linhas do item).
+
+**Posições "ocupadas com saldo zero" (ideia de 13/10/2026, não implementada):** o GET de estoque não trouxe nenhuma linha endereçada com `saldo_aberto <= 0` (0 de 160), então provavelmente o ERP esconde lotes sem saldo e a posição esvaziada já aparece livre no mapa. As 22 linhas com `estoque` 0 mas lote com saldo são linhas extras/sem valor no campo, **não** são posições vazias. Antes de construir a rotina, confirmar com o dev do ERP se o GET esconde lotes zerados.
+
 ## Publicação
 
 O diretório `WMS/` local **não é um repositório git**. Repositório: `https://github.com/controlehumana/HumWMS` — publicado via GitHub Pages em `https://controlehumana.github.io/HumWMS/`.
