@@ -3576,9 +3576,6 @@ async function loadAll() {
     S.addresses   = addrSnap.docs.map(d => ({ ...d.data(), _key: d.id }));
     S.items       = itemsSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
     S.unaddressed = unSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
-    // Lotes na Segregação (marcados no coletor): saem da conta de "sem endereço"
-    try { S.segregados = new Set((await db.collection('wms_segregados').get()).docs.map(d => d.id)); }
-    catch (e) { S.segregados = new Set(); console.warn('segregados:', e.message); }
 
     // Se não há endereços, faz seed automático
     if (S.addresses.length === 0) {
@@ -4447,6 +4444,7 @@ function parseApiData(data) {
       unidadeId: String(r.empresa_id || '').trim(), // = unidade_id na API de escrita
       rua: itemRua, pos: itemPos
     };
+    if (rua === 'SEGREGACAO') { item.rua = ''; item.pos = ''; item.segregado = true; noAddr.push(item); continue; }
     if (itemRua && itemPos) { addrSet.add(`${itemRua}|${itemPos}`); items.push(item); }
     else { noAddr.push(item); }
   }
@@ -6182,14 +6180,8 @@ function openAssignModal(itemId) {
 var pendingPage = 1;
 var PENDING_PER_PAGE = 50;
 
-// Lote na Segregação? A chave é a do coletor: SKU__lote__AAAA-MM-DD, com "/" trocado por "~".
-function _emSegregacao(it) {
-  if (!S.segregados || !S.segregados.size) return false;
-  const p = String(it.val || '').split('/');
-  const iso = p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : String(it.val || '');
-  const k = [it.sku, it.lote, iso].map(x => String(x == null ? '' : x).trim()).join('__').replaceAll('/', '~');
-  return S.segregados.has(k);
-}
+// Lote na Segregação: no ERP é a linha com rua SEGREGACAO (parseApiData a marca como segregado).
+const _emSegregacao = it => !!it.segregado;
 const _semEnderecoAtivos = () => (S.unaddressed || []).filter(it => !_emSegregacao(it));
 
 function getPendingFiltered() {

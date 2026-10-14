@@ -4,8 +4,7 @@
     "api/erp.js": { "maxDuration": 30 },
     "api/senha.js": { "maxDuration": 30 },
     "api/sync.js": { "maxDuration": 45 },
-    "api/telegram.js": { "maxDuration": 30 },
-    "api/segregados.js": { "maxDuration": 15 }
+    "api/telegram.js": { "maxDuration": 30 }
   },
   "crons": [
     { "path": "/api/sync", "schedule": "0 13 * * *" },

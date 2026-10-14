@@ -1062,7 +1062,7 @@ function hideMsg(elId) {
 }
 
 function atualizarContagemHint() {
-  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao && !estaSegregado(r.item_codigo, r.numero_lote, r.dt_validade)).length;
+  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao).length;
   $('pendingCountHint').textContent = `${estoqueAtual.length} itens no estoque · ${pendentesCount} pendentes`;
 }
 
@@ -1111,7 +1111,7 @@ async function carregarEstoque() {
     estoqueAtual = juntarRepetidas(normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque())));
     atualizarContagemHint();
     atualizarBadgeValidades();
-    await carregarSegregados();
+    recalcularSeg();
     atualizarContagemHint();
     atualizarListaRuas();
   } catch (e) {
@@ -1159,7 +1159,7 @@ function buscarSku(sku) {
   // múltiplos lotes/posições do mesmo produto — pede pra escolher
   const sugBusca = sugestaoPorSku(matches[0].item_codigo);
   $('matchList').innerHTML = (sugBusca ? sugestaoHtml(sugBusca, false) : '') + matches.map((m, i) => {
-    const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : (estaSegregado(m.item_codigo, m.numero_lote, m.dt_validade) ? '🚧 Segregação' : 'Pendente (sem endereço)');
+    const statusTxt = ehSeg(m) ? '🚧 Segregação' : (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : 'Pendente (sem endereço)';
     return `
     <div class="matchCard" data-idx="${i}">
       <div class="desc">${m.item_descricao || '–'}</div>
@@ -1186,8 +1186,8 @@ function selecionarItem(item) {
   acaoDestino = modoTransferencia ? 'transferir' : 'enderecar';
 
   const statusLine = modoTransferencia
-    ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
-    : `<div class="summaryRow"><span class="k">Status</span><span class="v">${estaSegregado(item.item_codigo, item.numero_lote, item.dt_validade) ? '🚧 Segregação (área sem endereço)' : 'Pendente (sem endereço)'}</span></div>`;
+    ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${ehSeg(item) ? '🚧 Segregação' : item.rua + ' · Pos. ' + item.posicao}</span></div>`
+    : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
 
   const sug = sugestaoDoItem(item);
   const sugHtml = sug ? sugestaoHtml(sug, !modoTransferencia) : '';
@@ -1573,39 +1573,67 @@ function etiquetaLote(item) {
   return '<div class="tagDiv' + (repetida ? ' dup' : '') + '"><b>' + titulo + '</b><span>Saldo atual do lote: ' + saldo.toLocaleString('pt-BR') + '</span><span>Gravado nesta linha: ' + est.toLocaleString('pt-BR') + id + '</span></div>';
 }
 
-// ── Segregação: lotes que estão na área física de Segregação (sem endereço no ERP) ──
-// Qualquer operador marca e desmarca na aba Validades. Fica na coleção wms_segregados (chave =
-// SKU + lote + validade) e cada marcação vai para o log. Não altera nada no ERP.
-let segregados = new Map();
-const segKey = (sku, lote, val) =>
-  [sku, lote, val].map(x => String(x == null ? '' : x).trim()).join('__').replaceAll('/', '~');
-const estaSegregado = (sku, lote, val) => segregados.has(segKey(sku, lote, val));
-async function carregarSegregados() {
-  try {
-    if (typeof db === 'undefined' || !auth.currentUser) return;
-    const s = await db.collection('wms_segregados').get();
-    segregados = new Map(s.docs.map(d => [d.id, d.data()]));
-  } catch (e) { console.warn('[WMS] segregados:', e.message); }
-}
+// ── Segregação: área física sem endereço de prateleira ──
+// No ERP, o lote na Segregação tem uma linha de endereço com rua SEGREGACAO, posição 1 (e estoque
+// preenchido: a API não lista linha com estoque vazio). Essa linha é a fonte da verdade: quem usa o
+// ERP vê a mesma coisa. "Segregar" move o lote para lá (PUT na linha atual, ou POST se ainda não
+// tem endereço) e libera as posições antigas; "Tirar da Segregação" apaga a linha (o lote volta a
+// ficar sem endereço, para endereçar de novo). SEGREGACAO não é rua da grade: some das listas de ruas.
+const SEG_RUA = 'SEGREGACAO', SEG_POS = '1';
+const ehSeg = r => String(r.rua || '').trim().toUpperCase() === SEG_RUA;
+const chaveLote = (sku, lote, val) => [sku, lote, val].map(x => String(x == null ? '' : x).trim()).join('|');
+let segSet = new Set();
+const recalcularSeg = () => { segSet = new Set(estoqueAtual.filter(ehSeg).map(r => chaveLote(r.item_codigo, r.numero_lote, r.dt_validade))); };
+const estaSegregado = (sku, lote, val) => segSet.has(chaveLote(sku, lote, val));
+
 async function alternarSegregacao(g) {
-  const k = segKey(g.sku, g.lote, g.val), ja = segregados.has(k);
-  const ok = confirm((ja ? 'Tirar da Segregação?' : 'Marcar como Segregação?') + '\n\n' + (g.desc || g.sku) + '\nLote ' + (g.lote || '–'));
-  if (!ok) return;
+  const linhas = estoqueAtual.filter(r => chaveLote(r.item_codigo, r.numero_lote, r.dt_validade) === chaveLote(g.sku, g.lote, g.val));
+  const naSeg = linhas.filter(ehSeg), outras = linhas.filter(r => !ehSeg(r));
+  const ja = naSeg.length > 0;
+  const posAntigas = outras.filter(r => r.rua && r.posicao && r.id_item_enderecamento).map(r => r.rua + r.posicao);
+  const nome = (g.desc || g.sku) + '\nLote ' + (g.lote || '–');
+  const pergunta = ja
+    ? 'Tirar da Segregação?\n\n' + nome + '\n\nO lote volta a ficar sem endereço, para você endereçar de novo.'
+    : 'Enviar para a Segregação?\n\n' + nome + (posAntigas.length ? '\n\nA posição ' + posAntigas.join(', ') + ' será liberada.' : '');
+  if (!confirm(pergunta)) return;
+  document.querySelectorAll('.segBtn').forEach(b => { b.disabled = true; b.textContent = 'Salvando…'; });
   try {
-    if (ja) await db.collection('wms_segregados').doc(k).delete();
-    else await db.collection('wms_segregados').doc(k).set({
-      sku: g.sku, lote: g.lote, val: g.val, desc: g.desc || '',
-      por: getOperador(), email: operadorEmail || auth.currentUser.email || '', ts: new Date().toISOString()
+    let idLog = '';
+    if (ja) {
+      for (const r of naSeg) { idLog = r.id_item_enderecamento; await apagarGemeas(r); await erpDeleteEndereco(r.id_item_enderecamento); }
+    } else {
+      const comId = outras.filter(r => r.id_item_enderecamento).sort((a, b) => (parseFloat(b.estoque) || 0) - (parseFloat(a.estoque) || 0));
+      const base = comId[0];
+      if (base) {
+        idLog = base.id_item_enderecamento;
+        await apagarGemeas(base);
+        await erpUpdateEndereco({ id_item_enderecamento: base.id_item_enderecamento, rua: SEG_RUA, posicao: SEG_POS });
+        for (const r of comId.slice(1)) { await apagarGemeas(r); await erpDeleteEndereco(r.id_item_enderecamento); }
+      } else {
+        const p = outras[0] || linhas[0];
+        const res = await erpCreateEndereco({
+          item_id: p.item_id, unidade_id: p.empresa_id, estoque: p.saldo_aberto || undefined,
+          rua: SEG_RUA, posicao: SEG_POS, lote: p.numero_lote || undefined, data_validade: p.dt_validade || undefined
+        });
+        idLog = (res && res.id_item_enderecamento) || '';
+      }
+    }
+    appendLog({
+      acao: ja ? 'Saída da Segregação' : 'Segregação', sku: g.sku, desc: g.desc || '', lote: g.lote, val: g.val,
+      idEnd: idLog, rua: ja ? '' : SEG_RUA, pos: ja ? '' : SEG_POS
     });
-    if (ja) segregados.delete(k); else segregados.set(k, { sku: g.sku, lote: g.lote, val: g.val });
-    appendLog({ acao: ja ? 'Saída da Segregação' : 'Segregação', sku: g.sku, desc: g.desc || '', lote: g.lote, val: g.val, rua: '', pos: '' });
-    sinal('ok');
-    atualizarContagemHint();
-    renderValidades();
+    // O ERP responde sucesso mesmo sem efeito: confere pela consulta antes de dizer que deu certo.
+    await carregarEstoque();
+    if (estaSegregado(g.sku, g.lote, g.val) === ja) {
+      sinal('erro');
+      alert('O ERP respondeu, mas a mudança não apareceu na consulta. Atualize e confira o lote.');
+    } else sinal('ok');
   } catch (e) {
     sinal('erro');
     alert('Não foi possível salvar a Segregação: ' + mensagemErroAmigavel(e));
+    await carregarEstoque();
   }
+  renderValidades();
 }
 
 // ── Validades: lotes com saldo que vencem em até 90 dias (ou já venceram) ─────
@@ -1635,6 +1663,7 @@ function validadesAgrupadas() {
     const chave = [r.item_codigo, r.numero_lote, r.dt_validade].join('|');
     let g = mapa.get(chave);
     if (!g) { g = { sku: String(r.item_codigo || '').trim(), desc: r.item_descricao || '', lote: r.numero_lote || '', val: r.dt_validade, dias, saldo, pos: new Set() }; mapa.set(chave, g); }
+    if (ehSeg(r)) continue;
     g.pos.add(r.rua && r.posicao ? r.rua + ' ' + r.posicao : '');
   }
   return [...mapa.values()].sort((a, b) => a.dias - b.dias);
@@ -1719,7 +1748,7 @@ let ruaAtiva = 'A';
 function atualizarListaRuas() {
   const extras = [...new Set(estoqueAtual.map(r => String(r.rua || '').trim().toUpperCase()).filter(Boolean))];
   const todas = [...RUAS_BASE];
-  extras.forEach(r => { if (!todas.includes(r)) todas.push(r); });
+  extras.forEach(r => { if (r !== SEG_RUA && !todas.includes(r)) todas.push(r); });
   RUAS = todas.sort();
 }
 
@@ -1791,8 +1820,9 @@ function renderBuscaGlobal(filtro) {
   $('posList').innerHTML = `<div class="buscaInfo">${n} ${n === 1 ? 'endereço' : 'endereços'} em todas as ruas</div>` +
     ordem.map(([k, itens]) => {
       const [rua, pos] = k.split('|');
-      return `<div class="posRow occ" data-rua="${rua}" data-pos="${pos}" title="Toque para liberar esta posição">
-        <div class="posNum posNumRua">${rua}${pos}</div>
+      const ehS = rua === SEG_RUA;  // Segregação não é posição da grade: sem toque de "liberar"
+      return `<div class="posRow occ" ${ehS ? '' : `data-rua="${rua}" data-pos="${pos}" title="Toque para liberar esta posição"`}>
+        <div class="posNum posNumRua">${ehS ? '🚧' : rua + pos}</div>
         <div class="posInfo">
           <div class="desc">${itens.map(it => it.item_descricao || '–').join(' + ')}</div>
           <div class="meta">${itens.map(metaDaLinha).join(' / ')}</div>
