@@ -1644,6 +1644,7 @@ header {
               <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Validade</th>
               <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Dias</th>
               <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Estoque</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:500;border-bottom:1px solid var(--border)">Segregação</th>
             </tr>
           </thead>
           <tbody id="expiryTableBody"></tbody>
@@ -5786,7 +5787,7 @@ function renderExpiry() {
     </div>`;
   };
 
-  tbody.innerHTML = items.map(it => {
+  tbody.innerHTML = items.map((it, i) => {
     const days = daysUntil(it.val);
     const st   = expiryStatusBadge(days);
     const loc  = it.segregado ? '🚧 <strong>Segregação</strong>' : (it.rua && it.pos) ? `<strong>${it.rua}</strong> · Pos. ${it.pos}` : '<span style="color:var(--muted)">Sem endereço</span>';
@@ -5806,8 +5807,10 @@ function renderExpiry() {
       <td style="padding:10px 14px;font-size:13px;font-weight:500">${formatDate(it.val)}</td>
       <td style="padding:10px 14px">${daysLabel}</td>
       <td style="padding:10px 14px;font-size:13px;font-family:'DM Mono',monospace">${it.est||'–'}</td>
+      <td style="padding:10px 14px">${S.role !== 'viewer' ? `<button class="btn" data-segp="${i}" style="font-size:11px;padding:4px 10px;white-space:nowrap;border-color:#b39ddb;color:#4527a0;background:${it.segregado ? '#ede7f6' : '#fff'}">${it.segregado ? 'Tirar da Segregação' : 'Segregar'}</button>` : ''}</td>
     </tr>`;
   }).join('');
+  tbody.querySelectorAll('[data-segp]').forEach(b => b.addEventListener('click', () => alternarSegregacaoPainel(items[+b.dataset.segp], b)));
 }
 
 // Exportar lista de validades
@@ -6186,6 +6189,97 @@ function openAssignModal(itemId) {
 var pendingPage = 1;
 var PENDING_PER_PAGE = 50;
 
+// ── Segregação pelo painel ─────────────────────────────────────────────────────
+// Mesma regra do coletor: no ERP o lote segregado é uma linha com rua SEGREGACAO, posição 1, e
+// estoque preenchido. Segregar: PUT na linha com id (libera a prateleira antiga) e DELETE das demais,
+// ou POST se o lote ainda não tem endereço. Tirar: DELETE da linha (o lote volta a "sem endereço").
+// Depois do ERP, o Firestore (wms_items / wms_unaddressed) é ajustado na hora, para o painel refletir
+// sem esperar a sincronização; a próxima sincronização reconcilia tudo.
+const SEG_RUA_P = 'SEGREGACAO', SEG_POS_P = '1';
+
+// Linhas do ERP (consulta nova, sem cache) de um lote: SKU + lote + validade.
+async function _erpLinhasDoLote(sku, lote, val) {
+  const iso = _brDateToIso(val);
+  const r = await fetch(ERP_PROXY + encodeURIComponent(_erpUrl() + '&_=' + Date.now()), { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+  if (!r.ok) throw new Error('A consulta ao ERP falhou (HTTP ' + r.status + ').');
+  const d = await r.json();
+  if (!Array.isArray(d)) throw new Error('O ERP devolveu uma resposta inesperada.');
+  return d.filter(x => String(x.item_codigo || '').trim() === sku && String(x.numero_lote || '').trim() === lote && String(x.dt_validade || '').trim().slice(0, 10) === iso);
+}
+const _ehSegErp = x => String(x.rua || '').trim().toUpperCase() === SEG_RUA_P;
+
+async function alternarSegregacaoPainel(ref, btn) {
+  if (S.role === 'viewer') return;
+  const sku = String(ref.sku || '').trim(), lote = String(ref.lote || '').trim(), val = String(ref.val || '').trim();
+  const txt0 = btn ? btn.textContent : '';
+  const travar = (on, t) => {
+    document.querySelectorAll('[data-segp],[data-segp-id]').forEach(b => { b.disabled = on; });
+    if (btn && t) btn.textContent = t;
+  };
+  travar(true, 'Consultando ERP…');
+  try {
+    // O painel pode estar com dados de antes da última mudança: decide pelo que o ERP tem agora.
+    const linhas = await _erpLinhasDoLote(sku, lote, val);
+    if (!linhas.length) throw new Error('Este lote não foi encontrado no ERP. Sincronize o painel e tente de novo.');
+    const segL = linhas.filter(_ehSegErp);
+    const reais = linhas.filter(x => x.id_item_enderecamento && !_ehSegErp(x));
+    const ja = segL.length > 0;
+    const desc = ref.desc || linhas[0].item_descricao || sku;
+    const pergunta = ja
+      ? 'Tirar da Segregação?\n\n' + desc + '\nLote ' + (lote || '–') + '\n\nO lote volta a ficar sem endereço, para ser endereçado de novo.'
+      : 'Enviar para a Segregação?\n\n' + desc + '\nLote ' + (lote || '–') + (reais.length ? '\n\nA posição ' + reais.map(x => x.rua + x.posicao).join(', ') + ' será liberada.' : '');
+    if (!confirm(pergunta)) { travar(false, txt0); return; }
+    travar(true, 'Salvando…');
+
+    const ctxBase = { sku, desc, lote, val };
+    let idFinal = '';
+    if (ja) {
+      for (const x of segL) await _erpDeleteEndereco(x.id_item_enderecamento, { ...ctxBase, acao: 'Saída da Segregação', rua: SEG_RUA_P, pos: SEG_POS_P, idEnd: x.id_item_enderecamento });
+    } else if (reais.length) {
+      const ord = reais.slice().sort((a, b) => (parseFloat(b.estoque) || 0) - (parseFloat(a.estoque) || 0));
+      const base = ord[0];
+      idFinal = String(base.id_item_enderecamento);
+      await _erpUpdateEndereco({ id_item_enderecamento: base.id_item_enderecamento, rua: SEG_RUA_P, posicao: SEG_POS_P },
+        { ...ctxBase, acao: 'Segregação', rua: SEG_RUA_P, pos: SEG_POS_P, de_rua: base.rua, de_pos: base.posicao, idEnd: base.id_item_enderecamento });
+      for (const x of ord.slice(1)) await _erpDeleteEndereco(x.id_item_enderecamento, { ...ctxBase, acao: 'Liberação', rua: x.rua, pos: x.posicao, idEnd: x.id_item_enderecamento });
+    } else {
+      const m = linhas[0];
+      const r = await _erpCreateEndereco({
+        item_id: m.item_id, unidade_id: m.empresa_id, estoque: m.saldo_aberto || undefined,
+        rua: SEG_RUA_P, posicao: SEG_POS_P, lote: lote || undefined, data_validade: _brDateToIso(val) || undefined
+      }, { ...ctxBase, acao: 'Segregação', rua: SEG_RUA_P, pos: SEG_POS_P });
+      idFinal = r.id_item_enderecamento ? String(r.id_item_enderecamento) : '';
+    }
+
+    // O ERP responde sucesso mesmo sem efeito: confere antes de dizer que deu certo.
+    const depois = await _erpLinhasDoLote(sku, lote, val);
+    if (depois.some(_ehSegErp) === ja) throw new Error('O ERP respondeu, mas a mudança não apareceu na consulta. Confira o lote no ERP.');
+
+    // Firestore: reflete a mudança agora (se falhar, o ERP já está certo e a sincronização corrige).
+    try {
+      const mesmo = it => String(it.sku || '').trim() === sku && String(it.lote || '').trim() === lote && String(it.val || '').trim() === val;
+      const itens = S.items.filter(mesmo), sem = (S.unaddressed || []).filter(mesmo);
+      const molde = itens[0] || sem[0] || ref;
+      const agora = new Date().toISOString(), batch = db.batch();
+      const campos = { sku, desc: molde.desc || desc, lote, val, est: molde.est || '', estBruto: molde.estBruto || '', emp: molde.emp || '', itemId: molde.itemId || '', unidadeId: molde.unidadeId || '', rua: '', pos: '', updatedAt: agora, updatedBy: S.user.email };
+      sem.forEach(it => batch.delete(db.collection('wms_unaddressed').doc(it._id)));
+      if (ja) {
+        batch.set(db.collection('wms_unaddressed').doc('unaddr_volta_' + Date.now()), { ...campos, idEnd: '', pendingAddr: true });
+      } else {
+        itens.forEach(it => batch.delete(db.collection('wms_items').doc(it._id)));
+        batch.set(db.collection('wms_unaddressed').doc('seg_' + Date.now()), { ...campos, idEnd: idFinal, segregado: true, pendingAddr: false });
+      }
+      await batch.commit();
+    } catch (e) { console.warn('[WMS] segregação: Firestore não atualizou agora:', e.message); }
+    await loadAll();
+    renderExpiry(); renderPending();
+    alert(ja ? 'Lote fora da Segregação. Ele voltou para "Sem endereço".' : 'Lote enviado para a Segregação.');
+  } catch (e) {
+    alert('Não foi possível concluir a Segregação: ' + (e.message || e));
+    travar(false, txt0);
+  }
+}
+
 // Lote na Segregação: no ERP é a linha com rua SEGREGACAO (parseApiData a marca como segregado).
 const _emSegregacao = it => !!it.segregado;
 const _semEnderecoAtivos = () => (S.unaddressed || []).filter(it => !_emSegregacao(it));
@@ -6241,6 +6335,7 @@ function renderPending() {
       <td style="padding:9px 14px;font-size:13px;font-family:'DM Mono',monospace">${it.est||'–'}</td>
       <td style="padding:9px 14px;display:flex;gap:6px;align-items:center">
         ${canEdit ? `<button class="btn" data-assign="${it._id}" style="font-size:11px;padding:4px 10px;background:#fffbeb;border-color:#fcd34d;color:#92400e;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Atribuir</button>` : ''}
+        ${canEdit ? `<button class="btn" data-segp-id="${it._id}" style="font-size:11px;padding:4px 10px;border-color:#b39ddb;color:#4527a0;background:#fff;white-space:nowrap">Segregar</button>` : ''}
         <button class="btn btn-cartaz-item" data-sku="${(it.sku||'').replace(/"/g,'&quot;')}" data-desc="${(it.desc||'').replace(/"/g,'&quot;')}" data-lote="${(it.lote||'').replace(/"/g,'&quot;')}" data-val="${(it.val||'').replace(/"/g,'&quot;')}" style="font-size:11px;padding:4px 10px;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Cartaz</button>
       </td>
     </tr>`;
@@ -6266,6 +6361,11 @@ function renderPending() {
   tbody.querySelectorAll('[data-assign]').forEach(btn => {
     btn.addEventListener('click', () => openAssignModal(btn.dataset.assign));
   });
+
+  tbody.querySelectorAll('[data-segp-id]').forEach(b => b.addEventListener('click', () => {
+    const it = (S.unaddressed || []).find(x => x._id === b.dataset.segpId);
+    if (it) alternarSegregacaoPainel(it, b);
+  }));
 
   // Wire cartaz buttons
   tbody.querySelectorAll('.btn-cartaz-item').forEach(btn => {
