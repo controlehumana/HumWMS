@@ -25,14 +25,22 @@ function agrupar(dados, hoje, maxDias) {
   return [...mapa.values()].sort((a, b) => a.d - b.d);
 }
 
+// Cartão de um lote, em 3 linhas:
+//   2290 · LINHAHUM DIATROFI SACHE 52G
+//   📍 F38   📦 Lote 2DS3325A   Saldo 3
+//   📅 11/08/2026 · venceu há 64 dias
 const linha = g => {
-  const quando = g.d < 0 ? `venceu há ${-g.d} d` : g.d === 0 ? 'vence HOJE' : `vence em ${g.d} d`;
+  const quando = g.d < 0 ? `venceu há ${-g.d} ${-g.d === 1 ? 'dia' : 'dias'}`
+    : g.d === 0 ? 'vence HOJE' : `vence em ${g.d} ${g.d === 1 ? 'dia' : 'dias'}`;
   const end = [...g.pos].join(', ');
-  return `• ${esc(g.sku)} ${esc(g.desc.slice(0, 38))}\n  Lote ${esc(g.lote)} · ${br(g.val)} (${quando}) · saldo ${g.saldo.toLocaleString('pt-BR')} · ${end ? '<b>' + esc(end) + '</b>' : 'sem endereço'}`;
+  return `<b>${esc(g.sku)}</b> · ${esc(g.desc.slice(0, 60))}\n` +
+    `📍 ${end ? '<b>' + esc(end) + '</b>' : 'sem endereço'}   📦 Lote ${esc(g.lote)}   Saldo ${g.saldo.toLocaleString('pt-BR')}\n` +
+    `📅 ${br(g.val)} · ${quando}\n`;
 };
-const cab = hoje => `<b>Validades no CD - ${hoje.split('-').reverse().join('/')}</b>`;
+const cab = hoje => `📋 <b>Validades no CD</b> · ${hoje.split('-').reverse().join('/')}`;
+const LINHA = '━━━━━━━━━━━━━━━━━━';
 
-// Junta as linhas em mensagens de até ~3800 caracteres (limite do Telegram: 4096),
+// Junta os itens em mensagens de até ~3800 caracteres (limite do Telegram: 4096),
 // quebrando só entre itens (um lote nunca é cortado no meio).
 function dividir(itens) {
   const out = []; let atual = '';
@@ -43,32 +51,59 @@ function dividir(itens) {
   if (atual) out.push(atual);
   return out;
 }
-// Cada "item" é um título, um lote (2 linhas) ou uma linha em branco.
-const blocoItens = (titulo, arr) => [`<b>${titulo} (${arr.length})</b>`, ...arr.map(linha), ''];
 
-// Aviso diário: todas as faixas em lista. Devolve { urgente, mensagens[] }.
+// Faixas de vencimento (dias a partir de hoje). Cada uma vira um bloco com título e seus lotes.
+const FAIXAS = [
+  { de: 0,   ate: 30,  icone: '🟠' },
+  { de: 31,  ate: 60,  icone: '🟡' },
+  { de: 61,  ate: 90,  icone: '🟢' },
+  { de: 91,  ate: 180, icone: '🔵' },
+  { de: 181, ate: 365, icone: '🔵' }
+];
+const tituloFaixa = (f, limite) => {
+  const fim = Math.min(f.ate, limite);
+  return f.de === 0 ? `Até ${fim} dias` : `De ${f.de} a ${fim} dias`;
+};
+// O título vai colado no primeiro lote, para uma quebra de mensagem nunca deixar o título sozinho no fim.
+const bloco = (titulo, arr) => [`${LINHA}\n${titulo} · ${arr.length} ${arr.length === 1 ? 'lote' : 'lotes'}\n${LINHA}\n\n${linha(arr[0])}`, ...arr.slice(1).map(linha)];
+const blocoVencidos = arr => bloco('🔴 <b>VENCIDOS</b>', arr);
+const blocoFaixa = (f, arr, limite) => bloco(`${f.icone} <b>${tituloFaixa(f, limite).toUpperCase()}</b>`, arr);
+
+// Monta os blocos de hoje até `limite` dias; com vencidos = true começa pelos já vencidos.
+function blocos(lotes, limite, vencidos) {
+  const itens = [];
+  const v = lotes.filter(g => g.d < 0);
+  if (vencidos && v.length) itens.push(...blocoVencidos(v));
+  for (const f of FAIXAS) {
+    if (f.de > limite) break;
+    const a = lotes.filter(g => g.d >= f.de && g.d <= Math.min(f.ate, limite));
+    if (a.length) itens.push(...blocoFaixa(f, a, limite));
+  }
+  return itens;
+}
+
+// Aviso diário: vencidos + tudo até 90 dias. Devolve { urgente, mensagens[] }.
 function diaria(dados, hoje) {
   const l = agrupar(dados, hoje, 90);
-  const faixas = [
-    ['VENCIDOS', l.filter(g => g.d < 0)],
-    ['VENCEM EM ATÉ 30 DIAS', l.filter(g => g.d >= 0 && g.d <= 30)],
-    ['VENCEM EM 31 A 60 DIAS', l.filter(g => g.d > 30 && g.d <= 60)],
-    ['VENCEM EM 61 A 90 DIAS', l.filter(g => g.d > 60)]
-  ];
-  const itens = [cab(hoje), ''];
-  faixas.forEach(([t, a]) => { if (a.length) itens.push(...blocoItens(t, a)); });
-  if (faixas.every(([, a]) => !a.length)) itens.push('Nenhum lote com saldo vence nos próximos 90 dias.');
-  return { urgente: faixas[0][1].length + faixas[1][1].length > 0, mensagens: dividir(itens) };
+  const itens = blocos(l, 90, true);
+  const resumo = `🔴 ${l.filter(g => g.d < 0).length} vencidos · 🟠 ${l.filter(g => g.d >= 0 && g.d <= 30).length} até 30 dias · 🟡 ${l.filter(g => g.d > 30 && g.d <= 60).length} de 31 a 60 · 🟢 ${l.filter(g => g.d > 60).length} de 61 a 90`;
+  const topo = [cab(hoje), resumo, ''];
+  return {
+    urgente: l.some(g => g.d <= 30),
+    mensagens: dividir(itens.length ? [...topo, ...itens] : [...topo, 'Nenhum lote com saldo vence nos próximos 90 dias.'])
+  };
 }
 
 // Consulta manual: modo 'venc' (só vencidos) ou N dias (o que vence de hoje até N dias).
 function consulta(dados, hoje, modo) {
   if (modo === 'venc') {
     const a = agrupar(dados, hoje, 0).filter(g => g.d < 0);
-    return a.length ? dividir([cab(hoje), '', ...blocoItens('VENCIDOS', a)]) : ['Nenhum lote vencido com saldo.'];
+    return a.length ? dividir([cab(hoje), '', ...blocoVencidos(a)]) : ['Nenhum lote vencido com saldo.'];
   }
-  const a = agrupar(dados, hoje, modo).filter(g => g.d >= 0);
-  return a.length ? dividir([cab(hoje), '', ...blocoItens(`VENCEM EM ATÉ ${modo} DIAS`, a)]) : [`Nenhum lote com saldo vence em até ${modo} dias.`];
+  const l = agrupar(dados, hoje, modo).filter(g => g.d >= 0);
+  if (!l.length) return [`Nenhum lote com saldo vence em até ${modo} dias.`];
+  const topo = [cab(hoje), `Vencem em até <b>${modo} dias</b>: ${l.length} ${l.length === 1 ? 'lote' : 'lotes'}`, ''];
+  return dividir([...topo, ...blocos(l, modo, false)]);
 }
 
 module.exports = { hojeSP, diaria, consulta, esc };
