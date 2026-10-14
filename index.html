@@ -601,6 +601,19 @@ header {
 .rua-bar-fill.warn { background:#f59e0b; }
 .rua-bar-fill.bad  { background:#dc2626; }
 .rua-pct { font-size:11px; color:var(--muted); width:60px; text-align:right; flex-shrink:0; }
+.rua-row2 { display:flex; align-items:center; gap:8px; padding:5px 6px; margin:0 -6px 2px; border-radius:8px; }
+.rua-row2.rua-click { cursor:pointer; }
+.rua-row2.rua-click:hover { background:var(--bg); }
+.rua-row2.rua-total { border-bottom:1px solid var(--border); border-radius:0; padding-bottom:9px; margin-bottom:6px; }
+.rua-row2 .rua-lbl { width:34px; }
+.rua-row2 .rua-bar-bg { display:flex; min-width:60px; }
+.rua-seg { height:100%; transition:width .4s; }
+.rua-pct2 { font-size:12px; width:150px; flex-shrink:0; text-align:right; white-space:nowrap; }
+.rua-pct2 span { color:var(--muted); font-size:11px; }
+.rua-pct2.warn b { color:#b45309; }
+.rua-pct2.bad b { color:#dc2626; }
+.rua-av { display:flex; gap:4px; width:98px; flex-shrink:0; justify-content:flex-end; }
+@media (max-width:700px){ .rua-pct2 { width:auto; } .rua-pct2 span { display:none; } .rua-av { width:auto; } }
 /* Lista vencimentos */
 .exp-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
 .exp-item:last-child { border-bottom:none; }
@@ -8019,15 +8032,46 @@ function _bindDashGridSearch(iByA){
     _renderDashGrid(iByA, this.value.trim().toLowerCase());
   });
 }
+// Toque numa rua do card "Ocupação por Rua": abre o Mapa já filtrado nessa rua.
+function _irRuaMapa(rua){
+  showTab('map');
+  document.getElementById('filterRua').value=rua;
+  document.getElementById('filterPos').value='';
+  renderMap();
+}
 function _renderDashRuaBars(iByA){
   const ruas=[...new Set(S.addresses.map(a=>a.rua))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  $('dashRuaBars').innerHTML=ruas.map(rua=>{
-    const tot=S.addresses.filter(a=>a.rua===rua).length;
-    const occ=S.addresses.filter(a=>a.rua===rua&&(iByA[addrKey(a.rua,a.pos)]||[]).length>0).length;
-    const pct=tot>0?(occ/tot)*100:0;
-    const cls=pct>=90?'bad':pct>=70?'warn':'';
-    return `<div class="rua-row"><span class="rua-lbl">${rua}</span><div class="rua-bar-bg"><div class="rua-bar-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div><span class="rua-pct">${pct.toFixed(0)}% (${occ}/${tot})</span></div>`;
-  }).join('')||'<span style="color:var(--muted);font-size:13px">Sem dados</span>';
+  // por rua: endereços, ocupados (normal / vencendo ≤30d / vencido) e livres. Um endereço conta uma vez,
+  // pelo pior item que tem: vencido > vencendo > normal.
+  const dados=ruas.map(rua=>{
+    const ends=S.addresses.filter(a=>a.rua===rua);
+    const r={rua,tot:ends.length,normal:0,warn:0,exp:0,livre:0};
+    ends.forEach(a=>{
+      const its=iByA[addrKey(a.rua,a.pos)]||[];
+      if(!its.length){r.livre++;return;}
+      const ds=its.map(it=>daysUntil(it.val)).filter(d=>d!==null);
+      if(ds.some(d=>d<0))r.exp++; else if(ds.some(d=>d<=30))r.warn++; else r.normal++;
+    });
+    r.occ=r.normal+r.warn+r.exp;
+    return r;
+  });
+  if(!dados.length){$('dashRuaBars').innerHTML='<span style="color:var(--muted);font-size:13px">Sem dados</span>';return;}
+  const soma=k=>dados.reduce((s,r)=>s+r[k],0);
+  const total={rua:'Total',tot:soma('tot'),normal:soma('normal'),warn:soma('warn'),exp:soma('exp'),livre:soma('livre'),occ:soma('occ'),geral:true};
+  const linha=r=>{
+    const pct=r.tot>0?(r.occ/r.tot)*100:0;
+    const w=n=>(r.tot>0?(n/r.tot)*100:0).toFixed(2);
+    const alerta=pct>=90?' bad':pct>=70?' warn':'';
+    const avisos=(r.exp?'<span class="exp-badge bad" title="Endereços com lote vencido">'+r.exp+' venc.</span>':'')+(r.warn?'<span class="exp-badge warn" title="Endereços com lote vencendo em até 30 dias">'+r.warn+' ≤30d</span>':'');
+    const clic=r.geral?'':' rua-click" title="Ver a rua '+r.rua+' no Mapa" onclick="_irRuaMapa(this.dataset.rua)" data-rua="'+r.rua;
+    return '<div class="rua-row2'+(r.geral?' rua-total':'')+clic+'">'
+      +'<span class="rua-lbl">'+(r.geral?'Todas':r.rua)+'</span>'
+      +'<div class="rua-bar-bg"><div class="rua-seg" style="width:'+w(r.normal)+'%;background:var(--accent)"></div><div class="rua-seg" style="width:'+w(r.warn)+'%;background:#f59e0b"></div><div class="rua-seg" style="width:'+w(r.exp)+'%;background:#7f1d1d"></div></div>'
+      +'<span class="rua-pct2'+alerta+'"><b>'+pct.toFixed(0)+'%</b> <span>'+r.occ+'/'+r.tot+' · '+r.livre+' livres</span></span>'
+      +'<span class="rua-av">'+avisos+'</span></div>';
+  };
+  const legenda='<div class="dash-legend" style="margin:0 0 10px"><span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--accent)"></span>Ocupado</span><span class="dash-legend-item"><span class="dash-legend-dot" style="background:#f59e0b"></span>Com lote vencendo ≤30d</span><span class="dash-legend-item"><span class="dash-legend-dot" style="background:#7f1d1d"></span>Com lote vencido</span><span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--bg);border:1px solid var(--border)"></span>Livre</span></div>';
+  $('dashRuaBars').innerHTML=legenda+linha(total)+dados.map(linha).join('');
 }
 function _renderDashExpiring(){
   const items=S.items.filter(it=>it.val).map(it=>({...it,days:daysUntil(it.val)}))
