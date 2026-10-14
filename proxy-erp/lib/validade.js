@@ -37,7 +37,7 @@ const linha = g => {
     `📍 ${end ? '<b>' + esc(end) + '</b>' : 'sem endereço'}   📦 Lote ${esc(g.lote)}   Saldo ${g.saldo.toLocaleString('pt-BR')}\n` +
     `📅 ${br(g.val)} · ${quando}\n`;
 };
-const cab = hoje => `📋 <b>Validades no CD</b> · ${hoje.split('-').reverse().join('/')}`;
+const cab = hoje => `📋 <b>Validade Matriz - BRU1</b> · ${hoje.split('-').reverse().join('/')}`;
 const LINHA = '━━━━━━━━━━━━━━━━━━';
 
 // Junta os itens em mensagens de até ~3800 caracteres (limite do Telegram: 4096),
