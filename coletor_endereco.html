@@ -1054,12 +1054,32 @@ function normalizarBombaEnteral(lista) {
   return lista;
 }
 
+// O ERP pode ter a mesma linha cadastrada duas vezes (mesmo item, lote, rua e posição).
+// Mostra uma só, como o painel; os IDs das gêmeas ficam em _gemeas para serem
+// apagados junto quando a linha mostrada for liberada ou transferida.
+function juntarRepetidas(lista) {
+  const vistas = new Map(), saida = [];
+  for (const r of lista) {
+    if (!r.rua || !r.posicao) { saida.push(r); continue; }
+    const k = [r.item_id, r.numero_lote, r.dt_validade, String(r.rua).toUpperCase(), String(r.posicao).trim()].join('|');
+    const base = vistas.get(k);
+    if (base) { if (r.id_item_enderecamento) (base._gemeas ||= []).push(r.id_item_enderecamento); }
+    else { vistas.set(k, r); saida.push(r); }
+  }
+  return saida;
+}
+
+async function apagarGemeas(item) {
+  for (const id of (item._gemeas || [])) await erpDeleteEndereco(id);
+  item._gemeas = [];
+}
+
 async function carregarEstoque() {
   const btn = $('btnRefresh');
   btn.disabled = true;
   $('pendingCountHint').textContent = 'Atualizando…';
   try {
-    estoqueAtual = normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque()));
+    estoqueAtual = juntarRepetidas(normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque())));
     atualizarContagemHint();
     atualizarBadgeValidades();
     atualizarListaRuas();
@@ -1395,6 +1415,12 @@ async function confirmarEnvio() {
     let okMsg;
     let result;
     if (acaoDestino === 'transferir') {
+      if ((selecionado._gemeas || []).length) {
+        showMsg('step3Msg', 'warn', 'Esta posição tem linha repetida no ERP. Libere a posição primeiro (isso apaga as duas linhas) e endereçe o item de novo no destino.');
+        btn.disabled = false;
+        btn.innerHTML = '✓ Confirmar Endereçamento';
+        return;
+      }
       result = await erpUpdateEndereco({
         id_item_enderecamento: selecionado.id_item_enderecamento,
         rua,
@@ -1425,6 +1451,7 @@ async function confirmarEnvio() {
       atualizarListaRuas();
       okMsg = `Novo endereço adicionado! ID ${result.id_item_enderecamento || '–'} · Rua ${rua} · Pos. ${pos} (${(result._elapsedMs / 1000).toFixed(1)}s). Endereço original (${prevRua}·${prevPos}) mantido.`;
     } else if (acaoDestino === 'remover') {
+      await apagarGemeas(selecionado);
       result = await erpDeleteEndereco(selecionado.id_item_enderecamento);
       const idx = estoqueAtual.indexOf(selecionado);
       if (idx >= 0) estoqueAtual.splice(idx, 1);
@@ -1500,7 +1527,7 @@ function etiquetaLote(item) {
     String(r.dt_validade || '') === String(item.dt_validade || ''));
   if (mesmas.length < 2) return '';
   const posicoes = new Set(mesmas.map(r => r.rua + ' ' + r.posicao));
-  const repetida = posicoes.size < mesmas.length;
+  const repetida = false; // linhas repetidas já são juntadas em juntarRepetidas()
   const titulo = posicoes.size === 1
     ? 'Possível linha repetida: ' + mesmas.length + ' linhas em ' + item.rua + ' ' + item.posicao
     : repetida ? 'Dividido em ' + posicoes.size + ' posições, com linha repetida'
