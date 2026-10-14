@@ -80,11 +80,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 }
 .appMark svg{width:19px;height:19px;stroke:var(--amber);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .appName{font-weight:700;font-size:16px;letter-spacing:-.01em;line-height:1.2}
-.appSub{font-size:11.5px;color:#c4d9ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appSub{font-size:12px;color:#c4d9ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appHead{flex:1;min-width:0}
 .sessionCount{text-align:center;line-height:1;padding:0 4px}
 .sessionCount b{display:block;font-family:var(--mono);font-size:20px;color:var(--amber);font-variant-numeric:tabular-nums}
-.sessionCount span{font-size:9.5px;color:#c4d9ee;text-transform:uppercase;letter-spacing:.06em}
+.sessionCount span{font-size:10.5px;color:#c4d9ee;text-transform:uppercase;letter-spacing:.06em}
 .iconBtn2{
   width:42px;height:42px;border-radius:12px;border:none;background:rgba(255,255,255,.14);color:#fff;
   display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
@@ -97,8 +97,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .appbar .hint{margin:0;color:#c4d9ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .userBtn{
   display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
-  font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);border:none;border-radius:99px;
+  font-size:12px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);border:none;border-radius:99px;
   padding:5px 11px;cursor:pointer;white-space:nowrap;max-width:48%;overflow:hidden;text-overflow:ellipsis;
+  /* área de toque de 40px sem crescer a barra: a margem negativa compensa */
+  min-height:40px;margin:-8px 0;
 }
 
 .main{scrollbar-width:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 12px;scroll-padding-bottom:120px}
@@ -116,7 +118,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tabBtn{
   flex:1;position:relative;padding:9px 4px 8px;background:none;border:none;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  font-size:11.5px;font-weight:600;color:var(--subtle);
+  font-size:12px;font-weight:600;color:var(--subtle);
 }
 .tabBtn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tabBtn.active{color:var(--green-dark)}
@@ -212,7 +214,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
   background:var(--warn-bg);border-radius:var(--radius-sm);border:1.5px solid #f3dc9a;
 }
 .sugTxt{flex:1;min-width:0}
-.sugTxt small{display:block;font-size:10.5px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
+.sugTxt small{display:block;font-size:11px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
 .sugTxt b{font-family:var(--mono);font-size:22px;letter-spacing:.02em}
 .sugTxt span{display:block;font-size:12px;color:var(--warn);margin-top:2px}
 .tabBadge{
@@ -246,7 +248,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .valWhere span.sem{background:#e8edf3;color:var(--muted);font-family:inherit;font-weight:700}
 .valDias{flex-shrink:0;text-align:center;min-width:58px;line-height:1.1}
 .valDias b{display:block;font-family:var(--mono);font-size:22px}
-.valDias small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.valDias small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .valRow.venc .valDias b{color:#b42318}
 .valRow.u7 .valDias b{color:#c25400}
 .sinalRow{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:600;margin:0 0 14px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -268,14 +270,14 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .plate .cell{background:var(--ink);padding:10px 12px 8px;min-width:0}
 .plate .cell:first-child{border-radius:calc(var(--radius-md) - 3px) 0 0 calc(var(--radius-md) - 3px)}
 .plate .cell:last-child{border-radius:0 calc(var(--radius-md) - 3px) calc(var(--radius-md) - 3px) 0}
-.plate .label{color:#9db6d1;font-size:10.5px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plate .label{color:#9db6d1;font-size:11px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plate .label span{color:#9db6d1!important}
 .plate .inputField{
   height:68px;padding:0;border:none;background:transparent;box-shadow:none;border-radius:0;
   font-family:var(--mono);font-weight:800;font-size:54px;line-height:68px;color:var(--amber);text-align:left;
   caret-color:var(--amber);
 }
-.plate .inputField::placeholder{color:#3b5878}
+.plate .inputField::placeholder{color:#6f89a6;font-size:14px;font-weight:600;letter-spacing:0}
 .plate .inputField:focus{border:none;box-shadow:none}
 .plate .cell:focus-within{background:var(--ink2)}
 
@@ -337,7 +339,7 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .posRow.occ .posNum{background:var(--ink);color:var(--amber);box-shadow:0 0 0 2px var(--amber)}
 .posInfo{flex:1;min-width:0}
 .posInfo .desc{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.posInfo .meta{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.posInfo .meta{font-size:12px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .posFreeLabel{font-size:13.5px;color:var(--muted);font-weight:600}
 .posBadge{font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:99px;flex-shrink:0;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
 .posRow:not(.occ) .posBadge{background:var(--free);color:var(--free-text)}
@@ -477,11 +479,11 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
           <div class="plate">
             <div class="cell">
               <label class="label" id="ruaLabel" for="ruaIn">Rua de destino</label>
-              <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="A" maxlength="1" style="text-transform:uppercase">
+              <input class="inputField" id="ruaIn" inputmode="text" autocomplete="off" placeholder="ex.: A" maxlength="1" style="text-transform:uppercase">
             </div>
             <div class="cell">
               <label class="label" id="posLabel" for="posIn">Posição de destino <span style="font-weight:400">(1 a 40)</span></label>
-              <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="12" maxlength="2">
+              <input class="inputField" id="posIn" inputmode="numeric" autocomplete="off" placeholder="ex.: 12" maxlength="2">
             </div>
           </div>
 
@@ -1195,14 +1197,14 @@ function atualizarAcaoBtns() {
 
 function atualizarLabelsAcao() {
   if (acaoDestino === 'transferir') {
-    $('ruaLabel').textContent = 'Nova rua de destino';
-    $('posLabel').textContent = 'Nova posição de destino';
+    $('ruaLabel').textContent = 'Nova rua';
+    $('posLabel').textContent = 'Nova posição';
   } else if (acaoDestino === 'adicionar') {
-    $('ruaLabel').textContent = 'Rua do novo endereço';
-    $('posLabel').textContent = 'Posição do novo endereço';
+    $('ruaLabel').textContent = 'Rua nova';
+    $('posLabel').textContent = 'Posição nova';
   } else {
-    $('ruaLabel').textContent = 'Rua de destino';
-    $('posLabel').textContent = 'Posição de destino';
+    $('ruaLabel').textContent = 'Rua';
+    $('posLabel').textContent = 'Posição';
   }
 }
 
@@ -1661,6 +1663,9 @@ function renderRuaChips() {
       renderPosList();
     });
   });
+  // a fila de ruas rola de lado: deixa a rua escolhida visível no meio
+  const ativa = $('ruaChips').querySelector('.active');
+  if (ativa) $('ruaChips').scrollLeft = ativa.offsetLeft - ($('ruaChips').clientWidth - ativa.offsetWidth) / 2;
 }
 
 // Posições da rua + quaisquer posições fora dessa faixa que existam de fato nos
