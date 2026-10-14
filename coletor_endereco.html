@@ -303,6 +303,14 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── Aviso central de atualização do estoque ── */
+.busyOverlay{display:none;position:fixed;inset:0;z-index:380;align-items:center;justify-content:center;background:rgba(15,30,50,.35);padding:16px}
+.busyOverlay.show{display:flex}
+.busyCard{background:#fff;border-radius:18px;padding:22px 28px;min-width:200px;max-width:280px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.25);animation:materialIn .22s cubic-bezier(.2,.8,.2,1)}
+.busyCard .spinner{width:34px;height:34px;border-width:4px;border-color:#d6e3f2;border-top-color:var(--green-dark);display:block;margin:0 auto 12px}
+.busyCard b{display:block;font-size:16px;color:var(--ink,#16283c)}
+.busyCard span{display:block;font-size:13px;color:var(--subtle);margin-top:3px}
+
 /* ── Scanner de câmera ── */
 .scanOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center;padding:16px}
 .scanOverlay.show{display:flex}
@@ -429,6 +437,8 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
       <button class="userBtn" id="btnUser" aria-label="Minha conta"><span class="userAv" id="userAv">?</span><span class="userNm" id="userNm">…</span></button>
     </div>
   </header>
+
+  <div class="busyOverlay" id="busyOverlay" role="status" aria-live="polite"><div class="busyCard"><i class="spinner"></i><b>Atualizando estoque</b><span>Buscando no ERP…</span></div></div>
 
   <main class="main" id="mainScroll">
 
@@ -1085,6 +1095,8 @@ async function carregarEstoque() {
   const btn = $('btnRefresh');
   btn.disabled = true;
   $('pendingCountHint').textContent = 'Atualizando…';
+  const _ini = Date.now();
+  $('busyOverlay').classList.add('show');
   try {
     estoqueAtual = juntarRepetidas(normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque())));
     atualizarContagemHint();
@@ -1094,6 +1106,10 @@ async function carregarEstoque() {
     $('pendingCountHint').textContent = 'Falha ao carregar estoque';
     showMsg('step1Msg', 'err', 'Erro ao consultar o ERP: ' + mensagemErroAmigavel(e));
   }
+  // mantém o aviso por pelo menos 700 ms para não piscar quando o ERP responde rápido
+  const _resta = 700 - (Date.now() - _ini);
+  if (_resta > 0) await new Promise(r => setTimeout(r, _resta));
+  $('busyOverlay').classList.remove('show');
   btn.disabled = false;
 }
 
