@@ -5715,9 +5715,15 @@ document.querySelectorAll('.expiry-range-btn').forEach(btn => {
   });
 });
 
+// Base da aba Validades: itens com endereço + lotes na Segregação (que no ERP têm a rua SEGREGACAO
+// e por isso ficam fora da grade, em wms_unaddressed com segregado:true).
+function _expiryBase() {
+  return S.items.concat((S.unaddressed || []).filter(it => it.segregado));
+}
+
 function getExpiryItems(maxDays) {
   // maxDays = 0 → apenas vencidos; > 0 → vencidos + próximos até maxDays
-  return S.items
+  return _expiryBase()
     .filter(it => {
       if (!it.val) return false;
       const d = daysUntil(it.val);
@@ -5746,10 +5752,10 @@ function renderExpiry() {
   const empty = $('expiryEmpty');
 
   // KPIs
-  const vencidos  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d<0; }).length;
-  const criticos  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>=0 && d<=7; }).length;
-  const urgentes  = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>7 && d<=30; }).length;
-  const atencao   = S.items.filter(it => { const d=daysUntil(it.val); return d!==null && d>30 && d<=60; }).length;
+  const vencidos  = _expiryBase().filter(it => { const d=daysUntil(it.val); return d!==null && d<0; }).length;
+  const criticos  = _expiryBase().filter(it => { const d=daysUntil(it.val); return d!==null && d>=0 && d<=7; }).length;
+  const urgentes  = _expiryBase().filter(it => { const d=daysUntil(it.val); return d!==null && d>7 && d<=30; }).length;
+  const atencao   = _expiryBase().filter(it => { const d=daysUntil(it.val); return d!==null && d>30 && d<=60; }).length;
 
   $('expiryKpis').innerHTML = [
     { label: 'Vencidos',       val: vencidos,  bg: '#fee2e2', color: '#dc2626' },
@@ -5783,7 +5789,7 @@ function renderExpiry() {
   tbody.innerHTML = items.map(it => {
     const days = daysUntil(it.val);
     const st   = expiryStatusBadge(days);
-    const loc  = (it.rua && it.pos) ? `<strong>${it.rua}</strong> · Pos. ${it.pos}` : '<span style="color:var(--muted)">Sem endereço</span>';
+    const loc  = it.segregado ? '🚧 <strong>Segregação</strong>' : (it.rua && it.pos) ? `<strong>${it.rua}</strong> · Pos. ${it.pos}` : '<span style="color:var(--muted)">Sem endereço</span>';
     const daysLabel = days < 0
       ? `<span style="color:#dc2626;font-weight:600">${Math.abs(days)}d atrás</span>`
       : `<span style="color:${st.color};font-weight:600">${days}d</span>`;
@@ -5815,7 +5821,7 @@ $('btnExportExpiry').addEventListener('click', () => {
     const st   = expiryStatusBadge(days);
     return [
       st.label,
-      it.rua || '',
+      it.segregado ? 'Segregação' : (it.rua || ''),
       it.pos || '',
       it.sku || '',
       it.desc || '',
