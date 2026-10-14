@@ -17,10 +17,20 @@ async function main() {
   if (!Array.isArray(dados)) throw new Error('ERP devolveu algo que não é lista');
 
   const hoje = V.hojeSP();
+  // MODO=vencidos (rodada das 14h): só lembra o que já venceu com saldo e fica quieto se não houver nada.
+  if (process.env.MODO === 'vencidos') {
+    const m = V.vencidos(dados, hoje);
+    if (!m.length) { console.log('Nenhum vencido com saldo: nada a enviar.'); return; }
+    return enviar(m);
+  }
   const { urgente, mensagens } = V.diaria(dados, hoje);
   const segunda = new Date(hoje + 'T12:00:00Z').getUTCDay() === 1;
   if (!urgente && !segunda && !process.env.FORCAR && !TESTE) { console.log('Sem lotes urgentes e não é segunda: nada a enviar.'); return; }
 
+  return enviar(mensagens);
+}
+
+async function enviar(mensagens) {
   console.log(mensagens.join('\n\n--- próxima mensagem ---\n\n') + '\n');
   if (TESTE) { console.log('[--teste] nada enviado.'); return; }
   const { TELEGRAM_TOKEN: t, TELEGRAM_CHAT_ID: c } = process.env;

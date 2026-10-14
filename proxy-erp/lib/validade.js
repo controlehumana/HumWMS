@@ -106,4 +106,10 @@ function consulta(dados, hoje, modo) {
   return dividir([...topo, ...blocos(l, modo, false)]);
 }
 
-module.exports = { hojeSP, diaria, consulta, esc };
+// Lembrete só dos vencidos com saldo: lista vazia quando não há nenhum.
+function vencidos(dados, hoje) {
+  const a = agrupar(dados, hoje, 0).filter(g => g.d < 0);
+  return a.length ? dividir([cab(hoje), '', ...blocoVencidos(a)]) : [];
+}
+
+module.exports = { hojeSP, diaria, consulta, vencidos, esc };
