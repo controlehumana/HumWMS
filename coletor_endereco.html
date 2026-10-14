@@ -248,6 +248,11 @@ button:active:not(:disabled),.ruaChip:active,.matchCard:active,.posRow.occ:activ
 .valInfo{flex:1;min-width:0}
 .valInfo .desc{font-weight:700;font-size:13.5px;line-height:1.25}
 .valInfo .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.valWhere .seg{background:#ede7f6;color:#4527a0;font-weight:700}
+.segBtn{margin-top:8px;min-height:36px;padding:0 14px;border-radius:99px;border:2px solid #b39ddb;background:#fff;color:#4527a0;font-size:12.5px;font-weight:700;cursor:pointer}
+.segBtn.on{background:#ede7f6;border-color:#7e57c2}
+.segBtn:disabled{opacity:.5}
+.logBadge.seg{background:#ede7f6;color:#4527a0}
 .valWhere{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .valWhere span{font-family:var(--mono);font-weight:800;font-size:12px;background:var(--ink);color:var(--amber);border-radius:6px;padding:2px 7px}
 .valWhere span.sem{background:#e8edf3;color:var(--muted);font-family:inherit;font-weight:700}
@@ -1000,7 +1005,10 @@ function renderHistorico() {
     lastDay = day;
     const isTrf = e.acao === 'Transferência';
     const isDel = e.acao === 'Liberação';
-    const locHtml = isTrf
+    const isSeg = e.acao === 'Segregação' || e.acao === 'Saída da Segregação';
+    const locHtml = isSeg
+      ? `<span class="logLoc">${e.acao === 'Segregação' ? '🚧 enviado para a Segregação' : '🚧 saiu da Segregação'}</span>`
+      : isTrf
       ? `<span class="logLoc">${e.de_rua}/${e.de_pos} → ${e.rua}/${e.pos}</span>`
       : isDel
         ? `<span class="logLoc">🗑 ${e.rua}/${e.pos} liberado</span>`
@@ -1009,7 +1017,7 @@ function renderHistorico() {
     return `${dayHeader}<div class="logEntry">
       <div class="logTop">
         <span class="logTime">${time}</span>
-        <span class="logBadge ${isTrf ? 'trf' : (isDel ? 'del' : 'end')}">${e.acao}</span>${opHtml}
+        <span class="logBadge ${isSeg ? 'seg' : isTrf ? 'trf' : (isDel ? 'del' : 'end')}">${e.acao}</span>${opHtml}
       </div>
       <div class="logDesc">${e.desc || '–'}</div>
       <div class="logMeta">SKU ${e.sku || '–'} · Lote ${e.lote || '–'} · ${locHtml}</div>
@@ -1054,7 +1062,7 @@ function hideMsg(elId) {
 }
 
 function atualizarContagemHint() {
-  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao).length;
+  const pendentesCount = estoqueAtual.filter(r => !r.rua && !r.posicao && !estaSegregado(r.item_codigo, r.numero_lote, r.dt_validade)).length;
   $('pendingCountHint').textContent = `${estoqueAtual.length} itens no estoque · ${pendentesCount} pendentes`;
 }
 
@@ -1103,6 +1111,8 @@ async function carregarEstoque() {
     estoqueAtual = juntarRepetidas(normalizarEnderecos(normalizarBombaEnteral(await erpGetEstoque())));
     atualizarContagemHint();
     atualizarBadgeValidades();
+    await carregarSegregados();
+    atualizarContagemHint();
     atualizarListaRuas();
   } catch (e) {
     $('pendingCountHint').textContent = 'Falha ao carregar estoque';
@@ -1149,7 +1159,7 @@ function buscarSku(sku) {
   // múltiplos lotes/posições do mesmo produto — pede pra escolher
   const sugBusca = sugestaoPorSku(matches[0].item_codigo);
   $('matchList').innerHTML = (sugBusca ? sugestaoHtml(sugBusca, false) : '') + matches.map((m, i) => {
-    const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : 'Pendente (sem endereço)';
+    const statusTxt = (m.rua && m.posicao) ? `Em ${m.rua} · Pos. ${m.posicao}` : (estaSegregado(m.item_codigo, m.numero_lote, m.dt_validade) ? '🚧 Segregação' : 'Pendente (sem endereço)');
     return `
     <div class="matchCard" data-idx="${i}">
       <div class="desc">${m.item_descricao || '–'}</div>
@@ -1177,7 +1187,7 @@ function selecionarItem(item) {
 
   const statusLine = modoTransferencia
     ? `<div class="summaryRow"><span class="k">Endereço atual</span><span class="v">${item.rua} · Pos. ${item.posicao}</span></div>`
-    : `<div class="summaryRow"><span class="k">Status</span><span class="v">Pendente (sem endereço)</span></div>`;
+    : `<div class="summaryRow"><span class="k">Status</span><span class="v">${estaSegregado(item.item_codigo, item.numero_lote, item.dt_validade) ? '🚧 Segregação (área sem endereço)' : 'Pendente (sem endereço)'}</span></div>`;
 
   const sug = sugestaoDoItem(item);
   const sugHtml = sug ? sugestaoHtml(sug, !modoTransferencia) : '';
@@ -1563,6 +1573,41 @@ function etiquetaLote(item) {
   return '<div class="tagDiv' + (repetida ? ' dup' : '') + '"><b>' + titulo + '</b><span>Saldo atual do lote: ' + saldo.toLocaleString('pt-BR') + '</span><span>Gravado nesta linha: ' + est.toLocaleString('pt-BR') + id + '</span></div>';
 }
 
+// ── Segregação: lotes que estão na área física de Segregação (sem endereço no ERP) ──
+// Qualquer operador marca e desmarca na aba Validades. Fica na coleção wms_segregados (chave =
+// SKU + lote + validade) e cada marcação vai para o log. Não altera nada no ERP.
+let segregados = new Map();
+const segKey = (sku, lote, val) =>
+  [sku, lote, val].map(x => String(x == null ? '' : x).trim()).join('__').replaceAll('/', '~');
+const estaSegregado = (sku, lote, val) => segregados.has(segKey(sku, lote, val));
+async function carregarSegregados() {
+  try {
+    if (typeof db === 'undefined' || !auth.currentUser) return;
+    const s = await db.collection('wms_segregados').get();
+    segregados = new Map(s.docs.map(d => [d.id, d.data()]));
+  } catch (e) { console.warn('[WMS] segregados:', e.message); }
+}
+async function alternarSegregacao(g) {
+  const k = segKey(g.sku, g.lote, g.val), ja = segregados.has(k);
+  const ok = confirm((ja ? 'Tirar da Segregação?' : 'Marcar como Segregação?') + '\n\n' + (g.desc || g.sku) + '\nLote ' + (g.lote || '–'));
+  if (!ok) return;
+  try {
+    if (ja) await db.collection('wms_segregados').doc(k).delete();
+    else await db.collection('wms_segregados').doc(k).set({
+      sku: g.sku, lote: g.lote, val: g.val, desc: g.desc || '',
+      por: getOperador(), email: operadorEmail || auth.currentUser.email || '', ts: new Date().toISOString()
+    });
+    if (ja) segregados.delete(k); else segregados.set(k, { sku: g.sku, lote: g.lote, val: g.val });
+    appendLog({ acao: ja ? 'Saída da Segregação' : 'Segregação', sku: g.sku, desc: g.desc || '', lote: g.lote, val: g.val, rua: '', pos: '' });
+    sinal('ok');
+    atualizarContagemHint();
+    renderValidades();
+  } catch (e) {
+    sinal('erro');
+    alert('Não foi possível salvar a Segregação: ' + mensagemErroAmigavel(e));
+  }
+}
+
 // ── Validades: lotes com saldo que vencem em até 90 dias (ou já venceram) ─────
 // Um lote dividido em várias posições aparece uma vez só, com todas as posições.
 // saldo_aberto é o saldo total do lote (não por posição), então não se soma.
@@ -1621,12 +1666,15 @@ function renderValidades() {
     const cls = g.dias < 0 ? 'venc' : g.dias <= 7 ? 'u7' : g.dias <= 30 ? 'u30' : 'u90';
     const numero = g.dias < 0 ? -g.dias : g.dias;
     const rotulo = g.dias < 0 ? 'dias vencido' : g.dias === 0 ? 'vence hoje' : 'dias';
-    const onde = [...g.pos].map(p => p ? `<span>${p}</span>` : '<span class="sem">sem endereço</span>').join('');
+    const seg = estaSegregado(g.sku, g.lote, g.val);
+    const onde = (seg ? '<span class="seg">🚧 Segregação</span>' : '') + [...g.pos].filter(p => p || !seg).map(p => p ? `<span>${p}</span>` : '<span class="sem">sem endereço</span>').join('');
     return `<div class="valRow ${cls}"><div class="valInfo"><div class="desc">${g.desc || '–'}</div>
       <div class="meta">SKU ${g.sku} · Lote ${g.lote || '–'} · Val. ${fmtVal(g.val)} · Saldo ${g.saldo.toLocaleString('pt-BR')}</div>
-      <div class="valWhere">${onde}</div></div>
+      <div class="valWhere">${onde}</div>
+      <button class="segBtn ${seg ? 'on' : ''}" data-seg="${lista.indexOf(g)}">${seg ? 'Tirar da Segregação' : 'Segregar'}</button></div>
       <div class="valDias"><b>${g.dias === 0 ? 'HOJE' : numero}</b><small>${g.dias === 0 ? '' : rotulo}</small></div></div>`;
   }).join('') + (lista.length > MAX ? `<div class="hint" style="text-align:center">Mostrando ${MAX} de ${lista.length}. Os mais urgentes primeiro.</div>` : '');
+  $('valList').querySelectorAll('[data-seg]').forEach(b => b.addEventListener('click', () => alternarSegregacao(lista[+b.dataset.seg])));
 }
 
 // ── Som e vibração (dá retorno onde nem sempre se olha a tela) ───────────────

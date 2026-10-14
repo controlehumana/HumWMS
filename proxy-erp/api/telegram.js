@@ -5,6 +5,7 @@
 // Variáveis na Vercel: TELEGRAM_TOKEN, TELEGRAM_CHAT_ID (grupo autorizado), TELEGRAM_WEBHOOK_SECRET, ERP_TOKEN.
 // Só atende o grupo autorizado, ou conversa privada de quem é membro dele. O resto é ignorado.
 const V = require('../lib/validade');
+const Seg = require('../lib/segregados');
 const URL_ERP = 'https://gestao.humanaalimentar.com.br/erp/api/v1/human/crud-stock/index.php?_=1';
 
 const tg = async (metodo, corpo) => {
@@ -50,7 +51,8 @@ async function responder(chat, acao) {
   const r = await fetch(u, { headers: { Accept: 'application/json' } });
   const dados = r.ok ? await r.json().catch(() => null) : null;
   if (!Array.isArray(dados)) return enviar(chat.id, 'Não consegui consultar o ERP agora. Tente de novo em instantes.');
-  for (const msg of V.consulta(dados, V.hojeSP(), acao)) await enviar(chat.id, msg);
+  const seg = await Seg.carregar();
+  for (const msg of V.consulta(dados, V.hojeSP(), acao, seg)) await enviar(chat.id, msg);
 }
 
 async function tratar(up) {

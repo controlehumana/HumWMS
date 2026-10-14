@@ -11,15 +11,19 @@ const dias = (iso, hoje) => {
 };
 const br = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : '-'; };
 
+// Mesma chave do coletor (wms_segregados): SKU__lote__validade, com "/" trocado por "~".
+const segKey = (sku, lote, val) => [sku, lote, val].map(x => String(x == null ? '' : x).trim()).join('__').replaceAll('/', '~');
+
 // Lotes com saldo que vencem em até maxDias (inclui vencidos), do mais urgente ao menos.
-function agrupar(dados, hoje, maxDias) {
+// `seg` = Set de chaves dos lotes na Segregação (marca g.seg).
+function agrupar(dados, hoje, maxDias, seg) {
   const mapa = new Map();
   for (const x of dados) {
     const d = dias(x.dt_validade, hoje);
     if (d === null || d > maxDias || num(x.saldo_aberto) <= 0) continue;
     const k = [x.item_codigo, x.numero_lote, x.dt_validade].join('|');
     let g = mapa.get(k);
-    if (!g) { g = { sku: String(x.item_codigo || '').trim(), desc: x.item_descricao || '', lote: x.numero_lote || '-', val: x.dt_validade, d, saldo: num(x.saldo_aberto), pos: new Set() }; mapa.set(k, g); }
+    if (!g) { g = { sku: String(x.item_codigo || '').trim(), desc: x.item_descricao || '', lote: x.numero_lote || '-', val: x.dt_validade, d, saldo: num(x.saldo_aberto), pos: new Set(), seg: !!(seg && seg.has(segKey(x.item_codigo, x.numero_lote, x.dt_validade))) }; mapa.set(k, g); }
     if (x.rua && x.posicao) g.pos.add(String(x.rua).toUpperCase() + String(x.posicao).trim());
   }
   return [...mapa.values()].sort((a, b) => a.d - b.d);
@@ -34,7 +38,7 @@ const linha = g => {
     : g.d === 0 ? 'vence HOJE' : `vence em ${g.d} ${g.d === 1 ? 'dia' : 'dias'}`;
   const end = [...g.pos].join(', ');
   return `<b>${esc(g.sku)}</b> · ${esc(g.desc.slice(0, 60))}\n` +
-    `📍 ${end ? '<b>' + esc(end) + '</b>' : 'sem endereço'}   📦 Lote ${esc(g.lote)}   Saldo ${g.saldo.toLocaleString('pt-BR')}\n` +
+    `${g.seg ? '🚧 <b>Segregação</b>' + (end ? ' · ' + esc(end) : '') : '📍 ' + (end ? '<b>' + esc(end) + '</b>' : 'sem endereço')}   📦 Lote ${esc(g.lote)}   Saldo ${g.saldo.toLocaleString('pt-BR')}\n` +
     `📅 ${br(g.val)} · ${quando}\n`;
 };
 const cab = hoje => `📋 <b>Validade Matriz - BRU1</b> · ${hoje.split('-').reverse().join('/')}`;
@@ -83,8 +87,8 @@ function blocos(lotes, limite, vencidos) {
 }
 
 // Aviso diário: vencidos + tudo até 90 dias. Devolve { urgente, mensagens[] }.
-function diaria(dados, hoje) {
-  const l = agrupar(dados, hoje, 90);
+function diaria(dados, hoje, seg) {
+  const l = agrupar(dados, hoje, 90, seg);
   const itens = blocos(l, 90, true);
   const resumo = `🔴 ${l.filter(g => g.d < 0).length} vencidos · 🟠 ${l.filter(g => g.d >= 0 && g.d <= 30).length} até 30 dias · 🟡 ${l.filter(g => g.d > 30 && g.d <= 60).length} de 31 a 60 · 🟢 ${l.filter(g => g.d > 60).length} de 61 a 90`;
   const topo = [cab(hoje), resumo, ''];
@@ -95,21 +99,22 @@ function diaria(dados, hoje) {
 }
 
 // Consulta manual: modo 'venc' (só vencidos) ou N dias (o que vence de hoje até N dias).
-function consulta(dados, hoje, modo) {
+function consulta(dados, hoje, modo, seg) {
   if (modo === 'venc') {
-    const a = agrupar(dados, hoje, 0).filter(g => g.d < 0);
+    const a = agrupar(dados, hoje, 0, seg).filter(g => g.d < 0);
     return a.length ? dividir([cab(hoje), '', ...blocoVencidos(a)]) : ['Nenhum lote vencido com saldo.'];
   }
-  const l = agrupar(dados, hoje, modo).filter(g => g.d >= 0);
+  const l = agrupar(dados, hoje, modo, seg).filter(g => g.d >= 0);
   if (!l.length) return [`Nenhum lote com saldo vence em até ${modo} dias.`];
   const topo = [cab(hoje), `Vencem em até <b>${modo} dias</b>: ${l.length} ${l.length === 1 ? 'lote' : 'lotes'}`, ''];
   return dividir([...topo, ...blocos(l, modo, false)]);
 }
 
 // Lembrete só dos vencidos com saldo: lista vazia quando não há nenhum.
-function vencidos(dados, hoje) {
-  const a = agrupar(dados, hoje, 0).filter(g => g.d < 0);
+// Lote já na Segregação não entra: já está tratado, repetir duas vezes por dia só faria barulho.
+function vencidos(dados, hoje, seg) {
+  const a = agrupar(dados, hoje, 0, seg).filter(g => g.d < 0 && !g.seg);
   return a.length ? dividir([cab(hoje), '', ...blocoVencidos(a)]) : [];
 }
 
-module.exports = { hojeSP, diaria, consulta, vencidos, esc };
+module.exports = { hojeSP, diaria, consulta, vencidos, segKey, esc };

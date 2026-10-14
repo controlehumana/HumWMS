@@ -17,13 +17,19 @@ async function main() {
   if (!Array.isArray(dados)) throw new Error('ERP devolveu algo que não é lista');
 
   const hoje = V.hojeSP();
+  // Lotes marcados como Segregação no coletor (se a consulta falhar, segue sem a marca)
+  let seg = new Set();
+  try {
+    const rs = await fetch('https://humwms-proxy.vercel.app/api/segregados', { cache: 'no-store' });
+    if (rs.ok) seg = new Set((await rs.json()).chaves || []);
+  } catch (_) {}
   // MODO=vencidos (rodada das 14h): só lembra o que já venceu com saldo e fica quieto se não houver nada.
   if (process.env.MODO === 'vencidos') {
-    const m = V.vencidos(dados, hoje);
+    const m = V.vencidos(dados, hoje, seg);
     if (!m.length) { console.log('Nenhum vencido com saldo: nada a enviar.'); return; }
     return enviar(m);
   }
-  const { urgente, mensagens } = V.diaria(dados, hoje);
+  const { urgente, mensagens } = V.diaria(dados, hoje, seg);
   const segunda = new Date(hoje + 'T12:00:00Z').getUTCDay() === 1;
   if (!urgente && !segunda && !process.env.FORCAR && !TESTE) { console.log('Sem lotes urgentes e não é segunda: nada a enviar.'); return; }
 

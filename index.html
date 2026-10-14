@@ -1848,6 +1848,8 @@ header {
             <option>Endereçamento adicional</option>
             <option>Transferência</option>
             <option>Liberação</option>
+            <option>Segregação</option>
+            <option>Saída da Segregação</option>
             <option>Limpeza geral</option>
           </select>
         </div>
@@ -3294,6 +3296,8 @@ function _audBadge(acao) {
     "Endereçamento adicional": "background:#f0fdf4;color:#166534",
     "Transferência":           "background:#eff6ff;color:#1d4ed8",
     "Liberação":               "background:#fef2f2;color:#b91c1c",
+    "Segregação":             "background:#ede7f6;color:#4527a0",
+    "Saída da Segregação":     "background:#ede7f6;color:#4527a0",
     "Limpeza geral":           "background:#fff7ed;color:#c2410c"
   };
   const st = cores[acao] || "background:#f3f4f6;color:#374151";
@@ -3572,6 +3576,9 @@ async function loadAll() {
     S.addresses   = addrSnap.docs.map(d => ({ ...d.data(), _key: d.id }));
     S.items       = itemsSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
     S.unaddressed = unSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+    // Lotes na Segregação (marcados no coletor): saem da conta de "sem endereço"
+    try { S.segregados = new Set((await db.collection('wms_segregados').get()).docs.map(d => d.id)); }
+    catch (e) { S.segregados = new Set(); console.warn('segregados:', e.message); }
 
     // Se não há endereços, faz seed automático
     if (S.addresses.length === 0) {
@@ -3706,7 +3713,7 @@ function updateKPIs(filtered) {
   $('kpiItems').textContent   = S.items.length;
   $('kpiExpiring').textContent = expiring;
   // KPI sem endereço
-  const unaddrCount = (S.unaddressed || []).length;
+  const unaddrCount = _semEnderecoAtivos().length;
   const kpiU = $('kpiUnaddr');
   if (kpiU) {
     $('kpiUnaddrVal').textContent = unaddrCount;
@@ -6175,10 +6182,20 @@ function openAssignModal(itemId) {
 var pendingPage = 1;
 var PENDING_PER_PAGE = 50;
 
+// Lote na Segregação? A chave é a do coletor: SKU__lote__AAAA-MM-DD, com "/" trocado por "~".
+function _emSegregacao(it) {
+  if (!S.segregados || !S.segregados.size) return false;
+  const p = String(it.val || '').split('/');
+  const iso = p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : String(it.val || '');
+  const k = [it.sku, it.lote, iso].map(x => String(x == null ? '' : x).trim()).join('__').replaceAll('/', '~');
+  return S.segregados.has(k);
+}
+const _semEnderecoAtivos = () => (S.unaddressed || []).filter(it => !_emSegregacao(it));
+
 function getPendingFiltered() {
   const searchEl = $('pendingSearch');
   const q = (searchEl ? searchEl.value : '').toLowerCase().trim();
-  return (S.unaddressed || []).filter(it => {
+  return _semEnderecoAtivos().filter(it => {
     if (!q) return true;
     return (it.sku||'').toLowerCase().includes(q)
         || (it.desc||'').toLowerCase().includes(q)
@@ -6196,13 +6213,14 @@ function renderPending() {
   const tbody = $('pendingTableBody');
   const empty = $('pendingEmpty');
 
-  $('pendingCount').textContent = total > 0 ? `${total} iten${total>1?'s':''} pendente${total>1?'s':''}` : '';
+  const nSeg = (S.unaddressed || []).length - _semEnderecoAtivos().length;
+  $('pendingCount').textContent = (total > 0 ? `${total} iten${total>1?'s':''} pendente${total>1?'s':''}` : '') + (nSeg > 0 ? `${total > 0 ? ' · ' : ''}${nSeg} em Segregação (fora desta lista)` : '');
 
   // Badge na tab
   const badge = $('pendingBadge');
   if (badge) {
-    badge.textContent = (S.unaddressed||[]).length;
-    badge.style.display = (S.unaddressed||[]).length > 0 ? '' : 'none';
+    badge.textContent = _semEnderecoAtivos().length;
+    badge.style.display = _semEnderecoAtivos().length > 0 ? '' : 'none';
   }
 
   if (slice.length === 0) {
