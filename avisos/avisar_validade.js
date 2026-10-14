@@ -18,6 +18,7 @@ const dias = (iso, hoje) => {
   if (!m) return null;
   return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.parse(hoje + 'T00:00:00Z')) / 86400000);
 };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const br = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : '-'; };
 
 async function main() {
@@ -47,22 +48,23 @@ async function main() {
   const linha = g => {
     const q = g.saldo.toLocaleString('pt-BR');
     const quando = g.d < 0 ? `venceu há ${-g.d} d` : g.d === 0 ? 'vence HOJE' : `vence em ${g.d} d`;
-    return `• ${g.sku} ${g.desc.slice(0, 38)}\n  Lote ${g.lote} · ${br(g.val)} (${quando}) · saldo ${q} · ${[...g.pos].join(', ') || 'sem endereço'}`;
+    const end = [...g.pos].join(', ');
+    return `• ${esc(g.sku)} ${esc(g.desc.slice(0, 38))}\n  Lote ${esc(g.lote)} · ${br(g.val)} (${quando}) · saldo ${q} · ${end ? '<b>' + esc(end) + '</b>' : 'sem endereço'}`;
   };
   const bloco = (titulo, arr, ate) => {
     if (!arr.length) return [];
-    const L = [`${titulo} (${arr.length})`];
+    const L = [`<b>${titulo} (${arr.length})</b>`];
     arr.slice(0, ate).forEach(g => L.push(linha(g)));
     if (arr.length > ate) L.push(`  ... e mais ${arr.length - ate}. Veja na aba Validades do coletor.`);
     L.push('');
     return L;
   };
   const dd = hoje.split('-').reverse().join('/');
-  let linhas = [`Validades no CD - ${dd}`, ''];
+  let linhas = [`<b>Validades no CD - ${dd}</b>`, ''];
   linhas = linhas.concat(bloco('VENCIDOS', venc, 12), bloco('VENCEM EM ATÉ 30 DIAS', ate30, MAX_LINHAS - Math.min(venc.length, 12)));
   linhas.push(`Em 31 a 60 dias: ${f60.length} lote(s)`, `Em 61 a 90 dias: ${f90.length} lote(s)`);
   let msg = linhas.join('\n');
-  if (msg.length > 3900) msg = msg.slice(0, 3850) + '\n... (mensagem cortada, veja a aba Validades)';
+  if (msg.length > 3900) msg = msg.slice(0, 3850).replace(/<[^>]*$/, '') +'\n... (mensagem cortada, veja a aba Validades)';
 
   console.log(msg + '\n');
   if (TESTE) { console.log('[--teste] nada enviado.'); return; }
@@ -70,7 +72,7 @@ async function main() {
   if (!t || !c) throw new Error('Faltam TELEGRAM_TOKEN e TELEGRAM_CHAT_ID');
   const resp = await fetch(`https://api.telegram.org/bot${t}/sendMessage`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: c, text: msg, disable_web_page_preview: true })
+    body: JSON.stringify({ chat_id: c, text: msg, parse_mode: 'HTML', disable_web_page_preview: true })
   });
   const j = await resp.json().catch(() => ({}));
   if (!resp.ok || !j.ok) throw new Error('Telegram recusou: ' + (j.description || resp.status));
