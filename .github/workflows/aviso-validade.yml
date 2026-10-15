@@ -2,8 +2,10 @@ name: Aviso de validade (Telegram)
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'   # 07:00 em Brasília, de segunda a sexta (o GitHub usa UTC): aviso completo
-    - cron: '0 17 * * 1-5'   # 14:00 em Brasília: lembrete só com os vencidos
+    # Minutos quebrados de propósito: o GitHub atrasa muito os disparos em hora cheia (14/10: 4h44 de atraso).
+    # O aviso completo sai cedo (06:23 em Brasília, UTC-3) para chegar perto das 7h.
+    - cron: '23 9 * * 1-5'    # 06:23 em Brasília, seg a sex: aviso completo
+    - cron: '37 16 * * 1-5'   # 13:37 em Brasília: lembrete só com os vencidos
   workflow_dispatch:
     inputs:
       forcar:
@@ -24,4 +26,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FORCAR: ${{ inputs.forcar && '1' || '' }}
-          MODO: ${{ github.event.schedule == '0 17 * * 1-5' && 'vencidos' || '' }}
+          MODO: ${{ github.event.schedule == '37 16 * * 1-5' && 'vencidos' || '' }}

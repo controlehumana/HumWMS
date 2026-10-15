@@ -88,16 +88,23 @@ function blocos(lotes, limite, vencidos) {
   return itens;
 }
 
-// Aviso diário: vencidos + tudo até 90 dias. Devolve { urgente, mensagens[] }.
+// Aviso diário: vencidos + tudo até 90 dias, uma mensagem por faixa (vencidos, 30, 60, 90).
+// Faixa grande ainda quebra em mais de uma mensagem (dividir). Devolve { urgente, mensagens[] }.
 function diaria(dados, hoje) {
   const l = agrupar(dados, hoje, 90);
-  const itens = blocos(l, 90, true);
   const resumo = `🔴 ${l.filter(g => g.d < 0).length} vencidos · 🟠 ${l.filter(g => g.d >= 0 && g.d <= 30).length} até 30 dias · 🟡 ${l.filter(g => g.d > 30 && g.d <= 60).length} de 31 a 60 · 🟢 ${l.filter(g => g.d > 60).length} de 61 a 90`;
   const topo = [cab(hoje), resumo, ''];
-  return {
-    urgente: l.some(g => g.d <= 30),
-    mensagens: dividir(itens.length ? [...topo, ...itens] : [...topo, 'Nenhum lote com saldo vence nos próximos 90 dias.'])
-  };
+  const grupos = [];
+  const v = l.filter(g => g.d < 0);
+  if (v.length) grupos.push(blocoVencidos(v));
+  for (const f of FAIXAS) {
+    if (f.de > 90) break;
+    const a = l.filter(g => g.d >= f.de && g.d <= Math.min(f.ate, 90));
+    if (a.length) grupos.push(blocoFaixa(f, a, 90));
+  }
+  if (!grupos.length) grupos.push(['Nenhum lote com saldo vence nos próximos 90 dias.']);
+  grupos[0] = [...topo, ...grupos[0]];
+  return { urgente: l.some(g => g.d <= 30), mensagens: grupos.flatMap(dividir) };
 }
 
 // Consulta manual: modo 'venc' (só vencidos) ou N dias (o que vence de hoje até N dias).
