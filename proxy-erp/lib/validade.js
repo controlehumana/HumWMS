@@ -116,7 +116,15 @@ function consulta(dados, hoje, modo) {
   const l = agrupar(dados, hoje, modo).filter(g => g.d >= 0);
   if (!l.length) return [`Nenhum lote com saldo vence em até ${modo} dias.`];
   const topo = [cab(hoje), `Vencem em até <b>${modo} dias</b>: ${l.length} ${l.length === 1 ? 'lote' : 'lotes'}`, ''];
-  return dividir([...topo, ...blocos(l, modo, false)]);
+  // Uma mensagem por faixa, como no aviso diário.
+  const grupos = [];
+  for (const f of FAIXAS) {
+    if (f.de > modo) break;
+    const a = l.filter(g => g.d >= f.de && g.d <= Math.min(f.ate, modo));
+    if (a.length) grupos.push(blocoFaixa(f, a, modo));
+  }
+  grupos[0] = [...topo, ...grupos[0]];
+  return grupos.flatMap(dividir);
 }
 
 // Lembrete só dos vencidos com saldo: lista vazia quando não há nenhum.
