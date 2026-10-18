@@ -1,11 +1,9 @@
 name: Aviso de validade (Telegram)
 
 on:
-  schedule:
-    # Minutos quebrados de propósito: o GitHub atrasa muito os disparos em hora cheia (14/10: 4h44 de atraso).
-    # O aviso completo sai cedo (06:23 em Brasília, UTC-3) para chegar perto das 7h.
-    - cron: '23 9 * * 1-5'    # 06:23 em Brasília, seg a sex: aviso completo
-    - cron: '47 16 * * 1-5'   # 13:47 em Brasília (chega por volta das 14h): lembrete só com os vencidos
+  # Sem 'schedule' desde 18/10/2026: o GitHub atrasava o disparo 3 a 5 horas e as vezes pulava a rodada.
+  # O horario agora vem do cron-job.org chamando https://humwms-proxy.vercel.app/api/avisar (proxy-erp/api/avisar.js).
+  # Este workflow ficou como plano B manual (botao Run workflow).
   workflow_dispatch:
     inputs:
       forcar:
@@ -26,4 +24,3 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FORCAR: ${{ inputs.forcar && '1' || '' }}
-          MODO: ${{ github.event.schedule == '47 16 * * 1-5' && 'vencidos' || '' }}
